@@ -1,0 +1,10 @@
+{
+  "name": "fieldstock",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix fieldstock-backend\" \"npm run dev --prefix fieldstock-frontend\""
+  },
+  "dependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
