@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useHerramienta } from '../hooks/useInventario'
 import { InventarioService } from '../services/inventario.service'
 import EstadoBadge from '../components/EstadoBadge'
+import QRModal from '@modules/m3-qr/components/QRModal'
 import styles from './InventarioDetailPage.module.css'
 
 const TIPO_MOVIMIENTO = {
@@ -41,6 +42,7 @@ export default function InventarioDetailPage() {
   const [errAction,     setErrAction]     = useState(null)
   const [showBajaForm,  setShowBajaForm]  = useState(false)
   const [motivoBaja,    setMotivoBaja]    = useState('')
+  const [showQR,        setShowQR]        = useState(false)
 
   const action = async (fn) => {
     setLoadingAction(true); setErrAction(null)
@@ -76,6 +78,11 @@ export default function InventarioDetailPage() {
   return (
     <div className={styles.page}>
 
+      {/* Modal QR */}
+      {showQR && (
+        <QRModal herramienta={herramienta} onClose={() => setShowQR(false)} />
+      )}
+
       {/* Encabezado */}
       <div className={styles.header}>
         <button className={styles.btnBack} onClick={() => navigate('/herramientas')}>← Volver</button>
@@ -93,34 +100,21 @@ export default function InventarioDetailPage() {
             </div>
           </div>
           <div className={styles.headerActions}>
-            <div className={styles.qrChip}>
-              <span className={styles.qrChipLabel}>QR</span>
-              <span className={styles.qrChipCodigo}>{herramienta.codigo_qr}</span>
-            </div>
-            {/* Botón editar — solo si no está de baja */}
+            {/* Botón QR */}
+            <button className={styles.btnQR} onClick={() => setShowQR(true)} title="Ver código QR">
+              ⬛ Ver QR
+            </button>
             {!esBaja && (
-              <button
-                className={styles.btnEdit}
-                onClick={() => navigate(`/herramientas/${id}/editar`)}
-              >
+              <button className={styles.btnEdit} onClick={() => navigate(`/herramientas/${id}/editar`)}>
                 ✎ Editar
               </button>
             )}
-            {/* Botón dar de baja / reactivar */}
             {!esBaja ? (
-              <button
-                className={styles.btnBaja}
-                onClick={() => setShowBajaForm(true)}
-                disabled={loadingAction}
-              >
+              <button className={styles.btnBaja} onClick={() => setShowBajaForm(true)} disabled={loadingAction}>
                 Dar de baja
               </button>
             ) : (
-              <button
-                className={styles.btnReactivar}
-                onClick={handleReactivar}
-                disabled={loadingAction}
-              >
+              <button className={styles.btnReactivar} onClick={handleReactivar} disabled={loadingAction}>
                 Reactivar
               </button>
             )}
@@ -135,13 +129,9 @@ export default function InventarioDetailPage() {
             ⚠ La herramienta pasará a estado <strong>BAJA</strong> y se eliminará automáticamente en 1 año.
           </p>
           <div className={styles.bajaFormRow}>
-            <input
-              type="text"
-              className={styles.bajaInput}
+            <input type="text" className={styles.bajaInput}
               placeholder="Motivo de baja (opcional)"
-              value={motivoBaja}
-              onChange={e => setMotivoBaja(e.target.value)}
-            />
+              value={motivoBaja} onChange={e => setMotivoBaja(e.target.value)} />
             <button className={styles.btnBajaConfirm} onClick={handleBaja} disabled={loadingAction}>
               {loadingAction ? 'Procesando...' : 'Confirmar baja'}
             </button>
@@ -152,7 +142,6 @@ export default function InventarioDetailPage() {
         </div>
       )}
 
-      {/* Info de baja */}
       {esBaja && herramienta.motivo_baja && (
         <div className={styles.bajaInfo}>
           <span className={styles.bajaInfoLabel}>Motivo de baja:</span>
@@ -163,16 +152,15 @@ export default function InventarioDetailPage() {
       {errAction && <div className={styles.errorBanner}>⚠ {errAction}</div>}
 
       <div className={styles.layout}>
-
-        {/* Columna izquierda */}
         <div className={styles.columnaIzq}>
           <section className={styles.card}>
             <h2 className={styles.cardTitle}>Identificación</h2>
             <div className={styles.campos}>
-              <Campo label="Marca"            value={herramienta.marca} />
-              <Campo label="Modelo"           value={herramienta.modelo} />
-              <Campo label="Número de serie"  value={herramienta.numero_serie} />
-              <Campo label="Categoría"        value={herramienta.categoria_nombre} />
+              <Campo label="Marca"           value={herramienta.marca} />
+              <Campo label="Modelo"          value={herramienta.modelo} />
+              <Campo label="Número de serie" value={herramienta.numero_serie} />
+              <Campo label="Categoría"       value={herramienta.categoria_nombre} />
+              <Campo label="Código QR"       value={herramienta.codigo_qr} />
             </div>
           </section>
 
@@ -192,14 +180,12 @@ export default function InventarioDetailPage() {
           )}
         </div>
 
-        {/* Columna derecha: historial */}
         <div className={styles.columnaDer}>
           <section className={styles.card}>
             <h2 className={styles.cardTitle}>
               Historial de movimientos
               <span className={styles.cardCount}>{movimientos.length}</span>
             </h2>
-
             {movimientos.length === 0 ? (
               <div className={styles.sinMovimientos}>Sin movimientos registrados.</div>
             ) : (
@@ -226,7 +212,6 @@ export default function InventarioDetailPage() {
             )}
           </section>
         </div>
-
       </div>
     </div>
   )

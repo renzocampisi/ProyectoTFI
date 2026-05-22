@@ -1,0 +1,32 @@
+/* Agregar al final de RemitosDetailPage.module.css */
+
+/* ── Visibilidad pantalla vs impresión ── */
+.screenOnly { display: block; }
+.printOnly  { display: none; }
+
+@media print {
+  .screenOnly { display: none !important; }
+  .printOnly  { display: block !important; }
+
+  body { background: white !important; color: black !important; font-family: sans-serif; }
+
+  .printHeader { margin-bottom: 16px; border-bottom: 2px solid #000; padding-bottom: 8px; }
+  .printTitle  { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .printMeta   { font-size: 11px; color: #444; }
+
+  .printSection { margin-bottom: 20px; }
+  .printSectionTitle { font-size: 13px; font-weight: 600; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 8px; }
+
+  .printTable { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .printTable th { background: #f0f0f0; border: 1px solid #ccc; padding: 4px 8px; text-align: left; font-weight: 600; }
+  .printTable td { border: 1px solid #ccc; padding: 4px 8px; vertical-align: middle; }
+  .printQRCell { width: 68px; padding: 4px !important; }
+  .printMono   { font-family: monospace; font-size: 10px; }
+  .printFirma  { width: 80px; }
+
+  .printObs { font-size: 11px; color: #444; margin-bottom: 16px; }
+
+  .printFirmas { display: flex; gap: 40px; margin-top: 32px; }
+  .printFirmaBox { flex: 1; text-align: center; font-size: 11px; color: #444; }
+  .printFirmaLinea { border-bottom: 1px solid #000; margin-bottom: 6px; height: 40px; }
+}

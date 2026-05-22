@@ -18,15 +18,57 @@ function EstadoBadge({ estado }) {
   )
 }
 
+function TablaObras({ obras, navigate }) {
+  return (
+    <div className={styles.tableWrapper}>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Cliente</th>
+            <th>Dirección</th>
+            <th>Inicio</th>
+            <th>Fin</th>
+            <th>Remitos</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {obras.map(o => (
+            <tr key={o.id} className={styles.row} onClick={() => navigate(`/obras/${o.id}`)}>
+              <td className={styles.nombre}>{o.nombre}</td>
+              <td className={styles.cliente}>{o.cliente}</td>
+              <td className={styles.direccion}>{o.direccion}</td>
+              <td className={styles.fecha}>{formatFecha(o.fecha_inicio)}</td>
+              <td className={styles.fecha}>{formatFecha(o.fecha_fin)}</td>
+              <td className={styles.cant}>{o.cantidad_remitos}</td>
+              <td><EstadoBadge estado={o.estado} /></td>
+              <td className={styles.actions}>
+                <button className={styles.btnRow}
+                  onClick={e => { e.stopPropagation(); navigate(`/obras/${o.id}`) }}>
+                  Ver →
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 export default function ObrasListPage() {
   const navigate = useNavigate()
-  const [filtroEstado, setFiltroEstado] = useState('')
-  const [busqueda,     setBusqueda]     = useState('')
+  const [seccion,  setSeccion]  = useState('activas')
+  const [busqueda, setBusqueda] = useState('')
 
-  const { obras, loading, error } = useObras({
-    estado: filtroEstado || undefined,
-    q:      busqueda     || undefined,
-  })
+  const { obras: activas,     loading: loadingA, error: errorA } = useObras({ estado: 'ACTIVA',     q: busqueda || undefined })
+  const { obras: finalizadas, loading: loadingF, error: errorF } = useObras({ estado: 'FINALIZADA', q: busqueda || undefined })
+
+  const loading = seccion === 'activas' ? loadingA : loadingF
+  const error   = seccion === 'activas' ? errorA   : errorF
+  const lista   = seccion === 'activas' ? activas   : finalizadas
 
   return (
     <div className={styles.page}>
@@ -35,7 +77,7 @@ export default function ObrasListPage() {
         <div>
           <h1 className={styles.title}>Obras</h1>
           <p className={styles.subtitle}>
-            {loading ? 'Cargando...' : `${obras.length} obra${obras.length !== 1 ? 's' : ''}`}
+            {loading ? 'Cargando...' : `${lista.length} obra${lista.length !== 1 ? 's' : ''}`}
           </p>
         </div>
         <button className={styles.btnPrimary} onClick={() => navigate('/obras/nueva')}>
@@ -43,6 +85,21 @@ export default function ObrasListPage() {
         </button>
       </div>
 
+      {/* Tabs */}
+      <div className={styles.tabs}>
+        <button className={`${styles.tab} ${seccion === 'activas' ? styles.tabActive : ''}`}
+          onClick={() => setSeccion('activas')}>
+          Activas
+          {!loadingA && <span className={styles.tabCount}>{activas.length}</span>}
+        </button>
+        <button className={`${styles.tab} ${seccion === 'finalizadas' ? styles.tabActive : ''}`}
+          onClick={() => setSeccion('finalizadas')}>
+          Historial
+          {!loadingF && <span className={styles.tabCount}>{finalizadas.length}</span>}
+        </button>
+      </div>
+
+      {/* Búsqueda */}
       <div className={styles.toolbar}>
         <div className={styles.searchWrapper}>
           <svg className={styles.searchIcon} width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -53,15 +110,8 @@ export default function ObrasListPage() {
             placeholder="Buscar por nombre..."
             value={busqueda} onChange={e => setBusqueda(e.target.value)} />
         </div>
-        <select className={styles.select} value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
-          <option value="">Todas</option>
-          <option value="ACTIVA">Activas</option>
-          <option value="FINALIZADA">Finalizadas</option>
-        </select>
-        {(filtroEstado || busqueda) && (
-          <button className={styles.btnGhost} onClick={() => { setFiltroEstado(''); setBusqueda('') }}>
-            Limpiar
-          </button>
+        {busqueda && (
+          <button className={styles.btnGhost} onClick={() => setBusqueda('')}>Limpiar</button>
         )}
       </div>
 
@@ -73,11 +123,11 @@ export default function ObrasListPage() {
         </div>
       )}
 
-      {!loading && !error && obras.length === 0 && (
+      {!loading && !error && lista.length === 0 && (
         <div className={styles.empty}>
           <span className={styles.emptyIcon}>🏗️</span>
-          <p>{busqueda ? 'No se encontraron obras.' : 'No hay obras registradas todavía.'}</p>
-          {!busqueda && (
+          <p>{seccion === 'activas' ? 'No hay obras activas.' : 'No hay obras en el historial.'}</p>
+          {seccion === 'activas' && (
             <button className={styles.btnPrimary} onClick={() => navigate('/obras/nueva')}>
               Registrar primera obra
             </button>
@@ -85,42 +135,8 @@ export default function ObrasListPage() {
         </div>
       )}
 
-      {!loading && !error && obras.length > 0 && (
-        <div className={styles.tableWrapper}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Cliente</th>
-                <th>Dirección</th>
-                <th>Inicio</th>
-                <th>Fin</th>
-                <th>Remitos</th>
-                <th>Estado</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {obras.map(o => (
-                <tr key={o.id} className={styles.row} onClick={() => navigate(`/obras/${o.id}`)}>
-                  <td className={styles.nombre}>{o.nombre}</td>
-                  <td className={styles.cliente}>{o.cliente}</td>
-                  <td className={styles.direccion}>{o.direccion}</td>
-                  <td className={styles.fecha}>{formatFecha(o.fecha_inicio)}</td>
-                  <td className={styles.fecha}>{formatFecha(o.fecha_fin)}</td>
-                  <td className={styles.cant}>{o.cantidad_remitos}</td>
-                  <td><EstadoBadge estado={o.estado} /></td>
-                  <td className={styles.actions}>
-                    <button className={styles.btnRow}
-                      onClick={e => { e.stopPropagation(); navigate(`/obras/${o.id}`) }}>
-                      Ver →
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {!loading && !error && lista.length > 0 && (
+        <TablaObras obras={lista} navigate={navigate} />
       )}
 
     </div>

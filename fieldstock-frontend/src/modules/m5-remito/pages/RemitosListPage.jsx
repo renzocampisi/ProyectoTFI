@@ -6,8 +6,7 @@ import { RemitosService } from '../services/remitos.service'
 import EstadoRemitoBadge from '../components/EstadoRemitoBadge'
 import styles from './RemitosListPage.module.css'
 
-const ESTADOS_ACTIVOS = ['BORRADOR','CONFIRMADO','EN_TRANSITO','RECIBIDO_EN_OBRA']
-const TIPOS = ['EGRESO','INGRESO']
+const ESTADOS_ACTIVOS = ['BORRADOR','CONFIRMADO','EN_TRANSITO','EN_OBRA','EN_RETORNO','EN_TRANSITO_RETORNO']
 
 function formatFecha(iso) {
   if (!iso) return '—'
@@ -22,10 +21,9 @@ function TablaRemitos({ remitos, navigate, onEliminar, mostrarEliminar }) {
         <thead>
           <tr>
             <th>Número</th>
-            <th>Tipo</th>
             <th>Obra</th>
             <th>Responsable</th>
-            <th>Fecha</th>
+            <th>Fecha egreso</th>
             <th>Herramientas</th>
             <th>Insumos</th>
             <th>Estado</th>
@@ -36,14 +34,9 @@ function TablaRemitos({ remitos, navigate, onEliminar, mostrarEliminar }) {
           {remitos.map(r => (
             <tr key={r.id} className={styles.row} onClick={() => navigate(`/remitos/${r.id}`)}>
               <td className={styles.numero}>{r.numero}</td>
-              <td>
-                <span className={`${styles.tipoBadge} ${r.tipo === 'EGRESO' ? styles.egreso : styles.ingreso}`}>
-                  {r.tipo === 'EGRESO' ? '↑ Egreso' : '↓ Ingreso'}
-                </span>
-              </td>
               <td className={styles.obra}>{r.obra}</td>
               <td className={styles.resp}>{r.responsable}</td>
-              <td className={styles.fecha}>{formatFecha(r.fecha)}</td>
+              <td className={styles.fecha}>{formatFecha(r.fecha_egreso)}</td>
               <td className={styles.cant}>{r.cantidad_herramientas ?? 0}</td>
               <td className={styles.cant}>{r.cantidad_materiales ?? 0}</td>
               <td><EstadoRemitoBadge estado={r.estado} /></td>
@@ -54,7 +47,8 @@ function TablaRemitos({ remitos, navigate, onEliminar, mostrarEliminar }) {
                 </button>
                 {mostrarEliminar && (
                   <button className={styles.btnEliminar}
-                    onClick={e => { e.stopPropagation(); onEliminar(r) }}>
+                    onClick={e => { e.stopPropagation(); onEliminar(r) }}
+                    title="Eliminar remito">
                     🗑
                   </button>
                 )}
@@ -69,23 +63,16 @@ function TablaRemitos({ remitos, navigate, onEliminar, mostrarEliminar }) {
 
 export default function RemitosListPage() {
   const navigate = useNavigate()
-  const [filtroTipo,   setFiltroTipo]   = useState('')
-  const [seccion,      setSeccion]      = useState('activos') // 'activos' | 'cerrados'
-  const [confirmando,  setConfirmando]  = useState(null) // remito a eliminar
-  const [eliminando,   setEliminando]   = useState(false)
-  const [errEliminar,  setErrEliminar]  = useState(null)
+  const [seccion,     setSeccion]     = useState('activos')
+  const [busqueda,    setBusqueda]    = useState('')
+  const [confirmando, setConfirmando] = useState(null)
+  const [eliminando,  setEliminando]  = useState(false)
+  const [errEliminar, setErrEliminar] = useState(null)
 
-  const { remitos: activos,  loading: loadingA, error: errorA }  = useRemitos({
-    tipo: filtroTipo || undefined,
-  })
-  const { remitos: cerrados, loading: loadingC, error: errorC, refetch: refetchC } = useRemitos({
-    estado: 'CERRADO',
-    tipo:   filtroTipo || undefined,
-  })
+  const { remitos: todos,    loading: loadingA, error: errorA }              = useRemitos({ q: busqueda || undefined })
+  const { remitos: cerrados, loading: loadingC, error: errorC, refetch }     = useRemitos({ estado: 'CERRADO', q: busqueda || undefined })
 
-  // Filtrar activos (sin cerrados)
-  const remitosActivos  = activos.filter(r => r.estado !== 'CERRADO')
-  const remitosCerrados = cerrados
+  const activos = todos.filter(r => ESTADOS_ACTIVOS.includes(r.estado))
 
   const handleEliminar = async () => {
     if (!confirmando) return
@@ -93,20 +80,18 @@ export default function RemitosListPage() {
     try {
       await RemitosService.eliminar(confirmando.id)
       setConfirmando(null)
-      await refetchC()
-    } catch (err) {
-      setErrEliminar(err.message)
-    } finally { setEliminando(false) }
+      await refetch()
+    } catch (err) { setErrEliminar(err.message) }
+    finally { setEliminando(false) }
   }
 
   const loading = seccion === 'activos' ? loadingA : loadingC
   const error   = seccion === 'activos' ? errorA   : errorC
-  const lista   = seccion === 'activos' ? remitosActivos : remitosCerrados
+  const lista   = seccion === 'activos' ? activos   : cerrados
 
   return (
     <div className={styles.page}>
 
-      {/* Encabezado */}
       <div className={styles.header}>
         <div>
           <h1 className={styles.title}>Remitos</h1>
@@ -119,36 +104,38 @@ export default function RemitosListPage() {
         </button>
       </div>
 
-      {/* Tabs activos / cerrados */}
+      {/* Tabs */}
       <div className={styles.tabs}>
-        <button
-          className={`${styles.tab} ${seccion === 'activos' ? styles.tabActive : ''}`}
-          onClick={() => setSeccion('activos')}
-        >
+        <button className={`${styles.tab} ${seccion === 'activos' ? styles.tabActive : ''}`}
+          onClick={() => setSeccion('activos')}>
           En curso
-          {!loadingA && <span className={styles.tabCount}>{remitosActivos.length}</span>}
+          {!loadingA && <span className={styles.tabCount}>{activos.length}</span>}
         </button>
-        <button
-          className={`${styles.tab} ${seccion === 'cerrados' ? styles.tabActive : ''}`}
-          onClick={() => setSeccion('cerrados')}
-        >
+        <button className={`${styles.tab} ${seccion === 'cerrados' ? styles.tabActive : ''}`}
+          onClick={() => setSeccion('cerrados')}>
           Cerrados
-          {!loadingC && <span className={styles.tabCount}>{remitosCerrados.length}</span>}
+          {!loadingC && <span className={styles.tabCount}>{cerrados.length}</span>}
         </button>
       </div>
 
-      {/* Filtros */}
+      {/* Búsqueda */}
       <div className={styles.toolbar}>
-        <select className={styles.select} value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}>
-          <option value="">Todos los tipos</option>
-          {TIPOS.map(t => <option key={t} value={t}>{t === 'EGRESO' ? 'Egreso' : 'Ingreso'}</option>)}
-        </select>
-        {filtroTipo && (
-          <button className={styles.btnGhost} onClick={() => setFiltroTipo('')}>Limpiar</button>
+        <div className={styles.searchWrapper}>
+          <svg className={styles.searchIcon} width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          <input type="search" className={styles.searchInput}
+            placeholder="Buscar por número (FS-00001) u obra..."
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)} />
+        </div>
+        {busqueda && (
+          <button className={styles.btnGhost} onClick={() => setBusqueda('')}>Limpiar</button>
         )}
       </div>
 
-      {/* Modal confirmación eliminar */}
+      {/* Modal confirmar eliminar */}
       {confirmando && (
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
@@ -180,8 +167,8 @@ export default function RemitosListPage() {
       {!loading && !error && lista.length === 0 && (
         <div className={styles.empty}>
           <span className={styles.emptyIcon}>📋</span>
-          <p>{seccion === 'activos' ? 'No hay remitos en curso.' : 'No hay remitos cerrados.'}</p>
-          {seccion === 'activos' && (
+          <p>{busqueda ? `No se encontraron remitos con "${busqueda}".` : seccion === 'activos' ? 'No hay remitos en curso.' : 'No hay remitos cerrados.'}</p>
+          {seccion === 'activos' && !busqueda && (
             <button className={styles.btnPrimary} onClick={() => navigate('/remitos/nuevo')}>
               Crear primer remito
             </button>

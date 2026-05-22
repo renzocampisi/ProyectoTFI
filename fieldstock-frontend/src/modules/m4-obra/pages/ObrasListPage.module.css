@@ -3,14 +3,20 @@
 .title  { font-size: var(--text-2xl); font-weight: 600; letter-spacing: -0.02em; color: var(--text-primary); margin-bottom: var(--space-1); }
 .subtitle { font-size: var(--text-sm); color: var(--text-secondary); }
 
-.toolbar { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+/* Tabs */
+.tabs { display: flex; gap: 2px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-1); width: fit-content; }
+.tab { font-size: var(--text-sm); font-weight: 500; padding: var(--space-2) var(--space-5); border-radius: var(--radius-md); color: var(--text-muted); display: flex; align-items: center; gap: var(--space-2); transition: background var(--transition-fast), color var(--transition-fast); }
+.tab:hover { color: var(--text-primary); }
+.tabActive { background: var(--color-surface-alt); color: var(--text-primary); }
+.tabCount { font-size: 11px; background: var(--color-border); padding: 1px 6px; border-radius: var(--radius-full); color: var(--text-muted); font-weight: 600; }
+.tabActive .tabCount { background: var(--color-primary-dim); color: var(--color-primary); }
+
+.toolbar { display: flex; gap: var(--space-3); }
 .searchWrapper { position: relative; flex: 1; max-width: 360px; }
 .searchIcon { position: absolute; left: var(--space-3); top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
 .searchInput { width: 100%; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3) var(--space-2) 36px; color: var(--text-primary); font-size: var(--text-sm); outline: none; transition: border-color var(--transition-fast), box-shadow var(--transition-fast); }
 .searchInput:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-dim); }
 .searchInput::placeholder { color: var(--text-muted); }
-.select { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-2) var(--space-4); color: var(--text-secondary); font-size: var(--text-sm); outline: none; cursor: pointer; min-width: 140px; }
-.select:focus { border-color: var(--color-primary); }
 
 .btnPrimary { background: var(--color-primary); color: #fff; font-size: var(--text-sm); font-weight: 500; padding: var(--space-2) var(--space-5); border-radius: var(--radius-md); white-space: nowrap; transition: background var(--transition-fast); }
 .btnPrimary:hover { background: var(--color-primary-hover); }

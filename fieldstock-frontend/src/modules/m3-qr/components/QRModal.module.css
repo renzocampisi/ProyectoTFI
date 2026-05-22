@@ -1,0 +1,20 @@
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: grid; place-items: center; z-index: 200; padding: var(--space-4); }
+.modal { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-6); max-width: 340px; width: 100%; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: var(--space-4); }
+.modalHeader { display: flex; align-items: center; justify-content: space-between; }
+.modalTitle { font-size: var(--text-lg); font-weight: 600; color: var(--text-primary); }
+.btnClose { font-size: var(--text-base); color: var(--text-muted); padding: 2px 6px; border-radius: var(--radius-sm); transition: color var(--transition-fast); }
+.btnClose:hover { color: var(--color-danger); }
+
+.qrWrapper { display: flex; justify-content: center; }
+.qrWrapper .qr-container { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: var(--space-5); background: #fff; border-radius: var(--radius-lg); border: 1px solid var(--color-border); }
+.qrWrapper .qr-nombre { font-size: var(--text-sm); font-weight: 600; color: #111; text-align: center; max-width: 220px; line-height: 1.4; }
+.qrWrapper .qr-marca  { font-size: var(--text-xs); color: #555; }
+.qrWrapper .qr-codigo { font-size: var(--text-xs); color: #666; font-family: var(--font-mono); letter-spacing: 0.05em; }
+
+.hint { font-size: var(--text-xs); color: var(--text-muted); text-align: center; line-height: 1.5; }
+
+.actions { display: flex; gap: var(--space-3); justify-content: flex-end; }
+.btnPrimary { background: var(--color-primary); color: #fff; font-size: var(--text-sm); font-weight: 500; padding: var(--space-2) var(--space-5); border-radius: var(--radius-md); transition: background var(--transition-fast); }
+.btnPrimary:hover { background: var(--color-primary-hover); }
+.btnGhost { font-size: var(--text-sm); color: var(--text-secondary); padding: var(--space-2) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); transition: background var(--transition-fast), color var(--transition-fast); }
+.btnGhost:hover { background: var(--color-surface-alt); color: var(--text-primary); }

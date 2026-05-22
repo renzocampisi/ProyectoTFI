@@ -2,11 +2,13 @@
 import styles from './EstadoRemitoBadge.module.css'
 
 const CONFIG = {
-  BORRADOR:         { label: 'Borrador',          cls: 'borrador'       },
-  CONFIRMADO:       { label: 'Confirmado',         cls: 'confirmado'     },
-  EN_TRANSITO:      { label: 'En tránsito',        cls: 'enTransito'     },
-  RECIBIDO_EN_OBRA: { label: 'Recibido en obra',   cls: 'recibido'       },
-  CERRADO:          { label: 'Cerrado',            cls: 'cerrado'        },
+  BORRADOR:            { label: 'Borrador',              cls: 'borrador'   },
+  CONFIRMADO:          { label: 'Confirmado',            cls: 'confirmado' },
+  EN_TRANSITO:         { label: 'En tránsito',           cls: 'transito'   },
+  EN_OBRA:             { label: 'En obra',               cls: 'enObra'     },
+  EN_RETORNO:          { label: 'En retorno',            cls: 'retorno'    },
+  EN_TRANSITO_RETORNO: { label: 'Volviendo',             cls: 'volviendo'  },
+  CERRADO:             { label: 'Cerrado',               cls: 'cerrado'    },
 }
 
 export default function EstadoRemitoBadge({ estado }) {

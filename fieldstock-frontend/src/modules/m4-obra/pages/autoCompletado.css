@@ -1,0 +1,8 @@
+/* Agregar al final de ObrasNewPage.module.css */
+
+.autoCompletado {
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--color-primary);
+  font-style: italic;
+}
