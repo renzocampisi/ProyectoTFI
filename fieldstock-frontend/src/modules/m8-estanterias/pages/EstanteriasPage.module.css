@@ -81,3 +81,20 @@
 .btnPrimary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btnGhost { font-size: var(--text-sm); color: var(--text-secondary); padding: var(--space-2) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); transition: background var(--transition-fast); }
 .btnGhost:hover { background: var(--color-surface-alt); }
+
+@media (max-width: 1024px) {
+  .grid { grid-template-columns: 1fr; }
+  .modalGrande { max-width: 90vw; }
+}
+ 
+@media (max-width: 430px) {
+  .header { flex-direction: column; gap: var(--space-3); }
+  .header .btnPrimary { width: 100%; text-align: center; }
+  .grid { grid-template-columns: 1fr; }
+  .cardHeader { flex-direction: column; gap: var(--space-2); }
+  .cardActions { width: 100%; justify-content: flex-end; }
+  .itemsWrapper { overflow-x: auto; }
+  .tabla { min-width: 460px; }
+  .modalGrande { max-height: 85vh; max-width: 100%; }
+  .lista { max-height: 200px; }
+}

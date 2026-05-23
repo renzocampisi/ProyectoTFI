@@ -56,3 +56,21 @@
 .btnEliminarConfirm { font-size: var(--text-sm); font-weight: 500; color: #fff; background: var(--color-danger); padding: var(--space-2) var(--space-5); border-radius: var(--radius-md); transition: opacity var(--transition-fast); }
 .btnEliminarConfirm:hover:not(:disabled) { opacity: 0.85; }
 .btnEliminarConfirm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 1024px) {
+  .table thead th:nth-child(4),
+  .table td:nth-child(4),
+  .table thead th:nth-child(5),
+  .table td:nth-child(5) { display: none; }
+}
+ 
+@media (max-width: 430px) {
+  .header { flex-direction: column; gap: var(--space-3); }
+  .header .btnPrimary { width: 100%; text-align: center; }
+  .toolbar { flex-direction: column; }
+  .searchWrapper { max-width: 100%; }
+  .tableWrapper { overflow-x: auto; }
+  .table { min-width: 480px; }
+  .tabs { width: 100%; justify-content: stretch; }
+  .tab { flex: 1; justify-content: center; }
+}

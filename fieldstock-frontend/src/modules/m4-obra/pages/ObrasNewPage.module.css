@@ -90,3 +90,13 @@
 .btnMas:hover {
   background: rgba(61,126,255,0.25);
 }
+
+@media (max-width: 430px) {
+  .grid2 { grid-template-columns: 1fr; }
+  .fullWidth { grid-column: 1; }
+  .section { padding: var(--space-4); }
+  .actions { flex-direction: column-reverse; }
+  .actions .btnPrimary,
+  .actions .btnGhost { width: 100%; text-align: center; }
+  .selectorRow { gap: var(--space-2); }
+}

@@ -36,3 +36,14 @@
 .btnSecondary { font-size: var(--text-sm); color: var(--color-primary); padding: var(--space-2) var(--space-4); border: 1px solid rgba(61,126,255,0.3); border-radius: var(--radius-md); white-space: nowrap; transition: background var(--transition-fast); }
 .btnSecondary:hover:not(:disabled) { background: var(--color-primary-dim); }
 .btnSecondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (max-width: 1024px) {
+  .page { max-width: 480px; margin: 0 auto; }
+}
+ 
+@media (max-width: 430px) {
+  .page { gap: var(--space-4); }
+  .scannerWrapper { aspect-ratio: 1; border-radius: var(--radius-lg); }
+  .manualForm { flex-direction: column; gap: var(--space-2); }
+  .btnSecondary { width: 100%; }
+}

@@ -32,3 +32,12 @@
 .exitoNombre { font-size: var(--text-sm); color: var(--text-secondary); }
 .exitoStock  { font-size: var(--text-sm); color: var(--text-muted); font-family: var(--font-mono); }
 .exitoActions { display: flex; gap: var(--space-3); width: 100%; justify-content: center; margin-top: var(--space-2); }
+
+@media (max-width: 430px) {
+  .grid2 { grid-template-columns: 1fr; }
+  .fullWidth { grid-column: 1; }
+  .section { padding: var(--space-4); }
+  .actions { flex-direction: column-reverse; }
+  .actions .btnPrimary,
+  .actions .btnGhost { width: 100%; text-align: center; }
+}

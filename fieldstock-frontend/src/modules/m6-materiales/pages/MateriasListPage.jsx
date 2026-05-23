@@ -4,12 +4,18 @@ import { useNavigate } from 'react-router-dom'
 import { useMateriales } from '../hooks/useMateriales'
 import styles from './MateriasListPage.module.css'
 
+// Badge de texto para desktop/tablet
 function StockBadge({ actual, minimo }) {
-  const agotado = actual === 0
-  const bajo    = actual <= minimo
-  if (agotado) return <span className={`${styles.stockBadge} ${styles.agotado}`}>Agotado</span>
-  if (bajo)    return <span className={`${styles.stockBadge} ${styles.bajo}`}>Stock bajo</span>
-  return             <span className={`${styles.stockBadge} ${styles.ok}`}>OK</span>
+  if (actual === 0) return <span className={`${styles.stockBadge} ${styles.agotado}`}>Agotado</span>
+  if (actual <= minimo) return <span className={`${styles.stockBadge} ${styles.bajo}`}>Stock bajo</span>
+  return <span className={`${styles.stockBadge} ${styles.ok}`}>OK</span>
+}
+
+// Clase del punto de color según stock (solo visible en mobile via CSS)
+function clasesPunto(actual, minimo) {
+  if (actual === 0)       return styles.dotAgotado
+  if (actual <= minimo)   return styles.dotBajo
+  return styles.dotOk
 }
 
 export default function MateriasListPage() {
@@ -20,6 +26,7 @@ export default function MateriasListPage() {
   return (
     <div className={styles.page}>
 
+      {/* Encabezado */}
       <div className={styles.header}>
         <div>
           <h1 className={styles.title}>Materiales e insumos</h1>
@@ -32,21 +39,27 @@ export default function MateriasListPage() {
         </button>
       </div>
 
+      {/* Alerta de stock bajo — solo si hay al menos uno */}
       {!loading && materiales.some(m => m.stock_actual <= m.stock_minimo) && (
         <div className={styles.alertaBanner}>
           ⚠ Hay materiales con stock bajo o agotado.
         </div>
       )}
 
+      {/* Buscador */}
       <div className={styles.toolbar}>
         <div className={styles.searchWrapper}>
           <svg className={styles.searchIcon} width="16" height="16" viewBox="0 0 16 16" fill="none">
             <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5"/>
             <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
-          <input type="search" className={styles.searchInput}
+          <input
+            type="search"
+            className={styles.searchInput}
             placeholder="Buscar material..."
-            value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+          />
         </div>
       </div>
 
@@ -58,6 +71,7 @@ export default function MateriasListPage() {
         </div>
       )}
 
+      {/* Estado vacío */}
       {!loading && !error && materiales.length === 0 && (
         <div className={styles.empty}>
           <span className={styles.emptyIcon}>📦</span>
@@ -70,6 +84,7 @@ export default function MateriasListPage() {
         </div>
       )}
 
+      {/* Tabla */}
       {!loading && !error && materiales.length > 0 && (
         <div className={styles.tableWrapper}>
           <table className={styles.table}>
@@ -80,24 +95,31 @@ export default function MateriasListPage() {
                 <th>Stock actual</th>
                 <th>Stock mínimo</th>
                 <th>Estado</th>
-                <th></th>
               </tr>
             </thead>
             <tbody>
               {materiales.map(m => (
-                <tr key={m.id} className={`${styles.row} ${m.stock_actual <= m.stock_minimo ? styles.rowAlerta : ''}`}>
-                  <td className={styles.nombre}>{m.nombre}</td>
-                  <td className={styles.unidad}>{m.unidad}</td>
-                  <td className={styles.stock}>{m.stock_actual}</td>
-                  <td className={styles.stock}>{m.stock_minimo}</td>
-                  <td><StockBadge actual={m.stock_actual} minimo={m.stock_minimo} /></td>
-                  <td className={styles.actions}>
-                    <button
-                      className={styles.btnEditar}
-                      onClick={() => navigate(`/materiales/${m.id}/editar`)}
-                    >
-                      ✎ Editar
-                    </button>
+                <tr
+                  key={m.id}
+                  /* Fondo suave amarillo si está en alerta */
+                  className={`${styles.row} ${m.stock_actual <= m.stock_minimo ? styles.rowAlerta : ''}`}
+                >
+                  {/* Nombre con punto de color (visible solo en mobile) */}
+                  <td className={styles.nombre}>
+                    <span
+                      className={`${styles.estadoDot} ${clasesPunto(m.stock_actual, m.stock_minimo)}`}
+                      title={m.stock_actual === 0 ? 'Agotado' : m.stock_actual <= m.stock_minimo ? 'Stock bajo' : 'OK'}
+                    />
+                    {m.nombre}
+                  </td>
+
+                  <td className={styles.unidad} data-label="Unidad">{m.unidad}</td>
+                  <td className={styles.stock}  data-label="Stock actual">{m.stock_actual}</td>
+                  <td className={styles.stock}  data-label="Stock mínimo">{m.stock_minimo}</td>
+
+                  {/* Badge de texto — se oculta en mobile, reemplazado por el punto */}
+                  <td className={styles.badgeCell} data-label="Estado">
+                    <StockBadge actual={m.stock_actual} minimo={m.stock_minimo} />
                   </td>
                 </tr>
               ))}

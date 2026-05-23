@@ -72,3 +72,15 @@
 .noEncontrado { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: var(--space-4); color: var(--text-secondary); }
 .btnGhost { font-size: var(--text-sm); color: var(--color-primary); padding: var(--space-2) var(--space-4); border: 1px solid rgba(61,126,255,0.3); border-radius: var(--radius-md); transition: background var(--transition-fast); }
 .btnGhost:hover { background: var(--color-primary-dim); }
+
+@media (max-width: 1024px) {
+  .layout { grid-template-columns: 1fr; }
+}
+ 
+@media (max-width: 430px) {
+  .headerMain { flex-direction: column; }
+  .headerActions { flex-wrap: wrap; }
+  .headerActions button { flex: 1; }
+  .tableWrapper { overflow-x: auto; }
+  .table { min-width: 460px; }
+}

@@ -11,6 +11,7 @@ const PROVINCIAS = [
   'Santa Fe', 'Santiago del Estero', 'Tierra del Fuego', 'Tucumán',
 ]
 
+// Formatea teléfono para mostrar (ej: 3410 000-0000)
 function formatearTelefono(valor) {
   const limpio = (valor || '').replace(/\D/g, '')
   if (!limpio) return ''
@@ -31,6 +32,7 @@ function formatearTelefono(valor) {
   return `${area} ${p1}${p2 ? '-' + p2 : ''}`
 }
 
+// Celda con valor formateado y botón para copiar sin caracteres especiales
 function FormattedCell({ valor, formatter }) {
   const [copiado, setCopiado] = useState(false)
   if (!valor) return <span>—</span>
@@ -48,6 +50,7 @@ function FormattedCell({ valor, formatter }) {
   )
 }
 
+// Abre Google Maps con la dirección completa del cliente
 function abrirMapa(item) {
   const partes = [item.direccion, item.localidad, item.provincia].filter(Boolean)
   if (!partes.length) return
@@ -57,6 +60,7 @@ function abrirMapa(item) {
   )
 }
 
+// Muestra dirección en dos líneas: calle y localidad/provincia
 function DireccionCell({ item }) {
   const partes = [item.direccion, item.localidad, item.provincia].filter(Boolean)
   if (!partes.length) return <span>—</span>
@@ -70,20 +74,23 @@ function DireccionCell({ item }) {
           </span>
         )}
       </span>
-      <button className={styles.btnMapa} onClick={() => abrirMapa(item)} title="Ver en Google Maps">📍</button>
+      <button className={styles.btnMapa} onClick={() => abrirMapa(item)} title="Ver en Google Maps">
+        📍
+      </button>
     </span>
   )
 }
 
+// Campos del formulario: obligatorios y opcionales
 const CAMPOS = [
-  { key: 'nombre',    label: 'Nombre / Empresa',       placeholder: 'Ej: Constructora Norte S.A.', req: true  },
-  { key: 'telefono',  label: 'Teléfono',                placeholder: '3410000000',                 req: true,  tipo: 'tel'      },
-  { key: 'direccion', label: 'Calle y número',           placeholder: 'Ej: Av. Belgrano 450',       req: true  },
-  { key: 'localidad', label: 'Localidad',                placeholder: 'Ej: Rosario',               req: true  },
-  { key: 'provincia', label: 'Provincia',                placeholder: '',                           req: true,  tipo: 'provincia'},
-  { key: 'email',     label: 'Email',                    placeholder: 'contacto@empresa.com',       req: false },
-  { key: 'contacto',  label: 'Contacto / Responsable',  placeholder: 'Nombre del responsable',     req: false },
-  { key: 'notas',     label: 'Notas',                    placeholder: 'Observaciones adicionales',  req: false },
+  { key: 'nombre',    label: 'Nombre / Empresa',      placeholder: 'Ej: Constructora Norte S.A.', req: true  },
+  { key: 'telefono',  label: 'Teléfono',               placeholder: '3410000000',                 req: true,  tipo: 'tel'      },
+  { key: 'direccion', label: 'Calle y número',          placeholder: 'Ej: Av. Belgrano 450',       req: true  },
+  { key: 'localidad', label: 'Localidad',               placeholder: 'Ej: Rosario',               req: true  },
+  { key: 'provincia', label: 'Provincia',               placeholder: '',                           req: true,  tipo: 'provincia'},
+  { key: 'email',     label: 'Email',                   placeholder: 'contacto@empresa.com',       req: false },
+  { key: 'contacto',  label: 'Contacto / Responsable', placeholder: 'Nombre del responsable',     req: false },
+  { key: 'notas',     label: 'Notas',                   placeholder: 'Observaciones adicionales',  req: false },
 ]
 
 function FormModal({ titulo, inicial, onSave, onClose, saving, error }) {
@@ -103,18 +110,24 @@ function FormModal({ titulo, inicial, onSave, onClose, saving, error }) {
             <div key={c.key} className={styles.field}>
               <label className={styles.label}>
                 {c.label}
-                {c.req ? <span className={styles.req}> *</span> : <span className={styles.opcional}> (opcional)</span>}
+                {c.req
+                  ? <span className={styles.req}> *</span>
+                  : <span className={styles.opcional}> (opcional)</span>}
               </label>
 
+              {/* Campo teléfono: solo números, muestra preview formateado */}
               {c.tipo === 'tel' && (
                 <div className={styles.cuitInputWrapper}>
                   <input type="text" inputMode="numeric" className={styles.input}
                     placeholder={c.placeholder} value={form[c.key] || ''} maxLength={13}
                     onChange={e => set(c.key, e.target.value.replace(/\D/g, '').slice(0, 13))} />
-                  {form[c.key] && <span className={styles.cuitPreview}>{formatearTelefono(form[c.key])}</span>}
+                  {form[c.key] && (
+                    <span className={styles.cuitPreview}>{formatearTelefono(form[c.key])}</span>
+                  )}
                 </div>
               )}
 
+              {/* Selector de provincia */}
               {c.tipo === 'provincia' && (
                 <select className={styles.input} value={form[c.key] || ''}
                   onChange={e => set(c.key, e.target.value)}>
@@ -123,6 +136,7 @@ function FormModal({ titulo, inicial, onSave, onClose, saving, error }) {
                 </select>
               )}
 
+              {/* Campo de texto estándar */}
               {!c.tipo && (
                 <input type="text" className={styles.input}
                   placeholder={c.placeholder} value={form[c.key] || ''}
@@ -189,6 +203,8 @@ export default function ClientesPage() {
 
   return (
     <div className={styles.page}>
+
+      {/* Modal de creación/edición */}
       {showForm && (
         <FormModal
           titulo={editItem ? 'Editar cliente' : 'Nuevo cliente'}
@@ -198,11 +214,14 @@ export default function ClientesPage() {
           saving={saving} error={formError} />
       )}
 
+      {/* Modal de confirmación de eliminación */}
       {confirmDel && (
         <div className={styles.overlay}>
           <div className={styles.modal}>
             <h3 className={styles.modalTitle}>¿Eliminar cliente?</h3>
-            <p className={styles.confirmText}>Vas a eliminar <strong>{confirmDel.nombre}</strong>. Esta acción no se puede deshacer.</p>
+            <p className={styles.confirmText}>
+              Vas a eliminar <strong>{confirmDel.nombre}</strong>. Esta acción no se puede deshacer.
+            </p>
             <div className={styles.modalActions}>
               <button className={styles.btnGhost} onClick={() => setConfirmDel(null)}>Cancelar</button>
               <button className={styles.btnDanger} onClick={handleDelete}>Sí, eliminar</button>
@@ -240,25 +259,44 @@ export default function ClientesPage() {
           ? <div className={styles.empty}>
               <span className={styles.emptyIcon}>🏢</span>
               <p>No hay clientes registrados todavía.</p>
-              <button className={styles.btnPrimary} onClick={() => setShowForm(true)}>Agregar primer cliente</button>
+              <button className={styles.btnPrimary} onClick={() => setShowForm(true)}>
+                Agregar primer cliente
+              </button>
             </div>
           : <div className={styles.tableWrapper}>
               <table className={styles.table}>
-                <thead><tr>
-                  <th>Nombre</th><th>Teléfono</th><th>Dirección</th>
-                  <th>Email</th><th>Contacto</th><th></th>
-                </tr></thead>
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Teléfono</th>
+                    <th>Dirección</th>
+                    <th>Email</th>
+                    <th>Contacto</th>
+                    {/* Columna de acciones: oculta en mobile via CSS */}
+                    <th className={styles.thDesktop}></th>
+                  </tr>
+                </thead>
                 <tbody>
                   {items.map(item => (
                     <tr key={item.id} className={styles.row}>
                       <td className={styles.nombre}>{item.nombre}</td>
-                      <td className={styles.celda}><FormattedCell valor={item.telefono} formatter={formatearTelefono} /></td>
-                      <td className={styles.celda}><DireccionCell item={item} /></td>
-                      <td className={styles.celda}>{item.email    || '—'}</td>
-                      <td className={styles.celda}>{item.contacto || '—'}</td>
-                      <td className={styles.actions}>
-                        <button className={styles.btnEdit} onClick={() => { setEditItem(item); setShowForm(true) }}>✎ Editar</button>
-                        <button className={styles.btnDelete} onClick={() => setConfirmDel(item)}>🗑</button>
+                      <td className={styles.celda} data-label="Teléfono">
+                        <FormattedCell valor={item.telefono} formatter={formatearTelefono} />
+                      </td>
+                      <td className={styles.celda} data-label="Dirección">
+                        <DireccionCell item={item} />
+                      </td>
+                      <td className={styles.celda} data-label="Email">{item.email    || '—'}</td>
+                      <td className={styles.celda} data-label="Contacto">{item.contacto || '—'}</td>
+                      {/* Botones editar/eliminar: solo visibles en desktop */}
+                      <td className={`${styles.actions} ${styles.tdDesktop}`}>
+                        <button className={styles.btnEdit}
+                          onClick={() => { setEditItem(item); setShowForm(true) }}>
+                          ✎ Editar
+                        </button>
+                        <button className={styles.btnDelete} onClick={() => setConfirmDel(item)}>
+                          🗑
+                        </button>
                       </td>
                     </tr>
                   ))}

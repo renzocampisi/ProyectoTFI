@@ -233,3 +233,208 @@
   background: var(--color-border);
   margin: var(--space-2) var(--space-3);
 }
+@media (max-width: 1024px) {
+  .shell {
+    grid-template-columns: var(--sidebar-collapsed) 1fr;
+  }
+  .navLabel,
+  .logoTag,
+  .sidebarFooter,
+  .navGroupLabel,
+  .soon,
+  .dropdownItems,
+  .dropdownArrow {
+    display: none;
+  }
+  .navItem {
+    justify-content: center;
+    padding: var(--space-3);
+  }
+  .navIcon {
+    width: auto;
+  }
+  .sidebarHeader {
+    justify-content: center;
+    padding: 0 var(--space-2);
+  }
+  .logo {
+    font-size: var(--text-sm);
+  }
+  .main {
+    padding: var(--space-4);
+  }
+  .collapseBtn {
+    display: none;
+  }
+}
+
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--space-1);
+}
+
+.navGroupLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: var(--space-3) var(--space-3) var(--space-1);
+}
+
+.navDropdownBtn {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dropdownArrow {
+  margin-left: auto;
+  font-size: var(--text-base);
+  color: var(--text-muted);
+  transition: transform var(--transition-fast);
+  line-height: 1;
+}
+
+.dropdownArrowOpen {
+  transform: rotate(90deg);
+}
+
+.dropdownItems {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-border);
+  margin-left: var(--space-5);
+  margin-bottom: var(--space-1);
+}
+
+.navSubItem {
+  padding-left: var(--space-3) !important;
+  font-size: var(--text-sm) !important;
+}
+
+.navSeparator {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-2) var(--space-3);
+}
+
+.panelIA {
+  margin-top: var(--space-1);
+}
+
+.temaBtn {
+  font-size: 1rem;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-alt);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.temaBtn:hover {
+  background: var(--color-border);
+  border-color: var(--color-border-light);
+  transform: scale(1.05);
+}
+
+.temaBtn:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 430px) {
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: var(--topbar-height) 1fr 64px;
+  }
+  .sidebar {
+    grid-row: 3;
+    grid-column: 1;
+    flex-direction: row;
+    border-right: none;
+    border-top: 1px solid var(--color-border);
+    overflow-x: scroll;
+    overflow-y: hidden;
+    height: 64px;
+    max-height: 64px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    touch-action: pan-x;
+    overscroll-behavior: contain;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: var(--color-surface);
+  }
+  .sidebar::-webkit-scrollbar { display: none; }
+  .sidebarHeader { display: none; }
+  .nav {
+    flex-direction: row;
+    padding: 0;
+    gap: 0;
+    align-items: stretch;
+    width: max-content;
+    height: 64px;
+  }
+  .navGroup {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    margin-bottom: 0;
+    gap: 0;
+    padding-right: var(--space-2);
+    border-right: 1px solid var(--color-border);
+    margin-right: var(--space-2);
+  }
+  .navGroup:last-child {
+    border-right: none;
+    margin-right: 0;
+    padding-right: 0;
+  }
+  .navItem {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+    padding: var(--space-1) var(--space-3);
+    font-size: 9px;
+    min-width: 54px;
+    border-radius: 0;
+    flex-shrink: 0;
+    height: 64px;
+  }
+  .navLabel {
+    display: block;
+    font-size: 9px;
+    white-space: nowrap;
+    text-align: center;
+  }
+  .navGroupLabel,
+  .sidebarFooter,
+  .soon,
+  .dropdownArrow,
+  .dropdownItems,
+  .collapseBtn,
+  .navDropdownBtn { display: none; }
+  .navIcon { font-size: 20px; }
+  .topbar { grid-row: 1; grid-column: 1; }
+  .main {
+    grid-row: 2;
+    grid-column: 1;
+    padding: var(--space-3);
+    padding-bottom: 80px;
+    overflow-y: auto;
+  }
+  .userEmail { display: none; }
+}
