@@ -1,4 +1,14 @@
 // src/services/notificaciones.service.js
+/**
+ * Service de Notificaciones.
+ *
+ * Bandeja simple de eventos para el usuario. Las notificaciones se crean
+ * desde el backend (típicamente cuando avanza un remito) o desde el
+ * scheduler de vencimientos de mantenimiento.
+ *
+ * `getAll` retorna las últimas 50 con el remito asociado (si existe)
+ * precargado vía el join `remitos(numero, obra)`.
+ */
 import { supabase } from '../config/supabase.js'
 
 export async function getAll({ soloNoLeidas = false } = {}) {

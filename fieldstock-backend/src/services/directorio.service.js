@@ -1,4 +1,17 @@
 // src/services/directorio.service.js
+/**
+ * Service del M7 — Directorio.
+ *
+ * Maneja dos tablas paralelas con casi el mismo CRUD:
+ * - transportes: empresas de transporte que mueven los remitos
+ * - clientes: empresas/personas dueñas de las obras
+ *
+ * Borrado soft en ambas (campo `activo = false`).
+ *
+ * Nota: el CRUD entre transportes y clientes es prácticamente idéntico — si
+ * en el futuro aparece una tercera entidad similar (proveedores) conviene
+ * extraer un helper genérico.
+ */
 import { supabase } from '../config/supabase.js'
 
 // ── TRANSPORTES ───────────────────────────────────────────────

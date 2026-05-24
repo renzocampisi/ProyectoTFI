@@ -1,4 +1,16 @@
 // src/services/materiales.service.js
+/**
+ * Service del M6 — Materiales (consumibles del stock).
+ *
+ * A diferencia de Herramientas (cada unidad es única e identificable por QR),
+ * los Materiales son fungibles: se trackea solo `stock_actual` y `stock_minimo`.
+ *
+ * La función updateStock() es el único punto que modifica stock — la llaman
+ * remitos.service.js al avanzar/volver de estados de remito. NO exponer
+ * updateStock vía router: es de uso interno entre services.
+ *
+ * El borrado es soft (campo `activo = false`).
+ */
 import { supabase } from '../config/supabase.js'
 
 export async function getAll({ q } = {}) {
@@ -59,6 +71,11 @@ export async function update(id, body) {
   return data
 }
 
+/**
+ * Aplica un delta de stock al material. Operación 'descontar' resta,
+ * 'reponer' suma. Falla con status 400 si el resultado quedaría negativo.
+ * Uso interno desde remitos.service.js — NO exponer vía endpoint HTTP.
+ */
 export async function updateStock(id, cantidad, operacion = 'descontar') {
   const { data: mat, error: errM } = await supabase
     .from('materiales').select('stock_actual').eq('id', id).single()

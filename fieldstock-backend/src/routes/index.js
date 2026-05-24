@@ -1,4 +1,20 @@
 // src/routes/index.js
+/**
+ * Router central de la API REST.
+ *
+ * Todas las rutas se montan bajo /api (ver index.js). El layout sigue
+ * un patrón consistente:
+ *   GET    /recurso                → lista (con filtros via query string)
+ *   POST   /recurso                → crear
+ *   GET    /recurso/:id            → detalle
+ *   PUT    /recurso/:id            → actualizar (reemplazo)
+ *   PATCH  /recurso/:id/...        → actualización parcial puntual
+ *   DELETE /recurso/:id            → eliminar (lógico en la mayoría)
+ *
+ * Cada handler delega al controller correspondiente, que a su vez
+ * llama al service. Este archivo es SOLO mapping URL → handler;
+ * cualquier lógica que aparezca acá es señal de mal lugar.
+ */
 import { Router } from 'express'
 import * as CategoriasCtrl      from '../controllers/categorias.controller.js'
 import * as MarcasCtrl          from '../controllers/marcas.controller.js'

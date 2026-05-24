@@ -1,4 +1,14 @@
 // src/services/obras.service.js
+/**
+ * Service del M4 — Obras (lugar físico donde van las herramientas).
+ *
+ * Las obras tienen un ciclo simple: ACTIVA ↔ FINALIZADA.
+ * La vista `obras_resumen` precalcula los joins más comunes (cliente,
+ * conteo de remitos, etc.) para evitar joins en el frontend.
+ *
+ * Nota: en la cabecera de un remito, la obra se referencia por NOMBRE
+ * (string), no por UUID — ver getById() para el matching.
+ */
 import { supabase } from '../config/supabase.js'
 
 export async function getAll({ estado, q } = {}) {
@@ -15,10 +25,20 @@ export async function getAll({ estado, q } = {}) {
   return data
 }
 
+/**
+ * Devuelve la obra + sus remitos ordenados.
+ *
+ * FIXME: La primera query del Promise.all busca remitos por `obra` igualando
+ * al UUID. Esa columna en `remitos` guarda el NOMBRE (no el UUID), por lo
+ * que esa query siempre devuelve [] y su resultado se descarta. Es un
+ * round-trip a Supabase muerto que sobrevive desde un refactor previo.
+ * Acción sugerida: borrar la línea `supabase.from('remitos_resumen')...eq('obra', id)`
+ * del Promise.all y la variable `remitos` que no se usa.
+ */
 export async function getById(id) {
   const [
     { data: obra,     error: errO },
-    { data: remitos,  error: errR },
+    { data: remitos,  error: errR },  // ← se calcula pero no se usa (ver FIXME)
   ] = await Promise.all([
     supabase.from('obras_resumen').select('*').eq('id', id).single(),
     supabase.from('remitos_resumen').select('*').eq('obra', id),
@@ -27,7 +47,7 @@ export async function getById(id) {
   if (errO) throw errO
   if (errR) throw errR
 
-  // Buscar remitos por nombre de obra
+  // Esta es la query real: matcheamos remitos por nombre de obra
   const { data: obra2 } = await supabase
     .from('obras').select('nombre').eq('id', id).single()
 

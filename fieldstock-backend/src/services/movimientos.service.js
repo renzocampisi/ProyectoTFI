@@ -1,4 +1,16 @@
 // src/services/movimientos.service.js
+/**
+ * Service de Movimientos de inventario (log de trazabilidad).
+ *
+ * INVARIANTE DEL DOMINIO: los movimientos son INMUTABLES.
+ * - No hay update ni delete por diseño.
+ * - Cada movimiento es la fuente de verdad de un cambio de estado de una
+ *   herramienta en un momento dado.
+ *
+ * Al crear un movimiento se actualiza también el estado de la herramienta
+ * según la tabla de mapeo abajo. Es un side-effect intencional para mantener
+ * el estado de la herramienta sincronizado con su último movimiento.
+ */
 import { supabase } from '../config/supabase.js'
 
 export async function getByHerramienta(herramientaId) {
@@ -36,7 +48,11 @@ export async function create(herramientaId, body) {
 
   if (errMov) throw errMov
 
-  // Actualizar estado de la herramienta según tipo de movimiento
+  // Mapeo tipo de movimiento → estado resultante de la herramienta.
+  // EGRESO sale a obra, INGRESO vuelve disponible, MANTENIMIENTO la bloquea.
+  // Si el tipo no está en este mapa, nuevoEstado queda undefined y la
+  // actualización falla silenciosamente — la validación arriba garantiza
+  // que solo lleguen los 3 tipos válidos.
   const nuevoEstado = {
     EGRESO:        'EN_OBRA',
     INGRESO:       'DISPONIBLE',

@@ -1,6 +1,17 @@
 // src/services/estanterias.service.js
+/**
+ * Service del M8 — Estanterías (ubicación física del stock en el galpón).
+ *
+ * Una estantería tiene un QR propio (`FS-EST-001`, `FS-EST-002`, ...) que se
+ * escanea desde el celular para ver qué hay guardado. Los items pueden ser
+ * herramientas o materiales — el discriminador es cuál de los dos *_id
+ * viene seteado.
+ *
+ * El borrado es soft (campo `activa = false`).
+ */
 import { supabase } from '../config/supabase.js'
 
+// Número correlativo zero-padded a 3 dígitos → "FS-EST-001"
 function generarQREstanteria(numero) {
   return `FS-EST-${String(numero).padStart(3, '0')}`
 }

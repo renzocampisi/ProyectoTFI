@@ -1,4 +1,13 @@
 // src/config/supabase.js
+/**
+ * Cliente Supabase para el BACKEND.
+ *
+ * IMPORTANTE: usa SUPABASE_SERVICE_KEY (service role) — bypassa RLS.
+ * No exponer NUNCA esta key al frontend. El frontend usa la ANON_KEY
+ * para Supabase Auth únicamente (ver supabaseClient.js del frontend).
+ *
+ * Si arranca el backend sin las variables, falla fast con un Error claro.
+ */
 import { createClient } from '@supabase/supabase-js'
 import 'dotenv/config'
 

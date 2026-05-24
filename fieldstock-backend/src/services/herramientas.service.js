@@ -1,6 +1,28 @@
 // src/services/herramientas.service.js
+/**
+ * Service del M2 — Inventario de Herramientas.
+ *
+ * Estados válidos del dominio:
+ *   DISPONIBLE | EN_OBRA | EN_MANTENIMIENTO | RESERVADA | BAJA
+ *
+ * Reglas:
+ * - BAJA es terminal y solo se aplica via la RPC `dar_baja_herramienta`.
+ * - Para volver desde BAJA se usa la RPC `reactivar_herramienta`.
+ * - EN_MANTENIMIENTO bloquea asignación a remitos (regla validada en addItem
+ *   de remitos.service.js, no acá).
+ *
+ * Cobertura de tests: ver herramientas.service.test.js (27 casos).
+ */
 import { supabase } from '../config/supabase.js'
 
+/**
+ * Genera el código QR inmutable de una herramienta.
+ * Formato: FS-{INICIALES_NOMBRE}-{TIMESTAMP_BASE36}
+ *   - Las iniciales son las primeras letras de las hasta 3 primeras palabras.
+ *   - Si el nombre está vacío, se usa "XX" como fallback.
+ * El timestamp en base36 + las iniciales hacen prácticamente imposible
+ * colisionar dos códigos generados en momentos distintos.
+ */
 function generarCodigoQR(nombre) {
   const ts       = Date.now().toString(36).toUpperCase()
   const iniciales = nombre.split(' ').filter(Boolean).slice(0, 3)
