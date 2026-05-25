@@ -353,5 +353,86 @@ describe('remitos.service.avanzarEstado', () => {
       expect(ingresos).toHaveLength(2)
       expect(ingresos.map(m => m.herramienta_id).sort()).toEqual(['h-1', 'h-3'])
     })
+
+    // ── Helper local para los tests del step 3 ─────────────────
+    function setupCierreRemitoConRota(items, remitoData = {}) {
+      // Reutiliza setupCierreRemito (mismo flujo de mocks)
+      return setupCierreRemito(items, remitoData)
+    }
+
+    describe('MANTENIMIENTO al volver rota (issue #1 step 3)', () => {
+      it('inserta MANTENIMIENTO por cada herramienta con estado_retorno=ROTA', async () => {
+        setupCierreRemitoConRota([
+          { herramienta_id: 'h-1', estado_retorno: 'ROTA' },
+          { herramienta_id: 'h-2', estado_retorno: 'ROTA' },
+        ])
+
+        await RemitosService.avanzarEstado('r-1')
+
+        const mantenimientos = getMovimientosInsertados('MANTENIMIENTO')
+        expect(mantenimientos).toHaveLength(2)
+      })
+
+      it('hereda responsable y obra del remito', async () => {
+        setupCierreRemitoConRota(
+          [{ herramienta_id: 'h-1', estado_retorno: 'ROTA' }],
+          { obra: 'Obra Recoleta', responsable: 'Diego Torres' }
+        )
+
+        await RemitosService.avanzarEstado('r-1')
+
+        const mantenimientos = getMovimientosInsertados('MANTENIMIENTO')
+        expect(mantenimientos[0]).toMatchObject({
+          herramienta_id: 'h-1',
+          tipo:           'MANTENIMIENTO',
+          obra:           'Obra Recoleta',
+          responsable:    'Diego Torres',
+        })
+      })
+
+      it('observación distingue claramente que vino rota (referencia al remito)', async () => {
+        setupCierreRemitoConRota(
+          [{ herramienta_id: 'h-1', estado_retorno: 'ROTA' }],
+          { numero: 'R-2026-0099' }
+        )
+
+        await RemitosService.avanzarEstado('r-1')
+
+        const mantenimientos = getMovimientosInsertados('MANTENIMIENTO')
+        expect(mantenimientos[0].observacion).toMatch(/rota/i)
+        expect(mantenimientos[0].observacion).toContain('R-2026-0099')
+      })
+
+      it('NO inserta MANTENIMIENTO para VUELVE / PERDIDA / QUEDA_EN_OBRA', async () => {
+        setupCierreRemitoConRota([
+          { herramienta_id: 'h-1', estado_retorno: 'VUELVE' },
+          { herramienta_id: 'h-2', estado_retorno: 'PERDIDA' },
+          { herramienta_id: 'h-3', estado_retorno: 'QUEDA_EN_OBRA' },
+        ])
+
+        await RemitosService.avanzarEstado('r-1')
+
+        const mantenimientos = getMovimientosInsertados('MANTENIMIENTO')
+        expect(mantenimientos).toHaveLength(0)
+      })
+
+      it('en un remito mixto convive con INGRESO sin pisarse', async () => {
+        setupCierreRemitoConRota([
+          { herramienta_id: 'h-1', estado_retorno: 'VUELVE' },
+          { herramienta_id: 'h-2', estado_retorno: 'ROTA' },
+          { herramienta_id: 'h-3', estado_retorno: 'ROTA' },
+          { herramienta_id: 'h-4', estado_retorno: 'VUELVE' },
+        ])
+
+        await RemitosService.avanzarEstado('r-1')
+
+        const ingresos       = getMovimientosInsertados('INGRESO')
+        const mantenimientos = getMovimientosInsertados('MANTENIMIENTO')
+        expect(ingresos).toHaveLength(2)
+        expect(mantenimientos).toHaveLength(2)
+        expect(ingresos.map(m => m.herramienta_id).sort()).toEqual(['h-1', 'h-4'])
+        expect(mantenimientos.map(m => m.herramienta_id).sort()).toEqual(['h-2', 'h-3'])
+      })
+    })
   })
 })
