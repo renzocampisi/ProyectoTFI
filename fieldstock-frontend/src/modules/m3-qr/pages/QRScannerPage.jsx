@@ -9,7 +9,7 @@ async function buscarPorCodigo(codigo) {
   const codigoLimpio = codigo.trim()
 
   const herramientas = await api.get(
-    `/api/herramientas?codigoQR=${encodeURIComponent(codigoLimpio)}`
+    `/herramientas?codigoQR=${encodeURIComponent(codigoLimpio)}`
   )
   if (herramientas?.length) return herramientas[0]
 
@@ -18,7 +18,7 @@ async function buscarPorCodigo(codigo) {
     const partes = url.pathname.split('/')
     const posibleId = partes[partes.length - 1]
     if (posibleId?.length === 36) {
-      const herr = await api.get(`/api/herramientas/${posibleId}`)
+      const herr = await api.get(`/herramientas/${posibleId}`)
       if (herr) return herr
     }
   } catch {}

@@ -72,7 +72,7 @@ export function useHerramienta(id) {
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState(null)
 
-  const fetch = useCallback(async () => {
+  const cargar = useCallback(async () => {
     if (!id) return
     setLoading(true)
     try {
@@ -89,7 +89,7 @@ export function useHerramienta(id) {
     }
   }, [id])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => { cargar() }, [cargar])
 
-  return { herramienta, movimientos, loading, error, refetch: fetch }
+  return { herramienta, movimientos, loading, error, refetch: cargar }
 }

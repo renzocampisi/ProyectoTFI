@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { EstanteriasService } from '../services/estanterias.service'
 import { InventarioService } from '@modules/m2-inventario/services/inventario.service'
-import { MateriasService } from '@modules/m6-materiales/services/materiales.service'
+import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
 import styles from './EstanteriasPage.module.css'
 
 function QREstanteriaModal({ estanteria, onClose }) {
@@ -73,7 +73,7 @@ function AsignarModal({ estanteria, onClose, onSaved }) {
   useEffect(() => {
     Promise.all([
       InventarioService.getAll({ estado: 'DISPONIBLE' }),
-      MateriasService.getAll(),
+      MaterialesService.getAll(),
     ]).then(([herr, mats]) => {
       setHerramientas(herr.filter(h => !idsHerr.includes(h.id)))
       setMateriales(mats.filter(m => !idsMat.includes(m.id)))

@@ -91,8 +91,8 @@ export default function InventarioNewPage() {
   const [marcas,     setMarcas]     = useState([])
 
   useEffect(() => {
-    api.get('/api/categorias').then(data => setCategorias(data)).catch(() => {})
-    api.get('/api/marcas').then(data => setMarcas(data)).catch(() => {})
+    api.get('/categorias').then(data => setCategorias(data)).catch(() => {})
+    api.get('/marcas').then(data => setMarcas(data)).catch(() => {})
   }, [])
 
   const set = (campo, valor) => {
@@ -101,13 +101,13 @@ export default function InventarioNewPage() {
   }
 
   const handleCrearCategoria = async (nombre) => {
-    const cat = await api.post('/api/categorias', { nombre })
+    const cat = await api.post('/categorias', { nombre })
     setCategorias(prev => [...prev, cat].sort((a, b) => a.nombre.localeCompare(b.nombre)))
     return cat
   }
 
   const handleCrearMarca = async (nombre) => {
-    const marca = await api.post('/api/marcas', { nombre })
+    const marca = await api.post('/marcas', { nombre })
     setMarcas(prev => [...prev, marca].sort((a, b) => a.nombre.localeCompare(b.nombre)))
     return { id: marca.nombre, nombre: marca.nombre }
   }

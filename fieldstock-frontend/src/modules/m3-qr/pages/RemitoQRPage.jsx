@@ -30,7 +30,7 @@ export default function RemitoQRPage() {
   const [confirmado,   setConfirmado]   = useState(false)
 
   useEffect(() => {
-    api.get(`/api/remitos/${id}`)
+    api.get(`/remitos/${id}`)
       .then(data => {
         setRemito(data)
         // Determinar qué acción corresponde según el estado
@@ -44,7 +44,7 @@ export default function RemitoQRPage() {
   const handleConfirmar = async () => {
     setProcesando(true)
     try {
-      await api.post(`/api/remitos/${id}/confirmar-escaneo`, {})
+      await api.post(`/remitos/${id}/confirmar-escaneo`, {})
       setConfirmado(true)
     } catch (err) { setError(err.message) }
     finally { setProcesando(false) }
@@ -54,7 +54,7 @@ export default function RemitoQRPage() {
     if (!problema.trim()) return
     setProcesando(true)
     try {
-      await api.post(`/api/remitos/${id}/reportar-problema`, { descripcion: problema.trim() })
+      await api.post(`/remitos/${id}/reportar-problema`, { descripcion: problema.trim() })
       setConfirmado(true)
     } catch (err) { setError(err.message) }
     finally { setProcesando(false) }

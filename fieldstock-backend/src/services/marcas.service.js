@@ -1,13 +1,13 @@
-// src/services/categorias.service.js
+// src/services/marcas.service.js
 /**
- * Service de Categorías de herramientas (tabla pequeña, casi read-only).
- * Se consume desde el formulario de alta/edición de herramientas.
+ * Service de Marcas de herramientas (tabla pequeña, casi read-only).
+ * Estructura espejada de categorias.service.js.
  */
 import { supabase } from '../config/supabase.js'
 
 export async function getAll() {
   const { data, error } = await supabase
-    .from('categorias')
+    .from('marcas')
     .select('*')
     .order('nombre')
 
@@ -17,7 +17,7 @@ export async function getAll() {
 
 export async function create(nombre) {
   const { data, error } = await supabase
-    .from('categorias')
+    .from('marcas')
     .insert({ nombre: nombre.trim() })
     .select().single()
 

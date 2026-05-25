@@ -5,9 +5,6 @@
  * useObras({estado, q}): hook de LISTA. Los filtros vienen como props del
  *   caller (a diferencia de useInventario, que maneja state propio).
  * useObra(id): hook de DETALLE. Devuelve null si id es falsy.
- *
- * FIXME: variable local `fetch` shadows el global `fetch`. Renombrar a
- * `cargar` / `load` para evitar confusión.
  */
 import { useState, useEffect, useCallback } from 'react'
 import { ObrasService } from '../services/obras.service.js'
@@ -17,7 +14,7 @@ export function useObras({ estado, q } = {}) {
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
 
-  const fetch = useCallback(async () => {
+  const cargar = useCallback(async () => {
     setLoading(true); setError(null)
     try {
       const data = await ObrasService.getAll({ estado, q })
@@ -26,9 +23,9 @@ export function useObras({ estado, q } = {}) {
     finally { setLoading(false) }
   }, [estado, q])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => { cargar() }, [cargar])
 
-  return { obras, loading, error, refetch: fetch }
+  return { obras, loading, error, refetch: cargar }
 }
 
 export function useObra(id) {
@@ -36,7 +33,7 @@ export function useObra(id) {
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
 
-  const fetch = useCallback(async () => {
+  const cargar = useCallback(async () => {
     if (!id) return
     setLoading(true); setError(null)
     try {
@@ -46,7 +43,7 @@ export function useObra(id) {
     finally { setLoading(false) }
   }, [id])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => { cargar() }, [cargar])
 
-  return { obra, loading, error, refetch: fetch }
+  return { obra, loading, error, refetch: cargar }
 }

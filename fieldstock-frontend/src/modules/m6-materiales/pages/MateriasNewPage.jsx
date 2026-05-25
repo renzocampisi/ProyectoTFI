@@ -1,7 +1,7 @@
 // src/modules/m6-materiales/pages/MateriasNewPage.jsx
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MateriasService } from '../services/materiales.service'
+import { MaterialesService } from '../services/materiales.service'
 import styles from './MateriasNewPage.module.css'
 
 const UNIDADES = ['unidad','kg','metro','litro','caja','rollo','juego','par']
@@ -33,7 +33,7 @@ export default function MateriasNewPage() {
     if (Object.keys(e2).length) { setErrores(e2); return }
     setLoading(true)
     try {
-      const mat = await MateriasService.create({
+      const mat = await MaterialesService.create({
         nombre:      form.nombre.trim(),
         descripcion: form.descripcion.trim() || null,
         unidad:      form.unidad,

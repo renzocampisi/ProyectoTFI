@@ -9,8 +9,6 @@
  * Las mutaciones (avanzar, eliminar, addItem, etc.) NO viven en estos
  * hooks — se llaman directo a `RemitosService.x()` desde el componente
  * y luego se hace `refetch()` para actualizar la vista.
- *
- * FIXME (igual que useObras): variable local `fetch` shadows el global.
  */
 import { useState, useEffect, useCallback } from 'react'
 import { RemitosService } from '../services/remitos.service.js'
@@ -20,7 +18,7 @@ export function useRemitos({ estado, q } = {}) {
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState(null)
 
-  const fetch = useCallback(async () => {
+  const cargar = useCallback(async () => {
     setLoading(true); setError(null)
     try {
       const data = await RemitosService.getAll({ estado, q })
@@ -29,8 +27,8 @@ export function useRemitos({ estado, q } = {}) {
     finally { setLoading(false) }
   }, [estado, q])
 
-  useEffect(() => { fetch() }, [fetch])
-  return { remitos, loading, error, refetch: fetch }
+  useEffect(() => { cargar() }, [cargar])
+  return { remitos, loading, error, refetch: cargar }
 }
 
 export function useRemito(id) {
@@ -38,7 +36,7 @@ export function useRemito(id) {
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
 
-  const fetch = useCallback(async () => {
+  const cargar = useCallback(async () => {
     if (!id) return
     setLoading(true); setError(null)
     try {
@@ -48,6 +46,6 @@ export function useRemito(id) {
     finally { setLoading(false) }
   }, [id])
 
-  useEffect(() => { fetch() }, [fetch])
-  return { remito, loading, error, refetch: fetch }
+  useEffect(() => { cargar() }, [cargar])
+  return { remito, loading, error, refetch: cargar }
 }

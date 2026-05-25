@@ -27,37 +27,26 @@ export async function getAll({ estado, q } = {}) {
 
 /**
  * Devuelve la obra + sus remitos ordenados.
- *
- * FIXME: La primera query del Promise.all busca remitos por `obra` igualando
- * al UUID. Esa columna en `remitos` guarda el NOMBRE (no el UUID), por lo
- * que esa query siempre devuelve [] y su resultado se descarta. Es un
- * round-trip a Supabase muerto que sobrevive desde un refactor previo.
- * Acción sugerida: borrar la línea `supabase.from('remitos_resumen')...eq('obra', id)`
- * del Promise.all y la variable `remitos` que no se usa.
+ * Los remitos se matchean por NOMBRE de obra (la columna `remitos.obra`
+ * guarda el nombre, no el UUID) — por eso necesitamos resolver primero
+ * el nombre desde la tabla `obras`.
  */
 export async function getById(id) {
-  const [
-    { data: obra,     error: errO },
-    { data: remitos,  error: errR },  // ← se calcula pero no se usa (ver FIXME)
-  ] = await Promise.all([
-    supabase.from('obras_resumen').select('*').eq('id', id).single(),
-    supabase.from('remitos_resumen').select('*').eq('obra', id),
-  ])
-
+  const { data: obra, error: errO } = await supabase
+    .from('obras_resumen').select('*').eq('id', id).single()
   if (errO) throw errO
-  if (errR) throw errR
 
-  // Esta es la query real: matcheamos remitos por nombre de obra
-  const { data: obra2 } = await supabase
+  // Resolver nombre para matchear los remitos (que guardan el nombre, no el UUID)
+  const { data: obraBase } = await supabase
     .from('obras').select('nombre').eq('id', id).single()
 
-  const { data: remitosObra } = await supabase
+  const { data: remitos } = await supabase
     .from('remitos_resumen')
     .select('*')
-    .eq('obra', obra2?.nombre)
+    .eq('obra', obraBase?.nombre)
     .order('fecha', { ascending: false })
 
-  return { ...obra, remitos: remitosObra ?? [] }
+  return { ...obra, remitos: remitos ?? [] }
 }
 
 export async function create(body) {

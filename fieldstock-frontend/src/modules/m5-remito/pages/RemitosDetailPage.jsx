@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useRemito } from '../hooks/useRemitos'
 import { RemitosService } from '../services/remitos.service'
 import { InventarioService } from '@modules/m2-inventario/services/inventario.service'
-import { MateriasService } from '@modules/m6-materiales/services/materiales.service'
+import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
 import EstadoRemitoBadge from '../components/EstadoRemitoBadge'
 import RemitoEditModal from './RemitoEditModal'
 import RemitoPrint from './RemitoPrint'
@@ -211,7 +211,7 @@ function MatBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
   const [error,        setError]        = useState(null)
 
   useState(() => {
-    MateriasService.getAll()
+    MaterialesService.getAll()
       .then(data => setMateriales(data.filter(m => m.stock_actual > 0 && !idsYa.includes(m.id))))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))

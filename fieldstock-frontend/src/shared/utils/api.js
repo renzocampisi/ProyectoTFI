@@ -12,12 +12,11 @@
  *
  * Variable de entorno: VITE_API_URL (fallback: localhost:3000).
  *
- * FIXME (opcional): los services del frontend hoy escriben `api.get('/api/...')`
- * con el prefijo /api repetido. Podría moverse a `BASE_URL` para que digan
- * solo `api.get('/herramientas')`. Cambio chico pero requiere tocar todos
- * los services.
+ * El prefijo `/api` se aplica acá una sola vez (todas las rutas REST del
+ * backend viven bajo /api). Los services llaman con rutas relativas:
+ *   api.get('/herramientas')  →  http://localhost:3000/api/herramientas
  */
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api'
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {

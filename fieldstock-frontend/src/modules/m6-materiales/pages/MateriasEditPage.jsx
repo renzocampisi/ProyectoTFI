@@ -1,7 +1,7 @@
 // src/modules/m6-materiales/pages/MateriasEditPage.jsx
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { MateriasService } from '../services/materiales.service'
+import { MaterialesService } from '../services/materiales.service'
 import styles from './MateriasNewPage.module.css'
 
 const UNIDADES = ['unidad','kg','metro','litro','caja','rollo','juego','par']
@@ -17,7 +17,7 @@ export default function MateriasEditPage() {
   const [guardado,setGuardado]= useState(false)
 
   useEffect(() => {
-    MateriasService.getById(id)
+    MaterialesService.getById(id)
       .then(mat => {
         setForm({
           nombre:      mat.nombre       || '',
@@ -50,7 +50,7 @@ export default function MateriasEditPage() {
     if (Object.keys(e2).length) { setErrores(e2); return }
     setSaving(true)
     try {
-      await MateriasService.update(id, {
+      await MaterialesService.update(id, {
         nombre:      form.nombre.trim(),
         descripcion: form.descripcion.trim() || null,
         unidad:      form.unidad,

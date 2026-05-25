@@ -1,20 +1,13 @@
 // src/controllers/marcas.controller.js
 /**
  * Controllers de Marcas de herramientas.
- *
- * FIXME: igual que categorias.controller, este accede directo a Supabase
- * y además NO existe `marcas.service.js` para delegar. Acción recomendada:
- *   1. Crear `services/marcas.service.js` con getAll() y create(body).
- *   2. Reemplazar acá los accesos directos.
- * Diff esperado idéntico al de categorías (estructura espejada).
+ * Patrón thin estándar — delega toda la lógica al service.
  */
-import { supabase } from '../config/supabase.js'
+import * as MarcasService from '../services/marcas.service.js'
 
 export async function getAll(req, res, next) {
   try {
-    const { data, error } = await supabase
-      .from('marcas').select('*').order('nombre')
-    if (error) throw error
+    const data = await MarcasService.getAll()
     res.json({ ok: true, data })
   } catch (err) { next(err) }
 }
@@ -25,11 +18,7 @@ export async function create(req, res, next) {
     if (!nombre?.trim())
       return res.status(400).json({ ok: false, error: 'El nombre es obligatorio' })
 
-    const { data, error } = await supabase
-      .from('marcas')
-      .insert({ nombre: nombre.trim() })
-      .select().single()
-    if (error) throw error
+    const data = await MarcasService.create(nombre)
     res.status(201).json({ ok: true, data })
   } catch (err) { next(err) }
 }

@@ -24,28 +24,28 @@ export const InventarioService = {
     if (q)            params.set('q',            q)
     if (incluirBajas) params.set('incluirBajas', 'true')
     const qs = params.toString()
-    return api.get(`/api/herramientas${qs ? `?${qs}` : ''}`)
+    return api.get(`/herramientas${qs ? `?${qs}` : ''}`)
   },
 
-  getById: (id)       => api.get(`/api/herramientas/${id}`),
-  create:  (body)     => api.post('/api/herramientas', body),
-  update:  (id, body) => api.put(`/api/herramientas/${id}`, body),
+  getById: (id)       => api.get(`/herramientas/${id}`),
+  create:  (body)     => api.post('/herramientas', body),
+  update:  (id, body) => api.put(`/herramientas/${id}`, body),
 
   updateEstado: (id, estado) =>
-    api.patch(`/api/herramientas/${id}/estado`, { estado }),
+    api.patch(`/herramientas/${id}/estado`, { estado }),
 
   darDeBaja: (id, motivo) =>
-    api.post(`/api/herramientas/${id}/baja`, { motivo }),
+    api.post(`/herramientas/${id}/baja`, { motivo }),
 
   reactivar: (id) =>
-    api.post(`/api/herramientas/${id}/reactivar`, {}),
+    api.post(`/herramientas/${id}/reactivar`, {}),
 
   getMovimientos: (herramientaId) =>
-    api.get(`/api/herramientas/${herramientaId}/movimientos`),
+    api.get(`/herramientas/${herramientaId}/movimientos`),
 
   createMovimiento: (herramientaId, body) =>
-    api.post(`/api/herramientas/${herramientaId}/movimientos`, body),
+    api.post(`/herramientas/${herramientaId}/movimientos`, body),
 
   getCategorias: () =>
-    api.get('/api/categorias'),
+    api.get('/categorias'),
 }
