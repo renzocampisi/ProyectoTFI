@@ -389,6 +389,16 @@ export default function RemitosDetailPage() {
   const [showHerrModal, setShowHerrModal] = useState(false)
   const [showMatModal,  setShowMatModal]  = useState(false)
 
+  // ── Optimistic UI para marcas de retorno (issue #4) ──
+  // Cada marca de retorno antes hacía un refetch del remito completo, lo
+  // que se sentía como un "refresh" de la página. Ahora guardamos el
+  // override local, lo mostramos al instante y persistimos en background
+  // sin refetch. El próximo refetch lo dispara handleAvanzar al final.
+  const [retornosLocales,    setRetornosLocales]    = useState({})  // { itemId: estado_retorno }
+  const [cantidadesLocales,  setCantidadesLocales]  = useState({})  // { matItemId: cantidad_retorno }
+
+  // action() se usa para operaciones que SÍ necesitan refetch
+  // (avanzar estado, volver a borrador, agregar/quitar items).
   const action = async (fn) => {
     setLoadingAction(true); setErrAction(null)
     try { await fn(); await refetch() }
@@ -402,11 +412,35 @@ export default function RemitosDetailPage() {
     setConfirmVolver(false)
   })
   const handleRemoveHerramienta = (itemId) => action(() => RemitosService.removeItem(id, itemId))
-  const handleRetornoHerramienta = (itemId, estadoRetorno) =>
-    action(() => RemitosService.updateItemRetorno(id, itemId, { estadoRetorno }))
   const handleRemoveMaterial = (matItemId) => action(() => RemitosService.removeMaterial(id, matItemId))
-  const handleRetornoMaterial = (matItemId, cantidadRetorno) =>
-    action(() => RemitosService.updateMaterialRetorno(id, matItemId, { cantidadRetorno: Number(cantidadRetorno) }))
+
+  // Optimistic: aplicar override local + persist en background sin refetch.
+  // Si la PATCH falla, revertir el override y mostrar el error.
+  const handleRetornoHerramienta = async (itemId, estadoRetorno) => {
+    const prev = retornosLocales[itemId]
+    setRetornosLocales(o => ({ ...o, [itemId]: estadoRetorno }))
+    setErrAction(null)
+    try {
+      await RemitosService.updateItemRetorno(id, itemId, { estadoRetorno })
+    } catch (err) {
+      // Revertir el optimistic update si falló la persistencia
+      setRetornosLocales(o => ({ ...o, [itemId]: prev }))
+      setErrAction(err.message)
+    }
+  }
+
+  const handleRetornoMaterial = async (matItemId, cantidadRetorno) => {
+    const valor = Number(cantidadRetorno)
+    const prev  = cantidadesLocales[matItemId]
+    setCantidadesLocales(o => ({ ...o, [matItemId]: valor }))
+    setErrAction(null)
+    try {
+      await RemitosService.updateMaterialRetorno(id, matItemId, { cantidadRetorno: valor })
+    } catch (err) {
+      setCantidadesLocales(o => ({ ...o, [matItemId]: prev }))
+      setErrAction(err.message)
+    }
+  }
 
   if (loading) return (
     <div className={styles.loadingWrapper}><span className={styles.spinner} />Cargando remito...</div>
@@ -552,13 +586,17 @@ export default function RemitosDetailPage() {
                           {esRetorno && (
                             <td>
                               <div className={styles.retornoSelector}>
-                                {ESTADOS_RETORNO_HERR.map(er => (
-                                  <button key={er.value}
-                                    className={`${styles.retornoBtn} ${item.estado_retorno === er.value ? styles[er.cls] : ''}`}
-                                    onClick={() => handleRetornoHerramienta(item.id, er.value)}>
-                                    {er.label}
-                                  </button>
-                                ))}
+                                {ESTADOS_RETORNO_HERR.map(er => {
+                                  // Optimistic: override local > valor del backend
+                                  const valorActual = retornosLocales[item.id] ?? item.estado_retorno
+                                  return (
+                                    <button key={er.value}
+                                      className={`${styles.retornoBtn} ${valorActual === er.value ? styles[er.cls] : ''}`}
+                                      onClick={() => handleRetornoHerramienta(item.id, er.value)}>
+                                      {er.label}
+                                    </button>
+                                  )
+                                })}
                               </div>
                             </td>
                           )}
@@ -614,11 +652,15 @@ export default function RemitosDetailPage() {
                               <input type="number" min="0" step="1"
                                 className={styles.cantidadRetornoInput}
                                 placeholder={`Máx: ${m.cantidad_egreso}`}
-                                defaultValue={m.cantidad_retorno ?? ''}
+                                // Optimistic: override local > valor del backend
+                                defaultValue={(cantidadesLocales[m.id] ?? m.cantidad_retorno) ?? ''}
+                                key={`${m.id}-${m.cantidad_retorno ?? ''}`}
                                 onBlur={e => {
-                                  const val = e.target.value
-                                  if (val !== '' && Number(val) !== m.cantidad_retorno)
-                                    handleRetornoMaterial(m.id, val === '' ? 0 : val)
+                                  const val   = e.target.value
+                                  const nuevo = val === '' ? 0 : Number(val)
+                                  const actual = cantidadesLocales[m.id] ?? m.cantidad_retorno
+                                  if (val !== '' && nuevo !== actual)
+                                    handleRetornoMaterial(m.id, nuevo)
                                 }} />
                             </td>
                           )}
