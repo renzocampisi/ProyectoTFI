@@ -1,4 +1,14 @@
 // src/controllers/directorio.controller.js
+/**
+ * Controllers del M7 — Directorio (transportes + clientes).
+ *
+ * Dos CRUDs espejados (uno para transportes, otro para clientes). Si
+ * aparece una tercera entidad similar (proveedores), conviene extraer
+ * un helper genérico o un controller factory en lugar de seguir copiando.
+ *
+ * `delete*` aplica borrado SOFT (activo=false) — los datos quedan para
+ * mantener integridad referencial con remitos antiguos.
+ */
 import * as DirectorioService from '../services/directorio.service.js'
 
 // ── TRANSPORTES ───────────────────────────────────────────────

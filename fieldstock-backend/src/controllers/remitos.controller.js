@@ -1,4 +1,21 @@
 // src/controllers/remitos.controller.js
+/**
+ * Controllers del M5 — Remitos.
+ *
+ * El controller más grande del proyecto porque cubre toda la máquina de
+ * estados + items de herramientas + items de materiales. La lógica real
+ * vive en remitos.service.js; acá hay req/res y validación de body.
+ *
+ * Dos handlers se salen del patrón thin estándar:
+ *  - confirmarEscaneo: lee estado actual ANTES de avanzar para reportar
+ *    si fue SALIDA o LLEGADA al cliente que escanea el QR.
+ *  - reportarProblema: combina update + notif + avance en una operación.
+ *    FIXME: idealmente esa orquestación debería estar en el service.
+ *
+ * Nota de naming: `updateRemito` queda con sufijo para evitar shadowing
+ * de un `update` que ya se importa indirectamente. Conviene renombrarlo
+ * a `update` y resolver la colisión si llega a aparecer.
+ */
 import * as RemitosService from '../services/remitos.service.js'
 import * as NotifService   from '../services/notificaciones.service.js'
 
@@ -42,9 +59,13 @@ export async function volverABorrador(req, res, next) {
   } catch (err) { next(err) }
 }
 
-// ── Confirmar escaneo QR del remito ──────────────────────────
-// 1er escaneo (CONFIRMADO → EN_TRANSITO)
-// 2do escaneo (EN_TRANSITO → EN_OBRA)
+// ── Confirmar escaneo QR del remito (M3 — flujo mobile) ───────
+// Endpoint que invoca el escaneo del QR desde el celular. Hace DOBLE uso
+// del avance de estado:
+//   1er escaneo: CONFIRMADO → EN_TRANSITO (la carga sale del galpón)
+//   2do escaneo: EN_TRANSITO → EN_OBRA    (la carga llegó a la obra)
+// La respuesta incluye `accion: 'SALIDA' | 'LLEGADA'` para que la app
+// mobile pueda mostrar el mensaje correcto.
 export async function confirmarEscaneo(req, res, next) {
   try {
     const { id } = req.params
@@ -64,6 +85,13 @@ export async function confirmarEscaneo(req, res, next) {
 }
 
 // ── Reportar problema al llegar a la obra ────────────────────
+// Variante del segundo escaneo: la carga llegó pero con un problema
+// (faltan herramientas, hay roturas, etc.). Triple efecto:
+//   1. Guarda la descripción como observación de llegada en el remito
+//   2. Crea una notificación en el sistema (tipo PROBLEMA_LLEGADA)
+//   3. Igual avanza a EN_OBRA — el problema no bloquea el flujo
+// FIXME: este encadenamiento de 3 escrituras debería vivir en un método
+// del service para mantener la atomicidad lógica.
 export async function reportarProblema(req, res, next) {
   try {
     const { id } = req.params

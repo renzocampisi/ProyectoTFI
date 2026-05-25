@@ -1,4 +1,21 @@
 // src/controllers/herramientas.controller.js
+/**
+ * Controllers del M2 — Herramientas.
+ *
+ * Patrón estándar del proyecto:
+ *   try { ... res.json({ ok: true, data }) } catch (err) { next(err) }
+ *
+ * El controller solo hace req/res + valida campos obligatorios + delega
+ * al service. Toda la lógica de dominio (validación de estados, RPCs,
+ * generación de QR) vive en herramientas.service.js.
+ *
+ * Status codes:
+ *   200 → operación exitosa
+ *   201 → recurso creado
+ *   400 → validación (campos faltantes, estado inválido)
+ *   404 → recurso no encontrado en getById
+ *   500 → error inesperado (propagado al errorHandler global)
+ */
 import * as HerramientasService from '../services/herramientas.service.js'
 
 export async function getAll(req, res, next) {

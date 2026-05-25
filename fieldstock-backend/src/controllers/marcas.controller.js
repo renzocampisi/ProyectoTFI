@@ -1,4 +1,13 @@
 // src/controllers/marcas.controller.js
+/**
+ * Controllers de Marcas de herramientas.
+ *
+ * FIXME: igual que categorias.controller, este accede directo a Supabase
+ * y además NO existe `marcas.service.js` para delegar. Acción recomendada:
+ *   1. Crear `services/marcas.service.js` con getAll() y create(body).
+ *   2. Reemplazar acá los accesos directos.
+ * Diff esperado idéntico al de categorías (estructura espejada).
+ */
 import { supabase } from '../config/supabase.js'
 
 export async function getAll(req, res, next) {

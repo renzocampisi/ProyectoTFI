@@ -1,4 +1,11 @@
 // src/controllers/materiales.controller.js
+/**
+ * Controllers del M6 — Materiales (consumibles).
+ * Patrón thin estándar — toda la lógica en materiales.service.js.
+ * Nota: el namespace está como `MateriasService` por razones históricas
+ * (módulo se llamaba "Materias" antes). Funcional, pero conviene
+ * renombrar a `MaterialesService` para que matchee el filename.
+ */
 import * as MateriasService from '../services/materiales.service.js'
 
 export async function getAll(req, res, next) {

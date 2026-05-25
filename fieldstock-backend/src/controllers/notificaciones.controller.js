@@ -1,4 +1,11 @@
 // src/controllers/notificaciones.controller.js
+/**
+ * Controllers de Notificaciones (bandeja de eventos del usuario).
+ *
+ * `getAll` acepta `?noLeidas=true` para filtrar solo las pendientes
+ * (badge contador). Las creaciones suelen venir desde otros controllers
+ * (ver remitos.controller.reportarProblema) más que de este endpoint.
+ */
 import * as NotifService from '../services/notificaciones.service.js'
 
 export async function getAll(req, res, next) {

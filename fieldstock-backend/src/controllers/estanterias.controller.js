@@ -1,4 +1,11 @@
 // src/controllers/estanterias.controller.js
+/**
+ * Controllers del M8 — Estanterías.
+ * Patrón thin estándar. `getByQR` resuelve el código QR escaneado a la
+ * estantería correspondiente (entry point del flujo mobile de inventario
+ * físico). `addItem` / `removeItem` / `moverItem` gestionan el contenido
+ * de cada estantería.
+ */
 import * as EstanteriasService from '../services/estanterias.service.js'
 
 export async function getAll(req, res, next) {

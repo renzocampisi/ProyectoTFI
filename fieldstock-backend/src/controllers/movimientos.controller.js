@@ -1,4 +1,13 @@
 // src/controllers/movimientos.controller.js
+/**
+ * Controllers de Movimientos (log inmutable de trazabilidad).
+ * Solo dos operaciones: leer historial de una herramienta y crear un
+ * movimiento nuevo. NO hay update ni delete por invariante del dominio
+ * (ver movimientos.service.js).
+ *
+ * `:id` en las rutas refiere a la herramienta, no al movimiento — los
+ * movimientos siempre se consultan/crean en el contexto de su herramienta.
+ */
 import * as MovimientosService from '../services/movimientos.service.js'
 
 export async function getByHerramienta(req, res, next) {

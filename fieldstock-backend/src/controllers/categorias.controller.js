@@ -1,4 +1,15 @@
 // src/controllers/categorias.controller.js
+/**
+ * Controllers de Categorías de herramientas.
+ *
+ * FIXME: este controller accede directo a Supabase, rompiendo el patrón
+ * controller→service del proyecto. Existe `categorias.service.js` pero
+ * solo expone `getAll()`. Acción recomendada:
+ *   1. Mover el SELECT del getAll de acá al service existente (ya hecho ahí).
+ *   2. Agregar `create(body)` al service.
+ *   3. Reemplazar los accesos directos a `supabase` por llamadas al service.
+ * Riesgo: bajo — la lógica es CRUD simple y hay tests cubriendo el patrón.
+ */
 import { supabase } from '../config/supabase.js'
 
 export async function getAll(req, res, next) {

@@ -1,4 +1,10 @@
 // src/controllers/obras.controller.js
+/**
+ * Controllers del M4 — Obras.
+ * Patrón thin estándar. `finalizar` y `reactivar` son endpoints
+ * dedicados (POST /:id/finalizar, POST /:id/reactivar) para hacer
+ * explícita la transición de estado en lugar de mezclarla con un PUT.
+ */
 import * as ObrasService from '../services/obras.service.js'
 
 export async function getAll(req, res, next) {
