@@ -24,6 +24,11 @@
  *  · `dar_baja_herramienta` (RPC)  — cuando una herramienta se pierde
  *  · `materiales` (insert)         — materiales libres que vuelven y no
  *                                    existían en el catálogo se crean solos
+ *  · `movimientos` (insert)        — audit trail inmutable; se inserta
+ *                                    automáticamente al avanzar estados
+ *                                    de remito que tocan herramientas
+ *                                    (issue #1). Hoy implementado solo
+ *                                    para BORRADOR→CONFIRMADO (EGRESO).
  */
 import { supabase } from '../config/supabase.js'
 import { updateStock } from './materiales.service.js'
@@ -370,6 +375,23 @@ export async function avanzarEstado(id, body = {}) {
       await supabase.from('herramientas')
         .update({ estado: 'EN_OBRA' })
         .in('id', items.map(i => i.herramienta_id))
+
+      // ── Auto-registrar movimientos EGRESO (issue #1 — paso 1) ──
+      // Audit trail: cada herramienta que sale a obra gana una fila
+      // inmutable en `movimientos`, con obra/responsable del remito.
+      // Decisión: BAJA por PERDIDA NO genera un movimiento extra acá
+      // porque la RPC `dar_baja_herramienta` ya audita por su cuenta.
+      const fechaHoy = new Date().toISOString().split('T')[0]
+      await supabase.from('movimientos').insert(
+        items.map(i => ({
+          herramienta_id: i.herramienta_id,
+          tipo:           'EGRESO',
+          fecha:          fechaHoy,
+          obra:           remito.obra,
+          responsable:    remito.responsable,
+          observacion:    `Auto-generado desde remito ${remito.numero}`,
+        }))
+      )
     }
 
     // Descontar stock material por material (no es batch porque cada uno
