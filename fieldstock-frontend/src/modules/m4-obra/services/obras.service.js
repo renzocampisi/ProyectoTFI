@@ -1,4 +1,11 @@
 // src/modules/m4-obra/services/obras.service.js
+/**
+ * Service del M4 (frontend) — wrapper sobre el backend de obras.
+ *
+ * CRUD básico + dos transiciones de estado dedicadas (`finalizar`, `reactivar`)
+ * que matchean los endpoints POST /:id/finalizar y POST /:id/reactivar del
+ * backend.
+ */
 import { api } from '@shared/utils/api.js'
 
 export const ObrasService = {

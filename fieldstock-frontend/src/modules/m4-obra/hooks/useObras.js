@@ -1,4 +1,14 @@
 // src/modules/m4-obra/hooks/useObras.js
+/**
+ * Hooks del M4 — wrappers de ObrasService con state de carga/error.
+ *
+ * useObras({estado, q}): hook de LISTA. Los filtros vienen como props del
+ *   caller (a diferencia de useInventario, que maneja state propio).
+ * useObra(id): hook de DETALLE. Devuelve null si id es falsy.
+ *
+ * FIXME: variable local `fetch` shadows el global `fetch`. Renombrar a
+ * `cargar` / `load` para evitar confusión.
+ */
 import { useState, useEffect, useCallback } from 'react'
 import { ObrasService } from '../services/obras.service.js'
 

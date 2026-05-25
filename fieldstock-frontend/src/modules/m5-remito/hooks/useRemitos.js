@@ -1,4 +1,17 @@
 // src/modules/m5-remito/hooks/useRemitos.js
+/**
+ * Hooks del M5 — wrappers de RemitosService con state de carga/error.
+ *
+ * useRemitos({estado, q}): hook de LISTA. Filtros como props.
+ * useRemito(id): hook de DETALLE — incluye items de herramientas y
+ *   materiales (el backend los precarga vía vistas).
+ *
+ * Las mutaciones (avanzar, eliminar, addItem, etc.) NO viven en estos
+ * hooks — se llaman directo a `RemitosService.x()` desde el componente
+ * y luego se hace `refetch()` para actualizar la vista.
+ *
+ * FIXME (igual que useObras): variable local `fetch` shadows el global.
+ */
 import { useState, useEffect, useCallback } from 'react'
 import { RemitosService } from '../services/remitos.service.js'
 

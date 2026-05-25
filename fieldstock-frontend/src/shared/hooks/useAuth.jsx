@@ -1,3 +1,20 @@
+// src/shared/hooks/useAuth.jsx
+/**
+ * Context global de autenticación basado en Supabase Auth.
+ *
+ * Provee { user, loading, signIn, signOut } a toda la app vía <AuthProvider>.
+ *
+ * Flujo:
+ * 1. Al montar, lee la sesión actual con getSession() (sincroniza con localStorage).
+ * 2. Se suscribe a onAuthStateChange para mantener `user` reactivo si la
+ *    sesión cambia en otra pestaña/tab.
+ * 3. Desuscribe en el cleanup del useEffect.
+ *
+ * `loading` es true SOLO durante la primera carga — sirve para mostrar
+ * un spinner antes de decidir si redirigir a /login o mostrar la app.
+ *
+ * El hook useAuth() lanza si se usa fuera del provider — guard explícito.
+ */
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@shared/utils/supabaseClient'
 

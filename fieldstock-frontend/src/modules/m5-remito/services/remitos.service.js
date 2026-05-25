@@ -1,4 +1,19 @@
 // src/modules/m5-remito/services/remitos.service.js
+/**
+ * Service del M5 (frontend) — wrapper sobre el backend de remitos.
+ *
+ * Cubre la API completa de la máquina de estados:
+ *   - CRUD básico (getAll, getById, create, update, eliminar)
+ *   - Transiciones de estado: avanzar, volverABorrador
+ *   - Items de herramientas: addItem, removeItem, updateItemRetorno
+ *   - Items de materiales:  addMaterial, removeMaterial, updateMaterialRetorno
+ *
+ * Notar que `update` usa PATCH (no PUT) — el backend soporta actualización
+ * parcial de cabecera, ver remitos.controller.updateRemito.
+ *
+ * NO incluye `confirmarEscaneo` ni `reportarProblema` porque esos endpoints
+ * los usa la app mobile (m3-qr), no el flujo desktop del M5.
+ */
 import { api } from '@shared/utils/api.js'
 
 export const RemitosService = {

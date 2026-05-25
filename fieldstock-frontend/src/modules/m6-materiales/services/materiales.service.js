@@ -1,4 +1,15 @@
 // src/modules/m6-materiales/services/materiales.service.js
+/**
+ * Service del M6 (frontend) — wrapper sobre el backend de materiales.
+ *
+ * CRUD básico. No expone `updateStock` — eso es uso interno del backend
+ * desde remitos.service (avance/retorno de estado), no se debe llamar
+ * desde el frontend directamente.
+ *
+ * FIXME: el nombre `MateriasService` es legacy (cuando el módulo se
+ * llamaba "Materias"). Conviene renombrar a `MaterialesService` y
+ * actualizar los imports en hooks y páginas.
+ */
 import { api } from '@shared/utils/api.js'
 
 export const MateriasService = {

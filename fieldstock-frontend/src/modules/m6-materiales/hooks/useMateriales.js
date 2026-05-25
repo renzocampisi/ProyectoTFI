@@ -1,4 +1,14 @@
 // src/modules/m6-materiales/hooks/useMateriales.js
+/**
+ * Hook del M6 — wrapper de MateriasService.
+ *
+ * useMateriales({q}): hook de LISTA con búsqueda. Aplica debounce de 300ms
+ *   cuando se escribe en `q` para evitar un request por cada tecla.
+ *
+ * Solo expone hook de lista — la página de detalle/edición lee usando
+ * `MateriasService.getById` directamente (decisión deliberada porque solo
+ * lo usa un único componente).
+ */
 import { useState, useEffect, useCallback } from 'react'
 import { MateriasService } from '../services/materiales.service.js'
 

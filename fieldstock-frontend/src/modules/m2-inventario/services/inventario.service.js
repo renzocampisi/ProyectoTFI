@@ -1,4 +1,19 @@
 // src/modules/m2-inventario/services/inventario.service.js
+/**
+ * Service del M2 (frontend) — wrapper sobre el backend de herramientas.
+ *
+ * Patrón estándar de los services del frontend:
+ *   export const NombreService = { metodo1, metodo2, ... }
+ *
+ * Cada método mapea 1:1 contra un endpoint del backend (ver routes/index.js).
+ * No tiene state, no usa React — solo arma URLs y delega a `api`.
+ *
+ * `incluirBajas` es un flag opcional para la lista (mostrar también las
+ * herramientas dadas de baja); por defecto se filtran.
+ *
+ * `getCategorias` existe pero hoy las páginas siguen leyendo CATEGORIAS
+ * del archivo de constantes (inventario.mock.js) — pendiente del cleanup H2.
+ */
 import { api } from '@shared/utils/api.js'
 
 export const InventarioService = {

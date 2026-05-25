@@ -1,4 +1,20 @@
 // src/modules/m2-inventario/hooks/useInventario.js
+/**
+ * Hooks del M2 — encapsulan el state + las llamadas a InventarioService.
+ *
+ * useInventario: hook para la PÁGINA LISTA.
+ *   - Maneja el state de filtros (busqueda, estado, categoría) internamente.
+ *   - Debounce de 300ms cuando se escribe en `busqueda` (reduce requests).
+ *   - Calcula `conteos` por estado para los chips/badges de la UI.
+ *
+ * useHerramienta: hook para la PÁGINA DETALLE.
+ *   - Carga la herramienta + su historial de movimientos en paralelo.
+ *   - Devuelve null en `herramienta` mientras carga o si el id no existe.
+ *
+ * FIXME: hay duplicación estructural entre useInventario, useObras,
+ * useRemitos, useMateriales (skeleton state/fetch/refetch). Refactor
+ * candidato: hook genérico `useResource(serviceFn, deps)`.
+ */
 import { useState, useEffect, useCallback } from 'react'
 import { InventarioService } from '../services/inventario.service.js'
 
