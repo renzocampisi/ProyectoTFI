@@ -28,9 +28,12 @@
  *                                    automáticamente al avanzar estados
  *                                    de remito que tocan herramientas
  *                                    (issue #1):
- *                                    · BORRADOR→CONFIRMADO → EGRESO (paso 1)
- *                                    · CIERRE con VUELVE     → INGRESO (paso 2)
- *                                    · CIERRE con ROTA       → pendiente (paso 3)
+ *                                    · BORRADOR→CONFIRMADO → EGRESO
+ *                                    · CIERRE con VUELVE     → INGRESO
+ *                                    · CIERRE con ROTA       → MANTENIMIENTO
+ *                                    · CIERRE con PERDIDA    → BAJA vía RPC
+ *                                                              dar_baja_herramienta
+ *                                                              (audita por su cuenta)
  */
 import { supabase } from '../config/supabase.js'
 import { updateStock } from './materiales.service.js'
@@ -457,6 +460,18 @@ export async function avanzarEstado(id, body = {}) {
       } else if (item.estado_retorno === 'ROTA') {
         await supabase.from('herramientas')
           .update({ estado: 'EN_MANTENIMIENTO' }).eq('id', item.herramienta_id)
+        // ── Movimiento MANTENIMIENTO (issue #1 — paso 3) ──
+        // La herramienta vuelve rota: requiere reparación. El audit trail
+        // queda explícito para que el historial muestre por qué pasó a
+        // EN_MANTENIMIENTO sin acción manual.
+        await supabase.from('movimientos').insert({
+          herramienta_id: item.herramienta_id,
+          tipo:           'MANTENIMIENTO',
+          fecha:          fechaHoy,
+          obra:           remito.obra,
+          responsable:    remito.responsable,
+          observacion:    `Devolución rota desde remito ${remito.numero}`,
+        })
       } else if (item.estado_retorno === 'PERDIDA') {
         // BAJA va vía RPC porque es una transición terminal con auditoría
         await supabase.rpc('dar_baja_herramienta', {
