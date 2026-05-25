@@ -227,4 +227,131 @@ describe('remitos.service.avanzarEstado', () => {
       expect(movInsert).toBeUndefined()
     })
   })
+
+  describe('EN_TRANSITO_RETORNO → CERRADO con VUELVE (issue #1 step 2)', () => {
+    /**
+     * Helper: configura el mock para simular el cierre de un remito con
+     * items que vuelven con distintos estados de retorno.
+     */
+    function setupCierreRemito(items, remitoData = {}) {
+      const remito = {
+        id:          'r-1',
+        numero:      'R-2026-0001',
+        estado:      'EN_TRANSITO_RETORNO',
+        obra:        'Obra Belgrano',
+        responsable: 'Juan Pérez',
+        ...remitoData,
+      }
+
+      // Primer single(): cabecera del remito
+      mockChain.single.mockResolvedValueOnce({ data: remito, error: null })
+
+      // El bloque EN_TRANSITO_RETORNO hace estas queries via `.then` (awaitable):
+      // 1) remito_items (items que vuelven)
+      // 2) remito_materiales del catálogo (mats)
+      // 3) remito_materiales libres (matsLibres)
+      let callCount = 0
+      mockChain.then = (resolve) => {
+        callCount++
+        if (callCount === 1) return resolve({ data: items, error: null })
+        if (callCount === 2) return resolve({ data: [],    error: null })  // mats catálogo
+        if (callCount === 3) return resolve({ data: [],    error: null })  // mats libres
+        return resolve({ data: [], error: null })
+      }
+
+      // UPDATE final del remito a CERRADO
+      mockChain.single.mockResolvedValueOnce({
+        data: { ...remito, estado: 'CERRADO' },
+        error: null,
+      })
+
+      return remito
+    }
+
+    // Helper: encontrar todos los inserts a movimientos (por tipo)
+    function getMovimientosInsertados(tipo) {
+      return mockChain.insert.mock.calls
+        .filter(c => !Array.isArray(c[0]) && c[0]?.tipo === tipo)
+        .map(c => c[0])
+    }
+
+    it('inserta movimiento INGRESO por cada herramienta que vuelve con estado_retorno=VUELVE', async () => {
+      setupCierreRemito([
+        { herramienta_id: 'h-1', estado_retorno: 'VUELVE' },
+        { herramienta_id: 'h-2', estado_retorno: 'VUELVE' },
+      ])
+
+      await RemitosService.avanzarEstado('r-1')
+
+      const ingresos = getMovimientosInsertados('INGRESO')
+      expect(ingresos).toHaveLength(2)
+    })
+
+    it('hereda responsable y obra del remito', async () => {
+      setupCierreRemito(
+        [{ herramienta_id: 'h-1', estado_retorno: 'VUELVE' }],
+        { obra: 'Obra Palermo', responsable: 'Laura Giménez' }
+      )
+
+      await RemitosService.avanzarEstado('r-1')
+
+      const ingresos = getMovimientosInsertados('INGRESO')
+      expect(ingresos[0]).toMatchObject({
+        herramienta_id: 'h-1',
+        tipo:           'INGRESO',
+        obra:           'Obra Palermo',
+        responsable:    'Laura Giménez',
+      })
+    })
+
+    it('observación incluye el número de remito (auditoría)', async () => {
+      setupCierreRemito(
+        [{ herramienta_id: 'h-1', estado_retorno: 'VUELVE' }],
+        { numero: 'R-2026-0042' }
+      )
+
+      await RemitosService.avanzarEstado('r-1')
+
+      const ingresos = getMovimientosInsertados('INGRESO')
+      expect(ingresos[0].observacion).toContain('R-2026-0042')
+    })
+
+    it('fecha = hoy (YYYY-MM-DD)', async () => {
+      setupCierreRemito([{ herramienta_id: 'h-1', estado_retorno: 'VUELVE' }])
+
+      await RemitosService.avanzarEstado('r-1')
+
+      const ingresos = getMovimientosInsertados('INGRESO')
+      const hoy = new Date().toISOString().split('T')[0]
+      expect(ingresos[0].fecha).toBe(hoy)
+    })
+
+    it('NO inserta INGRESO para items con estado_retorno=ROTA, PERDIDA o QUEDA_EN_OBRA', async () => {
+      setupCierreRemito([
+        { herramienta_id: 'h-1', estado_retorno: 'ROTA' },
+        { herramienta_id: 'h-2', estado_retorno: 'PERDIDA' },
+        { herramienta_id: 'h-3', estado_retorno: 'QUEDA_EN_OBRA' },
+      ])
+
+      await RemitosService.avanzarEstado('r-1')
+
+      const ingresos = getMovimientosInsertados('INGRESO')
+      expect(ingresos).toHaveLength(0)
+    })
+
+    it('en un remito mixto, solo los VUELVE generan INGRESO', async () => {
+      setupCierreRemito([
+        { herramienta_id: 'h-1', estado_retorno: 'VUELVE' },
+        { herramienta_id: 'h-2', estado_retorno: 'ROTA' },
+        { herramienta_id: 'h-3', estado_retorno: 'VUELVE' },
+        { herramienta_id: 'h-4', estado_retorno: 'PERDIDA' },
+      ])
+
+      await RemitosService.avanzarEstado('r-1')
+
+      const ingresos = getMovimientosInsertados('INGRESO')
+      expect(ingresos).toHaveLength(2)
+      expect(ingresos.map(m => m.herramienta_id).sort()).toEqual(['h-1', 'h-3'])
+    })
+  })
 })
