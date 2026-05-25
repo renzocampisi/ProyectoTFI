@@ -27,8 +27,10 @@
  *  · `movimientos` (insert)        — audit trail inmutable; se inserta
  *                                    automáticamente al avanzar estados
  *                                    de remito que tocan herramientas
- *                                    (issue #1). Hoy implementado solo
- *                                    para BORRADOR→CONFIRMADO (EGRESO).
+ *                                    (issue #1):
+ *                                    · BORRADOR→CONFIRMADO → EGRESO (paso 1)
+ *                                    · CIERRE con VUELVE     → INGRESO (paso 2)
+ *                                    · CIERRE con ROTA       → pendiente (paso 3)
  */
 import { supabase } from '../config/supabase.js'
 import { updateStock } from './materiales.service.js'
@@ -356,6 +358,10 @@ export async function avanzarEstado(id, body = {}) {
     err.status = 400; throw err
   }
 
+  // Fecha compartida entre los inserts a `movimientos` que dispara cada
+  // transición (steps del issue #1). Una sola lectura del clock por avance.
+  const fechaHoy = new Date().toISOString().split('T')[0]
+
   // ── Transición BORRADOR → CONFIRMADO ──────────────────────────
   // Valida que el remito tenga al menos un item; bloquea las herramientas
   // (EN_OBRA) y descuenta stock de los materiales del catálogo.
@@ -381,7 +387,6 @@ export async function avanzarEstado(id, body = {}) {
       // inmutable en `movimientos`, con obra/responsable del remito.
       // Decisión: BAJA por PERDIDA NO genera un movimiento extra acá
       // porque la RPC `dar_baja_herramienta` ya audita por su cuenta.
-      const fechaHoy = new Date().toISOString().split('T')[0]
       await supabase.from('movimientos').insert(
         items.map(i => ({
           herramienta_id: i.herramienta_id,
@@ -439,6 +444,16 @@ export async function avanzarEstado(id, body = {}) {
       if (item.estado_retorno === 'VUELVE') {
         await supabase.from('herramientas')
           .update({ estado: 'DISPONIBLE' }).eq('id', item.herramienta_id)
+        // ── Movimiento INGRESO (issue #1 — paso 2) ──
+        // La herramienta vuelve sana al galpón: audit trail correspondiente.
+        await supabase.from('movimientos').insert({
+          herramienta_id: item.herramienta_id,
+          tipo:           'INGRESO',
+          fecha:          fechaHoy,
+          obra:           remito.obra,
+          responsable:    remito.responsable,
+          observacion:    `Devolución desde remito ${remito.numero}`,
+        })
       } else if (item.estado_retorno === 'ROTA') {
         await supabase.from('herramientas')
           .update({ estado: 'EN_MANTENIMIENTO' }).eq('id', item.herramienta_id)
