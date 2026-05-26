@@ -6,18 +6,19 @@
  * estados + items de herramientas + items de materiales. La lógica real
  * vive en remitos.service.js; acá hay req/res y validación de body.
  *
- * Dos handlers se salen del patrón thin estándar:
+ * Un handler se sale del patrón thin estándar:
  *  - confirmarEscaneo: lee estado actual ANTES de avanzar para reportar
  *    si fue SALIDA o LLEGADA al cliente que escanea el QR.
- *  - reportarProblema: combina update + notif + avance en una operación.
- *    FIXME: idealmente esa orquestación debería estar en el service.
+ *
+ * (reportarProblema antes encadenaba 3 escrituras en el controller — issue
+ * #7 lo movió a RemitosService.reportarProblema para respetar la convención
+ * controller→service y arreglar un bug de validación en el camino.)
  *
  * Nota de naming: `updateRemito` queda con sufijo para evitar shadowing
  * de un `update` que ya se importa indirectamente. Conviene renombrarlo
  * a `update` y resolver la colisión si llega a aparecer.
  */
 import * as RemitosService from '../services/remitos.service.js'
-import * as NotifService   from '../services/notificaciones.service.js'
 
 export async function getAll(req, res, next) {
   try {
@@ -85,36 +86,13 @@ export async function confirmarEscaneo(req, res, next) {
 }
 
 // ── Reportar problema al llegar a la obra ────────────────────
-// Variante del segundo escaneo: la carga llegó pero con un problema
-// (faltan herramientas, hay roturas, etc.). Triple efecto:
-//   1. Guarda la descripción como observación de llegada en el remito
-//   2. Crea una notificación en el sistema (tipo PROBLEMA_LLEGADA)
-//   3. Igual avanza a EN_OBRA — el problema no bloquea el flujo
-// FIXME: este encadenamiento de 3 escrituras debería vivir en un método
-// del service para mantener la atomicidad lógica.
+// Variante del 2° escaneo del QR (la carga llegó con un problema). La
+// orquestación de las 3 escrituras (update remito + notif + avanzar) vive
+// en RemitosService.reportarProblema — ver issue #7 para el contexto del
+// refactor + bug fix.
 export async function reportarProblema(req, res, next) {
   try {
-    const { id } = req.params
-    const { descripcion } = req.body
-    if (!descripcion?.trim())
-      return res.status(400).json({ ok: false, error: 'La descripción del problema es obligatoria' })
-
-    const remito = await RemitosService.getById(id)
-    if (!remito) return res.status(404).json({ ok: false, error: 'Remito no encontrado' })
-
-    // Guardar observación en el remito
-    await RemitosService.update(id, { observacionLlegada: descripcion.trim() })
-
-    // Crear notificación en el sistema
-    await NotifService.create({
-      tipo:     'PROBLEMA_LLEGADA',
-      titulo:   `Problema en remito ${remito.numero}`,
-      mensaje:  `Obra: ${remito.obra}. Problema reportado: ${descripcion.trim()}`,
-      remitoId: id,
-    })
-
-    // Avanzar igual a EN_OBRA (llegó pero con problema)
-    const data = await RemitosService.avanzarEstado(id)
+    const data = await RemitosService.reportarProblema(req.params.id, req.body.descripcion)
     res.json({ ok: true, data })
   } catch (err) { next(err) }
 }

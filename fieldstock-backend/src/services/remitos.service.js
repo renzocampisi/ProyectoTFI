@@ -34,9 +34,12 @@
  *                                    · CIERRE con PERDIDA    → BAJA vía RPC
  *                                                              dar_baja_herramienta
  *                                                              (audita por su cuenta)
+ *  · `notificaciones` (insert)     — reportarProblema crea una al detectar
+ *                                    un problema al llegar a obra (issue #7)
  */
 import { supabase } from '../config/supabase.js'
 import { updateStock } from './materiales.service.js'
+import * as NotifService from './notificaciones.service.js'
 
 // ── Generar número correlativo desde una RPC de Postgres ─────
 async function generarNumero() {
@@ -539,6 +542,63 @@ export async function avanzarEstado(id, body = {}) {
     .from('remitos').update({ estado: nuevoEstado }).eq('id', id).select().single()
   if (error) throw error
   return data
+}
+
+// ── Reportar problema al llegar a obra (issue #7) ─────────────
+// Variante del 2° escaneo del QR desde la app mobile: la carga llegó
+// pero hay un problema (faltan items, hay roturas, etc). Aplica 3
+// efectos en orden:
+//   1) guarda la descripción en remito.observacion_llegada
+//   2) crea una notificación tipo PROBLEMA_LLEGADA
+//   3) avanza el estado igual a EN_OBRA (el problema no bloquea el flujo)
+//
+// El UPDATE de observacion_llegada se hace directo a la tabla (sin pasar
+// por update() del propio service) porque update() valida que el estado
+// sea BORRADOR|CONFIRMADO — pero acá el remito está en EN_TRANSITO.
+// Mezclar ambas semánticas en update() rompería ese contrato.
+export async function reportarProblema(id, descripcion) {
+  if (!descripcion?.trim()) {
+    const err = new Error('La descripción del problema es obligatoria')
+    err.status = 400; throw err
+  }
+
+  const { data: remito, error: errR } = await supabase
+    .from('remitos').select('*').eq('id', id).single()
+  if (errR) throw errR
+  if (!remito) {
+    const err = new Error('Remito no encontrado')
+    err.status = 404; throw err
+  }
+
+  // El problema solo se reporta al llegar a obra (estado EN_TRANSITO).
+  // En otros estados no tiene sentido y avanzarEstado() haría un cambio
+  // distinto al esperado.
+  if (remito.estado !== 'EN_TRANSITO') {
+    const err = new Error(
+      `No se puede reportar problema: el remito está en estado ${remito.estado}. ` +
+      `Solo se admite en EN_TRANSITO.`
+    )
+    err.status = 400; throw err
+  }
+
+  const desc = descripcion.trim()
+
+  // 1) Persistir la observación de llegada
+  await supabase.from('remitos')
+    .update({ observacion_llegada: desc })
+    .eq('id', id)
+
+  // 2) Crear notificación en el sistema
+  await NotifService.create({
+    tipo:     'PROBLEMA_LLEGADA',
+    titulo:   `Problema en remito ${remito.numero}`,
+    mensaje:  `Obra: ${remito.obra}. Problema reportado: ${desc}`,
+    remitoId: id,
+  })
+
+  // 3) Avanzar de EN_TRANSITO → EN_OBRA (la state machine no tiene
+  // side-effects para esta transición, solo cambia el estado).
+  return avanzarEstado(id)
 }
 
 // ── Eliminar remito cerrado ───────────────────────────────────
