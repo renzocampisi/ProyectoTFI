@@ -1,5 +1,5 @@
 // src/modules/m5-remito/pages/RemitosDetailPage.jsx
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useRemito } from '../hooks/useRemitos'
 import { RemitosService } from '../services/remitos.service'
@@ -74,6 +74,9 @@ function HerrBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
   const [busqueda,     setBusqueda]     = useState('')
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState(null)
+  // Guard síncrono contra doble-click (issue #9). useState es asíncrono y
+  // se cuela un 2° click antes de que React renderice disabled={saving}.
+  const savingRef = useRef(false)
 
   useState(() => {
     InventarioService.getAll({ estado: 'DISPONIBLE' })
@@ -104,6 +107,8 @@ function HerrBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
 
   const handleAgregar = async () => {
     if (!seleccionadas.size) return
+    if (savingRef.current) return  // bloqueo síncrono contra doble-click
+    savingRef.current = true
     setSaving(true); setError(null)
     try {
       // Agregar todas en paralelo
@@ -114,7 +119,7 @@ function HerrBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
       )
       onSaved()
     } catch (err) { setError(err.message) }
-    finally { setSaving(false) }
+    finally { setSaving(false); savingRef.current = false }
   }
 
   return (
@@ -209,6 +214,10 @@ function MatBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
   const [matLibre,     setMatLibre]     = useState({ descripcion: '', cantidad: '', unidad: 'unidad' })
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState(null)
+  // Guard síncrono contra doble-click (issue #9). El disabled={saving} llega
+  // tarde al DOM (un re-render después), un doble-click rápido lo evade y
+  // genera duplicados en remito_materiales. Este ref bloquea sincrónicamente.
+  const savingRef = useRef(false)
 
   useState(() => {
     MaterialesService.getAll()
@@ -233,32 +242,60 @@ function MatBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
     setCantidades(c => ({ ...c, [id]: val }))
   }
 
+  // ── Validación cliente-side de stock (issue #10) ──
+  // Map por id → material para consultas rápidas en O(1).
+  const matsById = useMemo(
+    () => materiales.reduce((acc, m) => ({ ...acc, [m.id]: m }), {}),
+    [materiales]
+  )
+
+  // Para un material seleccionado, indica si la cantidad ingresada supera
+  // el stock disponible. Vacío o no-numérico cuenta como "sin error" para
+  // no marcar rojo apenas hace foco — solo invalida cuando hay un número
+  // mayor al stock.
+  const excedeStock = (id) => {
+    const m    = matsById[id]
+    const cant = Number(cantidades[id])
+    return m && cant > 0 && cant > m.stock_actual
+  }
+
+  const haySeleccionadosInvalidos = [...seleccionados].some(excedeStock)
+
   const handleAgregar = async () => {
     // Validar que todos los seleccionados tengan cantidad
     const sinCantidad = [...seleccionados].filter(id => !cantidades[id] || Number(cantidades[id]) <= 0)
     if (sinCantidad.length) { setError('Ingresá la cantidad de cada material seleccionado.'); return }
 
+    // Validación cliente-side de stock antes de mandar (issue #10)
+    if (haySeleccionadosInvalidos) {
+      setError('Hay materiales con cantidad mayor al stock disponible. Corregilos antes de agregar.')
+      return
+    }
+
+    if (savingRef.current) return  // guard síncrono (issue #9)
+    savingRef.current = true
     setSaving(true); setError(null)
     try {
-      const mat = materiales.reduce((acc, m) => ({ ...acc, [m.id]: m }), {})
       await Promise.all(
         [...seleccionados].map(id =>
           RemitosService.addMaterial(remitoId, {
             materialId: id,
             cantidad:   Number(cantidades[id]),
-            unidad:     mat[id].unidad,
+            unidad:     matsById[id].unidad,
           })
         )
       )
       onSaved()
     } catch (err) { setError(err.message) }
-    finally { setSaving(false) }
+    finally { setSaving(false); savingRef.current = false }
   }
 
   const handleAddLibre = async () => {
     if (!matLibre.descripcion.trim() || !matLibre.cantidad || Number(matLibre.cantidad) <= 0) {
       setError('Completá descripción y cantidad'); return
     }
+    if (savingRef.current) return  // guard síncrono (issue #9)
+    savingRef.current = true
     setSaving(true); setError(null)
     try {
       await RemitosService.addMaterial(remitoId, {
@@ -269,7 +306,7 @@ function MatBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
       setMatLibre({ descripcion: '', cantidad: '', unidad: 'unidad' })
       onSaved()
     } catch (err) { setError(err.message) }
-    finally { setSaving(false) }
+    finally { setSaving(false); savingRef.current = false }
   }
 
   return (
@@ -306,28 +343,40 @@ function MatBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
               </p>
             ) : (
               <ul className={styles.checkLista}>
-                {filtrados.map(m => (
-                  <li key={m.id}
-                    className={`${styles.checkItem} ${seleccionados.has(m.id) ? styles.checkItemSelected : ''}`}>
-                    <input type="checkbox" checked={seleccionados.has(m.id)}
-                      onChange={() => toggleMat(m.id)} />
-                    <div className={styles.checkInfo} onClick={() => toggleMat(m.id)}>
-                      <span className={styles.checkNombre}>{m.nombre}</span>
-                      <span className={styles.checkSub}>Stock: {m.stock_actual} {m.unidad}</span>
-                    </div>
-                    {seleccionados.has(m.id) && (
-                      <input
-                        type="number" min="1" step="1"
-                        className={styles.cantidadInputInline}
-                        placeholder={`Máx ${m.stock_actual}`}
-                        value={cantidades[m.id] || ''}
-                        onChange={e => setCantidad(m.id, e.target.value)}
-                        onClick={e => e.stopPropagation()}
-                        autoFocus
-                      />
-                    )}
-                  </li>
-                ))}
+                {filtrados.map(m => {
+                  const excede = excedeStock(m.id)
+                  return (
+                    <li key={m.id}
+                      className={`${styles.checkItem} ${seleccionados.has(m.id) ? styles.checkItemSelected : ''}`}>
+                      <input type="checkbox" checked={seleccionados.has(m.id)}
+                        onChange={() => toggleMat(m.id)} />
+                      <div className={styles.checkInfo} onClick={() => toggleMat(m.id)}>
+                        <span className={styles.checkNombre}>{m.nombre}</span>
+                        <span className={styles.checkSub}>Stock: {m.stock_actual} {m.unidad}</span>
+                      </div>
+                      {seleccionados.has(m.id) && (
+                        <div className={styles.cantidadWrapper}>
+                          <input
+                            type="number" min="1" step="1" max={m.stock_actual}
+                            // Borde rojo cuando excede el stock (issue #10)
+                            className={`${styles.cantidadInputInline} ${excede ? styles.inputError : ''}`}
+                            placeholder={`Máx ${m.stock_actual}`}
+                            value={cantidades[m.id] || ''}
+                            onChange={e => setCantidad(m.id, e.target.value)}
+                            onClick={e => e.stopPropagation()}
+                            aria-invalid={excede}
+                            autoFocus
+                          />
+                          {excede && (
+                            <span className={styles.cantidadErrorInline}>
+                              Excede stock disponible ({m.stock_actual})
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             )}
 
@@ -336,12 +385,17 @@ function MatBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
                 {seleccionados.size > 0
                   ? `${seleccionados.size} material${seleccionados.size !== 1 ? 'es' : ''} seleccionado${seleccionados.size !== 1 ? 's' : ''}`
                   : 'Ninguno seleccionado'}
+                {haySeleccionadosInvalidos && (
+                  <span className={styles.cantidadErrorInline}> · revisá cantidades en rojo</span>
+                )}
               </span>
               <div className={styles.modalActions}>
                 <button className={styles.btnGhost} onClick={onClose}>Cancelar</button>
                 <button className={styles.btnPrimary}
                   onClick={handleAgregar}
-                  disabled={saving || seleccionados.size === 0}>
+                  // Bloqueado si: ya está guardando, no hay seleccionados,
+                  // o alguno excede su stock (issue #10)
+                  disabled={saving || seleccionados.size === 0 || haySeleccionadosInvalidos}>
                   {saving ? 'Agregando...' : `Agregar ${seleccionados.size > 0 ? seleccionados.size : ''}`}
                 </button>
               </div>
