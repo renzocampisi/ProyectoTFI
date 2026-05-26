@@ -13,6 +13,11 @@ npm run dev
 npm run dev --prefix fieldstock-backend
 npm run dev --prefix fieldstock-frontend
 
+# Frontend con HTTPS (necesario para usar la cámara desde un celular en LAN —
+# getUserMedia requiere contexto seguro, ver issue #12). Usa cert autofirmado:
+# el browser va a quejarse la primera vez, hay que aceptar el warning.
+npm run dev:https --prefix fieldstock-frontend
+
 # Build frontend
 npm run build --prefix fieldstock-frontend
 
