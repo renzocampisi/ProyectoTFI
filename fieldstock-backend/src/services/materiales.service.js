@@ -34,12 +34,36 @@ export async function getById(id) {
   return data
 }
 
+/**
+ * Devuelve la lista de marcas únicas ya usadas en el catálogo (Word #17).
+ * Sirve para autocomplete del input "Marca" en el formulario de alta/edición
+ * de materiales — evita typos y agrupa materiales con la misma marca.
+ *
+ * Filtramos nulls y strings vacíos en SQL; ordenamos alfabéticamente para
+ * facilitar lectura.
+ */
+export async function getMarcas() {
+  const { data, error } = await supabase
+    .from('materiales')
+    .select('marca')
+    .not('marca', 'is', null)
+    .neq('marca', '')
+    .order('marca')
+
+  if (error) throw error
+  // Dedup en JS — Supabase no tiene DISTINCT en el JS SDK
+  return [...new Set((data ?? []).map(r => r.marca))]
+}
+
 export async function create(body) {
   const { data, error } = await supabase
     .from('materiales')
     .insert({
       nombre:       body.nombre,
       descripcion:  body.descripcion  || null,
+      // Marca opcional (Word #17). Si viene vacía o whitespace, guardamos null
+      // y la UI lo muestra como "Sin marca" para mantener consistencia.
+      marca:        body.marca?.trim() || null,
       unidad:       body.unidad       || 'unidad',
       stock_actual: body.stockActual  || 0,
       stock_minimo: body.stockMinimo  || 0,
@@ -53,6 +77,7 @@ export async function update(id, body) {
   const campos = {}
   if (body.nombre      !== undefined) campos.nombre       = body.nombre
   if (body.descripcion !== undefined) campos.descripcion  = body.descripcion || null
+  if (body.marca       !== undefined) campos.marca        = body.marca?.trim() || null
   if (body.unidad      !== undefined) campos.unidad       = body.unidad
   if (body.stockActual !== undefined) campos.stock_actual = body.stockActual
   if (body.stockMinimo !== undefined) campos.stock_minimo = body.stockMinimo

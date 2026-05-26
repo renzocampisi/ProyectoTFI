@@ -15,20 +15,29 @@ export default function MateriasEditPage() {
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [guardado,setGuardado]= useState(false)
+  // Marcas existentes para autocomplete (Word #17)
+  const [marcasExistentes, setMarcasExistentes] = useState([])
 
   useEffect(() => {
-    MaterialesService.getById(id)
-      .then(mat => {
+    // Cargar el material + las marcas existentes en paralelo
+    Promise.all([
+      MaterialesService.getById(id),
+      MaterialesService.getMarcas().catch(() => []),  // No crítico
+    ])
+      .then(([mat, marcas]) => {
         setForm({
           nombre:      mat.nombre       || '',
           descripcion: mat.descripcion  || '',
+          marca:       mat.marca        || '',
           unidad:      mat.unidad       || 'unidad',
           stockActual: mat.stock_actual ?? 0,
           stockMinimo: mat.stock_minimo ?? 0,
         })
+        setMarcasExistentes(marcas)
         setLoading(false)
       })
       .catch(() => navigate('/materiales'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   const set = (campo, valor) => {
@@ -53,6 +62,7 @@ export default function MateriasEditPage() {
       await MaterialesService.update(id, {
         nombre:      form.nombre.trim(),
         descripcion: form.descripcion.trim() || null,
+        marca:       form.marca.trim() || null,
         unidad:      form.unidad,
         stockActual: Number(form.stockActual),
         stockMinimo: Number(form.stockMinimo),
@@ -108,6 +118,18 @@ export default function MateriasEditPage() {
                 value={form.unidad} onChange={e => set('unidad', e.target.value)}>
                 {UNIDADES.map(u => <option key={u} value={u}>{u}</option>)}
               </select>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="marca">
+                Marca <span className={styles.optional}>(opcional)</span>
+              </label>
+              <input id="marca" type="text" className={styles.input}
+                list="marcas-existentes"
+                placeholder="Ej: Tacsa, Roda, Precincor"
+                value={form.marca} onChange={e => set('marca', e.target.value)} />
+              <datalist id="marcas-existentes">
+                {marcasExistentes.map(m => <option key={m} value={m} />)}
+              </datalist>
             </div>
             <div className={`${styles.field} ${styles.fullWidth}`}>
               <label className={styles.label} htmlFor="descripcion">Descripción <span className={styles.optional}>(opcional)</span></label>

@@ -1,11 +1,11 @@
 // src/modules/m6-materiales/pages/MateriasNewPage.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MaterialesService } from '../services/materiales.service'
 import styles from './MateriasNewPage.module.css'
 
 const UNIDADES = ['unidad','kg','metro','litro','caja','rollo','juego','par']
-const INICIAL  = { nombre: '', descripcion: '', unidad: 'unidad', stockActual: '', stockMinimo: '' }
+const INICIAL  = { nombre: '', descripcion: '', marca: '', unidad: 'unidad', stockActual: '', stockMinimo: '' }
 
 export default function MateriasNewPage() {
   const navigate = useNavigate()
@@ -13,6 +13,14 @@ export default function MateriasNewPage() {
   const [errores, setErrores] = useState({})
   const [loading, setLoading] = useState(false)
   const [guardado,setGuardado]= useState(null)
+  // Lista de marcas ya usadas para autocomplete del input (Word #17)
+  const [marcasExistentes, setMarcasExistentes] = useState([])
+
+  useEffect(() => {
+    MaterialesService.getMarcas()
+      .then(setMarcasExistentes)
+      .catch(() => {})  // No crítico — el input sigue siendo libre
+  }, [])
 
   const set = (campo, valor) => {
     setForm(f => ({ ...f, [campo]: valor }))
@@ -36,6 +44,7 @@ export default function MateriasNewPage() {
       const mat = await MaterialesService.create({
         nombre:      form.nombre.trim(),
         descripcion: form.descripcion.trim() || null,
+        marca:       form.marca.trim() || null,
         unidad:      form.unidad,
         stockActual: form.stockActual ? Number(form.stockActual) : 0,
         stockMinimo: form.stockMinimo ? Number(form.stockMinimo) : 0,
@@ -91,10 +100,23 @@ export default function MateriasNewPage() {
                 {UNIDADES.map(u => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="marca">
+                Marca <span className={styles.optional}>(opcional)</span>
+              </label>
+              <input id="marca" type="text" className={styles.input}
+                list="marcas-existentes"
+                placeholder="Ej: Tacsa, Roda, Precincor"
+                value={form.marca} onChange={e => set('marca', e.target.value)} />
+              {/* datalist habilita autocomplete con marcas ya usadas (Word #17 + #20) */}
+              <datalist id="marcas-existentes">
+                {marcasExistentes.map(m => <option key={m} value={m} />)}
+              </datalist>
+            </div>
             <div className={`${styles.field} ${styles.fullWidth}`}>
               <label className={styles.label} htmlFor="descripcion">Descripción <span className={styles.optional}>(opcional)</span></label>
               <input id="descripcion" type="text" className={styles.input}
-                placeholder="Especificaciones, marca, uso habitual..."
+                placeholder="Especificaciones, uso habitual..."
                 value={form.descripcion} onChange={e => set('descripcion', e.target.value)} />
             </div>
           </div>
