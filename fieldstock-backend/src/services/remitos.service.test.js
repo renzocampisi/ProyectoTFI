@@ -38,8 +38,15 @@ jest.mock('./materiales.service.js', () => ({
   updateStock: jest.fn().mockResolvedValue(undefined),
 }))
 
+// NotifService.create se mockea para verificar que reportarProblema lo
+// invoca con el payload correcto (issue #7).
+jest.mock('./notificaciones.service.js', () => ({
+  create: jest.fn().mockResolvedValue({ id: 'notif-1' }),
+}))
+
 import * as RemitosService from './remitos.service.js'
 import { supabase } from '../config/supabase.js'
+import * as NotifService from './notificaciones.service.js'
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -434,5 +441,110 @@ describe('remitos.service.avanzarEstado', () => {
         expect(mantenimientos.map(m => m.herramienta_id).sort()).toEqual(['h-2', 'h-3'])
       })
     })
+  })
+})
+
+describe('remitos.service.reportarProblema (issue #7)', () => {
+  /**
+   * Helper: simula un remito en estado EN_TRANSITO (única transición
+   * válida para reportar problema) que después avanza a EN_OBRA.
+   */
+  function setupRemitoEnTransito(remitoData = {}) {
+    const remito = {
+      id:          'r-1',
+      numero:      'R-2026-0001',
+      estado:      'EN_TRANSITO',
+      obra:        'Obra Belgrano',
+      responsable: 'Juan Pérez',
+      ...remitoData,
+    }
+
+    // 1° single(): el read inicial del remito
+    mockChain.single.mockResolvedValueOnce({ data: remito, error: null })
+    // 2° single(): el read DENTRO de avanzarEstado al final
+    mockChain.single.mockResolvedValueOnce({ data: remito, error: null })
+    // 3° single(): el UPDATE final de avanzarEstado al cambiar a EN_OBRA
+    mockChain.single.mockResolvedValueOnce({
+      data: { ...remito, estado: 'EN_OBRA' },
+      error: null,
+    })
+
+    return remito
+  }
+
+  it('rechaza descripción vacía con error 400', async () => {
+    await expect(
+      RemitosService.reportarProblema('r-1', '   ')
+    ).rejects.toMatchObject({ status: 400, message: expect.stringContaining('descripción') })
+  })
+
+  it('rechaza descripción undefined con error 400', async () => {
+    await expect(
+      RemitosService.reportarProblema('r-1', undefined)
+    ).rejects.toMatchObject({ status: 400 })
+  })
+
+  it('devuelve 404 si el remito no existe', async () => {
+    mockChain.single.mockResolvedValueOnce({ data: null, error: null })
+
+    await expect(
+      RemitosService.reportarProblema('inexistente', 'algún problema')
+    ).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('rechaza si el estado del remito no es EN_TRANSITO', async () => {
+    mockChain.single.mockResolvedValueOnce({
+      data: { id: 'r-1', estado: 'BORRADOR', numero: 'R-1' },
+      error: null,
+    })
+
+    await expect(
+      RemitosService.reportarProblema('r-1', 'algún problema')
+    ).rejects.toMatchObject({ status: 400, message: expect.stringContaining('BORRADOR') })
+  })
+
+  it('guarda observacion_llegada en el remito con el texto trimmed', async () => {
+    setupRemitoEnTransito()
+
+    await RemitosService.reportarProblema('r-1', '   falta un destornillador   ')
+
+    // Buscar el UPDATE específico a observacion_llegada
+    const updateLlegada = mockChain.update.mock.calls.find(c =>
+      c[0]?.observacion_llegada !== undefined
+    )
+    expect(updateLlegada).toBeDefined()
+    expect(updateLlegada[0].observacion_llegada).toBe('falta un destornillador')
+  })
+
+  it('crea una notificación PROBLEMA_LLEGADA con título y mensaje correctos', async () => {
+    setupRemitoEnTransito({
+      numero: 'R-2026-0042',
+      obra:   'Obra Palermo',
+    })
+
+    await RemitosService.reportarProblema('r-1', 'rotura del nivel láser')
+
+    expect(NotifService.create).toHaveBeenCalledTimes(1)
+    expect(NotifService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipo:     'PROBLEMA_LLEGADA',
+        titulo:   expect.stringContaining('R-2026-0042'),
+        mensaje:  expect.stringContaining('Obra Palermo'),
+        remitoId: 'r-1',
+      })
+    )
+    // El mensaje también debe incluir la descripción reportada
+    expect(NotifService.create.mock.calls[0][0].mensaje).toContain('rotura del nivel láser')
+  })
+
+  it('avanza el remito de EN_TRANSITO a EN_OBRA y retorna el resultado', async () => {
+    setupRemitoEnTransito()
+
+    const result = await RemitosService.reportarProblema('r-1', 'problema X')
+
+    // El último UPDATE debe haberse hecho con estado: 'EN_OBRA'
+    const updateEstado = mockChain.update.mock.calls.find(c => c[0]?.estado === 'EN_OBRA')
+    expect(updateEstado).toBeDefined()
+    expect(result.estado).toBe('EN_OBRA')
   })
 })
