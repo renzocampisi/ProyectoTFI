@@ -2,7 +2,8 @@
   "name": "fieldstock",
   "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix fieldstock-backend\" \"npm run dev --prefix fieldstock-frontend\""
+    "dev":      "concurrently \"npm run dev --prefix fieldstock-backend\" \"npm run dev:https --prefix fieldstock-frontend\"",
+    "dev:http": "concurrently \"npm run dev --prefix fieldstock-backend\" \"npm run dev --prefix fieldstock-frontend\""
   },
   "dependencies": {
     "concurrently": "^8.2.0"
