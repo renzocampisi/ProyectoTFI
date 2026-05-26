@@ -3,23 +3,53 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import jsQR from 'jsqr'
 import { api } from '@shared/utils/api'
+import { detectarTipoQR } from '@shared/utils/qr'
+import { RemitosService } from '@modules/m5-remito/services/remitos.service'
 import styles from './QRScannerPage.module.css'
 
-async function buscarPorCodigo(codigo) {
-  const codigoLimpio = codigo.trim()
+/**
+ * Resuelve un código escaneado al destino correspondiente (issue #11).
+ * Devuelve `{ tipo, path }` para que el componente sepa adónde navegar,
+ * o `null` si no encontró nada.
+ */
+async function resolverDestino(codigo) {
+  const { tipo, codigo: limpio } = detectarTipoQR(codigo)
 
-  const herramientas = await api.get(
-    `/herramientas?codigoQR=${encodeURIComponent(codigoLimpio)}`
-  )
-  if (herramientas?.length) return herramientas[0]
+  // Caso 1: QR de remito → resolver número → /remitos/:id/qr
+  if (tipo === 'remito') {
+    try {
+      const remito = await RemitosService.getByNumero(limpio)
+      if (remito) return { tipo: 'remito', path: `/remitos/${remito.id}/qr` }
+    } catch (err) {
+      // 404 del backend cae acá; tratamos como "no encontrado" sin propagar
+      if (err.status !== 404) throw err
+    }
+    return null
+  }
 
+  // Caso 2: QR de herramienta → buscar por codigo_qr → /herramientas/:id
+  if (tipo === 'herramienta') {
+    const herramientas = await api.get(`/herramientas?codigoQR=${encodeURIComponent(limpio)}`)
+    if (herramientas?.length) {
+      return { tipo: 'herramienta', path: `/herramientas/${herramientas[0].id}` }
+    }
+    return null
+  }
+
+  // Caso 3: formato desconocido. Fallbacks históricos:
+  //   - intentar como herramienta (algunos QR viejos pueden no matchear regex)
+  //   - parsear como URL y extraer un UUID al final del pathname
+  const herramientas = await api.get(`/herramientas?codigoQR=${encodeURIComponent(limpio)}`)
+  if (herramientas?.length) {
+    return { tipo: 'herramienta', path: `/herramientas/${herramientas[0].id}` }
+  }
   try {
-    const url = new URL(codigoLimpio)
+    const url = new URL(limpio)
     const partes = url.pathname.split('/')
     const posibleId = partes[partes.length - 1]
     if (posibleId?.length === 36) {
       const herr = await api.get(`/herramientas/${posibleId}`)
-      if (herr) return herr
+      if (herr) return { tipo: 'herramienta', path: `/herramientas/${herr.id}` }
     }
   } catch {}
 
@@ -106,12 +136,12 @@ export default function QRScannerPage() {
     setEstado('buscando')
     setBuscando(true)
     try {
-      const herramienta = await buscarPorCodigo(valor)
-      if (herramienta) {
-        navigate(`/herramientas/${herramienta.id}`)
+      const destino = await resolverDestino(valor)
+      if (destino) {
+        navigate(destino.path)
       } else {
         setEstado('noEncontrado')
-        setMensaje(`Código leído: "${valor}"\n\nNo se encontró ninguna herramienta con ese código.`)
+        setMensaje(`Código leído: "${valor}"\n\nNo se encontró ningún remito ni herramienta con ese código.`)
       }
     } catch {
       setEstado('error')
@@ -139,7 +169,7 @@ export default function QRScannerPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.title}>Escanear QR</h1>
-        <p className={styles.subtitle}>Apuntá la cámara al código QR de la herramienta.</p>
+        <p className={styles.subtitle}>Apuntá la cámara al código QR de una herramienta o un remito.</p>
       </div>
 
       <div className={styles.scannerWrapper}>
@@ -181,13 +211,13 @@ export default function QRScannerPage() {
       <div className={styles.manualSection}>
         <p className={styles.manualTitle}>Búsqueda manual</p>
         <p className={styles.manualHint}>
-          Ingresá el código impreso debajo del QR. Ej: <strong>FS-QR-0009</strong>
+          Ingresá el código impreso debajo del QR. Ej: <strong>FS-00018</strong> (remito) o <strong>FS-TAL-1ABD152F</strong> (herramienta)
         </p>
         <form className={styles.manualForm} onSubmit={handleManual}>
           <input
             type="text"
             className={styles.input}
-            placeholder="FS-QR-0009"
+            placeholder="FS-00018 o FS-TAL-1ABD152F"
             value={inputVal}
             onChange={e => setInputVal(e.target.value)}
             disabled={buscando}

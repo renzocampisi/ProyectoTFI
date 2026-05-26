@@ -70,6 +70,36 @@ beforeEach(() => {
   supabase.from.mockImplementation(() => mockChain)
 })
 
+describe('remitos.service.getByNumero (issue #11)', () => {
+  it('busca el remito por numero usando maybeSingle', async () => {
+    mockChain.maybeSingle.mockResolvedValueOnce({
+      data: { id: 'r-1', numero: 'FS-00018', estado: 'EN_TRANSITO' },
+      error: null,
+    })
+
+    const result = await RemitosService.getByNumero('FS-00018')
+
+    expect(supabase.from).toHaveBeenCalledWith('remitos')
+    expect(mockChain.eq).toHaveBeenCalledWith('numero', 'FS-00018')
+    expect(result).toEqual({ id: 'r-1', numero: 'FS-00018', estado: 'EN_TRANSITO' })
+  })
+
+  it('devuelve null cuando el numero no existe (no tira 404)', async () => {
+    mockChain.maybeSingle.mockResolvedValueOnce({ data: null, error: null })
+    const result = await RemitosService.getByNumero('FS-99999')
+    expect(result).toBeNull()
+  })
+
+  it('propaga errores de Supabase', async () => {
+    mockChain.maybeSingle.mockResolvedValueOnce({
+      data: null,
+      error: new Error('connection lost'),
+    })
+    await expect(RemitosService.getByNumero('FS-00018'))
+      .rejects.toThrow('connection lost')
+  })
+})
+
 describe('remitos.service.avanzarEstado', () => {
   describe('BORRADOR → CONFIRMADO (issue #1)', () => {
     /**

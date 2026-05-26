@@ -25,6 +25,8 @@ export const RemitosService = {
     return api.get(`/remitos${qs ? `?${qs}` : ''}`)
   },
   getById:         (id)            => api.get(`/remitos/${id}`),
+  // Resuelve el QR escaneado (FS-NNNNN) al remito completo (issue #11)
+  getByNumero:     (numero)        => api.get(`/remitos/numero/${encodeURIComponent(numero)}`),
   create:          (body)          => api.post('/remitos', body),
   update:          (id, body)      => api.patch(`/remitos/${id}`, body),
   avanzar:         (id, body)      => api.post(`/remitos/${id}/avanzar`, body ?? {}),

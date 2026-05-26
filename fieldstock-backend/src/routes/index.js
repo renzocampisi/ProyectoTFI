@@ -59,6 +59,9 @@ router.put ('/materiales/:id', MateriasCtrl.update)
 // ── Remitos ───────────────────────────────────────────────────
 router.get   ('/remitos',                                    RemitosCtrl.getAll)
 router.post  ('/remitos',                                    RemitosCtrl.create)
+// IMPORTANTE: rutas literales antes de las paramétricas para que Express
+// no las capture como :id (orden de declaración = orden de matching).
+router.get   ('/remitos/numero/:numero',                     RemitosCtrl.getByNumero)
 router.get   ('/remitos/:id',                                RemitosCtrl.getById)
 router.patch ('/remitos/:id',                                RemitosCtrl.updateRemito)
 router.post  ('/remitos/:id/avanzar',                        RemitosCtrl.avanzarEstado)
