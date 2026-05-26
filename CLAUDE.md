@@ -127,6 +127,11 @@ DISPONIBLE | EN_OBRA | EN_MANTENIMIENTO | RESERVADA | BAJA
 
 **Remitos**: máquina de estados con transiciones (`avanzar`, `volver-borrador`, `confirmar-escaneo`, `reportar-problema`).
 
+**Ciclo de vida de una Herramienta dada de baja:**
+1. `dar_baja_herramienta(id, motivo)` → `estado=BAJA`, `activo=false`, `fecha_eliminacion = HOY + 1 año`
+2. Durante ese año la herramienta sigue visible pero filtrada (`activo=false`), permite `reactivar_herramienta(id)` para cancelar la baja
+3. Cron `eliminar-herramientas-vencidas` corre todas las noches a las 02:00 y hace HARD DELETE de las que pasaron 1 año. La RPC se llama `eliminar_herramientas_vencidas()` y vive en Postgres, no en el backend Node — no la invoques desde `services/`
+
 ## Módulos y rutas
 
 | Módulo | Ruta frontend | Estado |
