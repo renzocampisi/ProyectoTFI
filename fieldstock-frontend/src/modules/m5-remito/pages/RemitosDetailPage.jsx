@@ -6,6 +6,7 @@ import { RemitosService } from '../services/remitos.service'
 import { InventarioService } from '@modules/m2-inventario/services/inventario.service'
 import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
 import EstadoRemitoBadge from '../components/EstadoRemitoBadge'
+import RemitoQRModal from '../components/RemitoQRModal'
 import RemitoEditModal from './RemitoEditModal'
 import RemitoPrint from './RemitoPrint'
 import styles from './RemitosDetailPage.module.css'
@@ -439,6 +440,7 @@ export default function RemitosDetailPage() {
   const [loadingAction, setLoadingAction] = useState(false)
   const [errAction,     setErrAction]     = useState(null)
   const [showEdit,      setShowEdit]      = useState(false)
+  const [showQR,        setShowQR]        = useState(false)
   const [confirmVolver, setConfirmVolver] = useState(false)
   const [showHerrModal, setShowHerrModal] = useState(false)
   const [showMatModal,  setShowMatModal]  = useState(false)
@@ -526,6 +528,10 @@ export default function RemitosDetailPage() {
           onSaved={async () => { setShowEdit(false); await refetch() }} />
       )}
 
+      {showQR && (
+        <RemitoQRModal remito={remito} onClose={() => setShowQR(false)} />
+      )}
+
       {showHerrModal && (
         <HerrBuscadorModal
           remitoId={id}
@@ -579,6 +585,10 @@ export default function RemitosDetailPage() {
           <div className={styles.headerActions}>
             {esBorrador   && <button className={styles.btnEdit}   onClick={() => setShowEdit(true)}>✎ Editar datos</button>}
             {esConfirmado && <button className={styles.btnVolver} onClick={() => setConfirmVolver(true)}>↩ Volver a borrador</button>}
+            <button className={styles.btnPDF} onClick={() => setShowQR(true)}
+              disabled={esBorrador} title={esBorrador ? 'Disponible desde Confirmado' : 'Imprimir QR para escanear en obra'}>
+              📱 QR
+            </button>
             <button className={styles.btnPDF} onClick={() => imprimirRemito(remito)}
               disabled={esBorrador} title={esBorrador ? 'Disponible desde Confirmado' : 'Exportar PDF'}>
               📄 PDF
