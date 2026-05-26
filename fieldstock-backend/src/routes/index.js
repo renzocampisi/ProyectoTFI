@@ -63,7 +63,7 @@ router.post  ('/remitos',                                    RemitosCtrl.create)
 // no las capture como :id (orden de declaración = orden de matching).
 router.get   ('/remitos/numero/:numero',                     RemitosCtrl.getByNumero)
 router.get   ('/remitos/:id',                                RemitosCtrl.getById)
-router.patch ('/remitos/:id',                                RemitosCtrl.updateRemito)
+router.patch ('/remitos/:id',                                RemitosCtrl.update)
 router.post  ('/remitos/:id/avanzar',                        RemitosCtrl.avanzarEstado)
 router.post  ('/remitos/:id/volver-borrador',                RemitosCtrl.volverABorrador)
 router.post  ('/remitos/:id/confirmar-escaneo',              RemitosCtrl.confirmarEscaneo)
