@@ -38,7 +38,7 @@ export default function InventarioListPage() {
             {filtroEstado !== 'TODOS' || busqueda ? ' encontradas' : ' en total'}
           </p>
         </div>
-        <button className={styles.btnPrimary} onClick={() => navigate('/inventario/nuevo')}>
+        <button className={styles.btnPrimary} onClick={() => navigate('/herramientas/nuevo')}>
           + Registrar herramienta
         </button>
       </div>
@@ -115,7 +115,7 @@ export default function InventarioListPage() {
                 <tr
                   key={h.id}
                   className={styles.row}
-                  onClick={() => navigate(`/inventario/${h.id}`)}
+                  onClick={() => navigate(`/herramientas/${h.id}`)}
                 >
                   {/* Nombre con punto de color (el punto solo aparece en mobile via CSS) */}
                   <td className={styles.nombre}>
@@ -143,7 +143,7 @@ export default function InventarioListPage() {
                   <td className={styles.actions}>
                     <button
                       className={styles.btnRow}
-                      onClick={e => { e.stopPropagation(); navigate(`/inventario/${h.id}`) }}
+                      onClick={e => { e.stopPropagation(); navigate(`/herramientas/${h.id}`) }}
                       title="Ver detalle"
                     >
                       Ver →
