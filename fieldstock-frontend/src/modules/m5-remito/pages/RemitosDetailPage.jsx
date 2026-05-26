@@ -1,5 +1,5 @@
 // src/modules/m5-remito/pages/RemitosDetailPage.jsx
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useRemito } from '../hooks/useRemitos'
 import { RemitosService } from '../services/remitos.service'
@@ -78,11 +78,17 @@ function HerrBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
   // se cuela un 2° click antes de que React renderice disabled={saving}.
   const savingRef = useRef(false)
 
-  useState(() => {
+  // Cargar herramientas disponibles al montar el modal.
+  // Antes esto estaba con `useState(() => {...}, [])` que es semánticamente
+  // incorrecto (useState ignora deps y el callback es para initial state,
+  // no para side effects). Funcionaba "de casualidad" porque el callback
+  // se ejecuta una sola vez igual, pero rompía cualquier lint estricto.
+  useEffect(() => {
     InventarioService.getAll({ estado: 'DISPONIBLE' })
       .then(data => setHerramientas(data.filter(h => !idsYa.includes(h.id))))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const filtradas = useMemo(() =>
@@ -219,11 +225,14 @@ function MatBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
   // genera duplicados en remito_materiales. Este ref bloquea sincrónicamente.
   const savingRef = useRef(false)
 
-  useState(() => {
+  // Cargar materiales del catálogo con stock disponible (mismo fix que
+  // HerrBuscadorModal: useState→useEffect, ver comentario arriba).
+  useEffect(() => {
     MaterialesService.getAll()
       .then(data => setMateriales(data.filter(m => m.stock_actual > 0 && !idsYa.includes(m.id))))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const filtrados = useMemo(() =>

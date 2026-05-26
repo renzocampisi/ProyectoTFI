@@ -13,10 +13,6 @@
  * (reportarProblema antes encadenaba 3 escrituras en el controller — issue
  * #7 lo movió a RemitosService.reportarProblema para respetar la convención
  * controller→service y arreglar un bug de validación en el camino.)
- *
- * Nota de naming: `updateRemito` queda con sufijo para evitar shadowing
- * de un `update` que ya se importa indirectamente. Conviene renombrarlo
- * a `update` y resolver la colisión si llega a aparecer.
  */
 import * as RemitosService from '../services/remitos.service.js'
 
@@ -46,7 +42,7 @@ export async function create(req, res, next) {
   } catch (err) { next(err) }
 }
 
-export async function updateRemito(req, res, next) {
+export async function update(req, res, next) {
   try {
     const data = await RemitosService.update(req.params.id, req.body)
     res.json({ ok: true, data })

@@ -9,7 +9,7 @@
  *   - Items de materiales:  addMaterial, removeMaterial, updateMaterialRetorno
  *
  * Notar que `update` usa PATCH (no PUT) — el backend soporta actualización
- * parcial de cabecera, ver remitos.controller.updateRemito.
+ * parcial de cabecera, ver remitos.controller.update.
  *
  * NO incluye `confirmarEscaneo` ni `reportarProblema` porque esos endpoints
  * los usa la app mobile (m3-qr), no el flujo desktop del M5.
