@@ -75,6 +75,17 @@ export async function getAll({ estado, q } = {}) {
   return data
 }
 
+// ── Lookup por número (issue #11) ──────────────────────────────
+// Resuelve el QR escaneado del remito (formato FS-NNNNN) al id real.
+// maybeSingle() en lugar de single() para no tirar PGRST116 cuando no
+// existe — devolvemos null y el controller responde 404 limpio.
+export async function getByNumero(numero) {
+  const { data, error } = await supabase
+    .from('remitos').select('*').eq('numero', numero).maybeSingle()
+  if (error) throw error
+  return data
+}
+
 // ── Detalle: cabecera + items de herramientas + items de materiales ─
 // Las tres queries se lanzan en paralelo para minimizar latencia.
 export async function getById(id) {

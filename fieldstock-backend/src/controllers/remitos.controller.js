@@ -36,6 +36,17 @@ export async function getById(req, res, next) {
   } catch (err) { next(err) }
 }
 
+// ── Lookup por número (issue #11 — scanner QR) ────────────────
+// El QR físico del remito codifica su `numero` (ej: FS-00018), no su UUID.
+// Esta función traduce número → registro para que el scanner pueda redirigir.
+export async function getByNumero(req, res, next) {
+  try {
+    const data = await RemitosService.getByNumero(req.params.numero)
+    if (!data) return res.status(404).json({ ok: false, error: 'Remito no encontrado' })
+    res.json({ ok: true, data })
+  } catch (err) { next(err) }
+}
+
 export async function create(req, res, next) {
   try {
     const { obra, responsable } = req.body
