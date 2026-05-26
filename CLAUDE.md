@@ -6,17 +6,19 @@ Proyecto académico UAI · Renzo Campisi · Legajo 20534.
 ## Comandos
 
 ```bash
-# Desde la raíz del repo — levanta backend (3000) y frontend (5173) en paralelo
+# Desde la raíz del repo — levanta backend (3000) y frontend (5173 con HTTPS) en paralelo
+# Por defecto el frontend usa HTTPS para que la cámara funcione desde mobile en LAN
+# (getUserMedia requiere contexto seguro, ver issue #12). Cert autofirmado: el browser
+# se queja la primera vez, hay que aceptar el warning una sola vez por dispositivo.
 npm run dev
 
-# Por separado
-npm run dev --prefix fieldstock-backend
-npm run dev --prefix fieldstock-frontend
+# Variante sin HTTPS (si por algún motivo molesta el cert autofirmado)
+npm run dev:http
 
-# Frontend con HTTPS (necesario para usar la cámara desde un celular en LAN —
-# getUserMedia requiere contexto seguro, ver issue #12). Usa cert autofirmado:
-# el browser va a quejarse la primera vez, hay que aceptar el warning.
-npm run dev:https --prefix fieldstock-frontend
+# Por separado
+npm run dev       --prefix fieldstock-backend
+npm run dev:https --prefix fieldstock-frontend   # con HTTPS (default en `npm run dev`)
+npm run dev       --prefix fieldstock-frontend   # sin HTTPS
 
 # Build frontend
 npm run build --prefix fieldstock-frontend
