@@ -41,3 +41,56 @@
   .actions .btnPrimary,
   .actions .btnGhost { width: 100%; text-align: center; }
 }
+
+/* ── Selector de unidad + botón "+" (Word #21) ── */
+.unidadRow {
+  display: flex; gap: var(--space-2); align-items: stretch;
+}
+.unidadRow .select { flex: 1; }
+.btnIcon {
+  width: 38px; height: 38px;
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-lg); font-weight: 600;
+  color: var(--text-secondary);
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+.btnIcon:hover {
+  background: var(--color-primary-dim);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* ── Modal "agregar nueva unidad" (Word #21) ── */
+.modalOverlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: grid; place-items: center;
+  z-index: 200;
+  padding: var(--space-4);
+}
+.modalCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  max-width: 400px; width: 100%;
+  box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; gap: var(--space-3);
+}
+.modalTitle {
+  font-size: var(--text-lg); font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+.modalHelp {
+  font-size: var(--text-xs); color: var(--text-muted);
+  line-height: 1.5; margin: 0;
+}
+.modalActions {
+  display: flex; gap: var(--space-3); justify-content: flex-end;
+  margin-top: var(--space-2);
+}

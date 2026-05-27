@@ -4,8 +4,33 @@ import { useNavigate } from 'react-router-dom'
 import { MaterialesService } from '../services/materiales.service'
 import styles from './MateriasNewPage.module.css'
 
-const UNIDADES = ['unidad','kg','metro','litro','caja','rollo','juego','par']
-const INICIAL  = { nombre: '', descripcion: '', marca: '', unidad: 'unidad', stockActual: '', stockMinimo: '' }
+// Unidades base que vienen con el sistema. Si el usuario crea unidades
+// propias via el botón "+", se persisten en localStorage para tenerlas
+// disponibles en el próximo material (Word #21).
+const UNIDADES_BASE = ['unidad','kg','metro','litro','caja','rollo','juego','par']
+
+const STORAGE_UNIDADES = 'fs-unidades-extra'
+
+function loadUnidadesExtra() {
+  try {
+    const raw = localStorage.getItem(STORAGE_UNIDADES)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+function saveUnidadesExtra(arr) {
+  try { localStorage.setItem(STORAGE_UNIDADES, JSON.stringify(arr)) } catch { /* no-op */ }
+}
+
+// Word #12: el stock mínimo default es 5 (no 0) para que la alerta de
+// "stock bajo" sirva desde el primer momento.
+const STOCK_MINIMO_DEFAULT = 5
+
+const INICIAL  = {
+  nombre: '', descripcion: '', marca: '',
+  unidad: 'unidad',
+  stockActual: '',
+  stockMinimo: String(STOCK_MINIMO_DEFAULT),
+}
 
 export default function MateriasNewPage() {
   const navigate = useNavigate()
@@ -15,6 +40,30 @@ export default function MateriasNewPage() {
   const [guardado,setGuardado]= useState(null)
   // Lista de marcas ya usadas para autocomplete del input (Word #17)
   const [marcasExistentes, setMarcasExistentes] = useState([])
+  // Unidades custom agregadas por el usuario (Word #21) — persistidas en localStorage
+  const [unidadesExtra, setUnidadesExtra] = useState(() => loadUnidadesExtra())
+  // Estado del modal "agregar unidad nueva"
+  const [showNuevaUnidad, setShowNuevaUnidad] = useState(false)
+  const [nuevaUnidadValor, setNuevaUnidadValor] = useState('')
+
+  // Lista combinada (base + custom) para el select
+  const todasLasUnidades = [...UNIDADES_BASE, ...unidadesExtra]
+
+  const handleAgregarUnidad = () => {
+    const nueva = nuevaUnidadValor.trim().toLowerCase()
+    if (!nueva) return
+    if (todasLasUnidades.includes(nueva)) {
+      setErrores(e => ({ ...e, nuevaUnidad: 'Esa unidad ya está en la lista.' }))
+      return
+    }
+    const next = [...unidadesExtra, nueva]
+    setUnidadesExtra(next)
+    saveUnidadesExtra(next)
+    setForm(f => ({ ...f, unidad: nueva }))  // auto-selecciona la recién creada
+    setNuevaUnidadValor('')
+    setShowNuevaUnidad(false)
+    setErrores(e => ({ ...e, nuevaUnidad: undefined }))
+  }
 
   useEffect(() => {
     MaterialesService.getMarcas()
@@ -30,8 +79,18 @@ export default function MateriasNewPage() {
   const validar = () => {
     const e = {}
     if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio.'
-    if (form.stockActual !== '' && isNaN(Number(form.stockActual))) e.stockActual = 'Ingresá un número válido.'
-    if (form.stockMinimo !== '' && isNaN(Number(form.stockMinimo))) e.stockMinimo = 'Ingresá un número válido.'
+
+    // Word #21: stock inicial OBLIGATORIO (no permitir vacío). Si el material
+    // realmente no tiene stock todavía, el usuario debe poner 0 explícitamente.
+    if (form.stockActual === '' || form.stockActual === null) {
+      e.stockActual = 'El stock inicial es obligatorio. Si todavía no hay, ingresá 0.'
+    } else if (isNaN(Number(form.stockActual)) || Number(form.stockActual) < 0) {
+      e.stockActual = 'Ingresá un número válido (0 o mayor).'
+    }
+
+    if (form.stockMinimo !== '' && isNaN(Number(form.stockMinimo))) {
+      e.stockMinimo = 'Ingresá un número válido.'
+    }
     return e
   }
 
@@ -95,10 +154,18 @@ export default function MateriasNewPage() {
             </div>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="unidad">Unidad de medida</label>
-              <select id="unidad" className={styles.select}
-                value={form.unidad} onChange={e => set('unidad', e.target.value)}>
-                {UNIDADES.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
+              {/* Word #21: botón "+" al lado del select para agregar unidades */}
+              <div className={styles.unidadRow}>
+                <select id="unidad" className={styles.select}
+                  value={form.unidad} onChange={e => set('unidad', e.target.value)}>
+                  {todasLasUnidades.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+                <button type="button" className={styles.btnIcon}
+                  onClick={() => setShowNuevaUnidad(true)}
+                  title="Agregar nueva unidad de medida">
+                  +
+                </button>
+              </div>
             </div>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="marca">
@@ -126,10 +193,12 @@ export default function MateriasNewPage() {
           <legend className={styles.sectionTitle}>Stock</legend>
           <div className={styles.grid2}>
             <div className={styles.field}>
-              <label className={styles.label} htmlFor="stockActual">Stock inicial</label>
+              <label className={styles.label} htmlFor="stockActual">
+                Stock inicial <span className={styles.req}>*</span>
+              </label>
               <input id="stockActual" type="number" min="0" step="0.01"
                 className={`${styles.input} ${errores.stockActual ? styles.inputError : ''}`}
-                placeholder="0"
+                placeholder="Ej: 100 (o 0 si todavía no hay)"
                 value={form.stockActual} onChange={e => set('stockActual', e.target.value)} />
               {errores.stockActual && <span className={styles.error}>{errores.stockActual}</span>}
             </div>
@@ -156,6 +225,34 @@ export default function MateriasNewPage() {
         </div>
 
       </form>
+
+      {/* Modal: agregar nueva unidad de medida (Word #21) */}
+      {showNuevaUnidad && (
+        <div className={styles.modalOverlay} onClick={() => setShowNuevaUnidad(false)}>
+          <div className={styles.modalCard} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Nueva unidad de medida</h3>
+            <p className={styles.modalHelp}>
+              Se guarda en este navegador y queda disponible para los próximos
+              materiales que crees acá.
+            </p>
+            <input type="text" className={styles.input} autoFocus
+              placeholder="Ej: bolsa, m², pieza..."
+              value={nuevaUnidadValor}
+              onChange={e => setNuevaUnidadValor(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAgregarUnidad() } }} />
+            {errores.nuevaUnidad && <span className={styles.error}>{errores.nuevaUnidad}</span>}
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnGhost}
+                onClick={() => { setShowNuevaUnidad(false); setNuevaUnidadValor(''); setErrores(e => ({ ...e, nuevaUnidad: undefined })) }}>
+                Cancelar
+              </button>
+              <button type="button" className={styles.btnPrimary} onClick={handleAgregarUnidad}>
+                Agregar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
