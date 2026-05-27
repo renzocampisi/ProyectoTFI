@@ -18,4 +18,7 @@ export const MaterialesService = {
   getById: (id)       => api.get(`/materiales/${id}`),
   create:  (body)     => api.post('/materiales', body),
   update:  (id, body) => api.put(`/materiales/${id}`, body),
+
+  // Lista de marcas únicas para autocomplete del form (Word #17)
+  getMarcas: ()       => api.get('/materiales/marcas'),
 }

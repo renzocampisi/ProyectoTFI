@@ -39,3 +39,11 @@ export async function update(req, res, next) {
     res.json({ ok: true, data })
   } catch (err) { next(err) }
 }
+
+// Word #17 — lista de marcas únicas para el autocomplete del form
+export async function getMarcas(req, res, next) {
+  try {
+    const data = await MateriasService.getMarcas()
+    res.json({ ok: true, data })
+  } catch (err) { next(err) }
+}
