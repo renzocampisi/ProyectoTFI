@@ -2,6 +2,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import AppLayout from '@layouts/AppLayout'
 
+import DashboardPage        from '@modules/m1-dashboard/pages/DashboardPage'
+
 import InventarioListPage   from '@modules/m2-inventario/pages/InventarioListPage'
 import InventarioDetailPage from '@modules/m2-inventario/pages/InventarioDetailPage'
 import InventarioNewPage    from '@modules/m2-inventario/pages/InventarioNewPage'
@@ -39,7 +41,8 @@ export default function AppRouter() {
         <Route path="/remitos/:id/qr" element={<RemitoQRPage />} />
 
         <Route element={<AppLayout />}>
-          <Route index element={<Navigate to="/herramientas" replace />} />
+          {/* Word #16 — dashboard de inicio reemplaza el redirect a /herramientas */}
+          <Route index element={<DashboardPage />} />
 
           <Route path="herramientas">
             <Route index             element={<InventarioListPage />} />
@@ -83,7 +86,7 @@ export default function AppRouter() {
           <Route path="facturacion/*" element={<ComingSoon modulo="Facturación" />} />
           <Route path="panel/*"       element={<ComingSoon modulo="Panel IA" />} />
 
-          <Route path="*" element={<Navigate to="/herramientas" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

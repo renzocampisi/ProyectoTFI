@@ -3,6 +3,11 @@ import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import styles from './AppLayout.module.css'
 
+// Word #16: "Inicio" suelto arriba del todo, como dashboard general
+const INICIO_ITEMS = [
+  { to: '/', label: 'Inicio', icon: '🏠', activo: true, end: true },
+]
+
 const DEPOSITO_ITEMS = [
   { to: '/herramientas', label: 'Herramientas', icon: '🔧', activo: true },
   { to: '/materiales',   label: 'Materiales',   icon: '📦', activo: true },
@@ -42,6 +47,7 @@ function NavGroup({ label, items, collapsed }) {
       {label && !collapsed && <span className={styles.navGroupLabel}>{label}</span>}
       {items.map(item => (
         <NavLink key={item.to} to={item.to}
+          end={item.end}
           title={collapsed ? item.label : undefined}
           onClick={e => !item.activo && e.preventDefault()}
           className={({ isActive }) =>
@@ -82,6 +88,9 @@ export default function AppLayout() {
         </div>
 
         <nav className={styles.nav}>
+
+          {/* Inicio (dashboard) */}
+          <NavGroup label={null} items={INICIO_ITEMS} collapsed={collapsed} />
 
           {/* Depósito */}
           <NavGroup label="Depósito" items={DEPOSITO_ITEMS} collapsed={collapsed} />
