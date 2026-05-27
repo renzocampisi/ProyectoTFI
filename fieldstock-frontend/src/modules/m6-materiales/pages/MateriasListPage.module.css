@@ -14,6 +14,20 @@
 .btnPrimary { background: var(--color-primary); color: #fff; font-size: var(--text-sm); font-weight: 500; padding: var(--space-2) var(--space-5); border-radius: var(--radius-md); white-space: nowrap; transition: background var(--transition-fast); }
 .btnPrimary:hover { background: var(--color-primary-hover); }
 
+/* Botón "Detalle →" inline en cada fila de la tabla (Word #19) */
+.btnRow {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+  white-space: nowrap;
+}
+.btnRow:hover { color: var(--color-primary); background: var(--color-primary-dim); }
+
+/* Última columna de la tabla — empuja el botón a la derecha */
+.actions { text-align: right; }
+
 /* ── Buscador ── */
 .toolbar { display: flex; gap: var(--space-3); }
 .searchWrapper { position: relative; flex: 1; max-width: 400px; }

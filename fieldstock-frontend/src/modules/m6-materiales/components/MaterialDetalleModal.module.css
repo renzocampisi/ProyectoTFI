@@ -1,0 +1,170 @@
+/* MaterialDetalleModal — modal de detalle de un material/insumo (Word #19) */
+
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: grid; place-items: center;
+  z-index: 200;
+  padding: var(--space-4);
+}
+
+.modal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  max-width: 520px; width: 100%;
+  box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column;
+  gap: var(--space-4);
+}
+
+.modalHeader {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modalTitle {
+  font-size: var(--text-lg); font-weight: 600; color: var(--text-primary);
+}
+.btnClose {
+  font-size: var(--text-base); color: var(--text-muted);
+  padding: 2px 6px; border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+}
+.btnClose:hover { color: var(--color-danger); }
+
+.body { display: flex; flex-direction: column; gap: var(--space-5); }
+
+.headerRow {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3); flex-wrap: wrap;
+}
+.nombre {
+  font-size: var(--text-xl); font-weight: 700; color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.estadoBadge {
+  font-size: var(--text-xs); font-weight: 600;
+  padding: 4px 10px; border-radius: 99px;
+  white-space: nowrap;
+}
+.estadoOk      { background: #dcfce7; color: #166534; }
+.estadoBajo    { background: #fef9c3; color: #854d0e; }
+.estadoAgotado { background: #fee2e2; color: #991b1b; }
+
+/* Grid de campos */
+.fieldsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3) var(--space-5);
+  margin: 0;
+}
+.field { display: flex; flex-direction: column; gap: 2px; }
+.fullWidth { grid-column: 1 / -1; }
+
+.label {
+  font-size: var(--text-xs); font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin: 0;
+}
+.value {
+  font-size: var(--text-sm); color: var(--text-primary);
+  margin: 0;
+}
+.value strong { font-weight: 700; }
+
+.empty {
+  color: var(--text-muted); font-style: italic;
+}
+
+.actions {
+  display: flex; gap: var(--space-3); align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+.actionsRight {
+  display: flex; gap: var(--space-3);
+}
+
+/* Banner de error si la operación de eliminar/etc falla */
+.errorBanner {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: #b91c1c;
+}
+
+/* Bloque de confirmación cuando el usuario tocó "Eliminar" */
+.confirmBlock {
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-3);
+}
+.confirmText {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin: 0;
+}
+.confirmText strong { color: #b91c1c; }
+
+/* Botón rojo sólido (acción destructiva confirmada) */
+.btnDanger {
+  background: #dc2626; color: #fff;
+  font-size: var(--text-sm); font-weight: 500;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+.btnDanger:hover { background: #b91c1c; }
+.btnDanger:disabled {
+  background: #fca5a5; cursor: not-allowed;
+}
+
+/* Botón rojo ghost (intención destructiva, antes del confirm) */
+.btnDangerGhost {
+  font-size: var(--text-sm); color: #dc2626;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: var(--radius-md);
+  background: transparent;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.btnDangerGhost:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(220, 38, 38, 0.5);
+}
+.btnPrimary {
+  background: var(--color-primary); color: #fff;
+  font-size: var(--text-sm); font-weight: 500;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+.btnPrimary:hover { background: var(--color-primary-hover); }
+.btnGhost {
+  font-size: var(--text-sm); color: var(--text-secondary);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.btnGhost:hover {
+  background: var(--color-surface-alt); color: var(--text-primary);
+}
+
+/* Mobile: grid en una sola columna, botones full width apilados */
+@media (max-width: 600px) {
+  .fieldsGrid    { grid-template-columns: 1fr; }
+  .actions       { flex-direction: column; align-items: stretch; }
+  .actionsRight  { flex-direction: column; }
+  .actions button     { width: 100%; }
+  /* Eliminar queda abajo (menos prominente en mobile) */
+  .btnDangerGhost { order: 99; }
+}

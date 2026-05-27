@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMateriales } from '../hooks/useMateriales'
+import MaterialDetalleModal from '../components/MaterialDetalleModal'
 import styles from './MateriasListPage.module.css'
 
 // Badge de texto para desktop/tablet
@@ -21,7 +22,9 @@ function clasesPunto(actual, minimo) {
 export default function MateriasListPage() {
   const navigate = useNavigate()
   const [busqueda, setBusqueda] = useState('')
-  const { materiales, loading, error } = useMateriales({ q: busqueda || undefined })
+  // Material a mostrar en el modal de detalle. null = modal cerrado (Word #19).
+  const [materialDetalle, setMaterialDetalle] = useState(null)
+  const { materiales, loading, error, refetch } = useMateriales({ q: busqueda || undefined })
 
   return (
     <div className={styles.page}>
@@ -95,6 +98,7 @@ export default function MateriasListPage() {
                 <th>Stock actual</th>
                 <th>Stock mínimo</th>
                 <th>Estado</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -103,6 +107,8 @@ export default function MateriasListPage() {
                   key={m.id}
                   /* Fondo suave amarillo si está en alerta */
                   className={`${styles.row} ${m.stock_actual <= m.stock_minimo ? styles.rowAlerta : ''}`}
+                  onClick={() => setMaterialDetalle(m)}
+                  style={{ cursor: 'pointer' }}
                 >
                   {/* Nombre con punto de color (visible solo en mobile) */}
                   <td className={styles.nombre}>
@@ -121,11 +127,31 @@ export default function MateriasListPage() {
                   <td className={styles.badgeCell} data-label="Estado">
                     <StockBadge actual={m.stock_actual} minimo={m.stock_minimo} />
                   </td>
+
+                  {/* Botón "Detalle" — abre el modal con la info completa (Word #19) */}
+                  <td className={styles.actions}>
+                    <button
+                      className={styles.btnRow}
+                      onClick={e => { e.stopPropagation(); setMaterialDetalle(m) }}
+                      title="Ver detalle"
+                    >
+                      Detalle →
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Modal de detalle (Word #19) — se monta solo cuando hay material seleccionado */}
+      {materialDetalle && (
+        <MaterialDetalleModal
+          material={materialDetalle}
+          onClose={() => setMaterialDetalle(null)}
+          onDeleted={refetch}
+        />
       )}
 
     </div>
