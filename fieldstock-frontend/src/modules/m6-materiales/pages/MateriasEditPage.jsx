@@ -4,7 +4,17 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { MaterialesService } from '../services/materiales.service'
 import styles from './MateriasNewPage.module.css'
 
-const UNIDADES = ['unidad','kg','metro','litro','caja','rollo','juego','par']
+const UNIDADES_BASE = ['unidad','kg','metro','litro','caja','rollo','juego','par']
+const STORAGE_UNIDADES = 'fs-unidades-extra'
+
+// Lee las unidades custom guardadas en localStorage (Word #21).
+// Misma key que MateriasNewPage para compartirlas.
+function loadUnidadesExtra() {
+  try {
+    const raw = localStorage.getItem(STORAGE_UNIDADES)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
 
 export default function MateriasEditPage() {
   const { id } = useParams()
@@ -116,7 +126,11 @@ export default function MateriasEditPage() {
               <label className={styles.label} htmlFor="unidad">Unidad de medida</label>
               <select id="unidad" className={styles.select}
                 value={form.unidad} onChange={e => set('unidad', e.target.value)}>
-                {UNIDADES.map(u => <option key={u} value={u}>{u}</option>)}
+                {/* Word #21: unidades base + custom de localStorage + la actual
+                    del material si no está en ninguna lista (caso edge: el material
+                    tenía una unidad rara guardada en su momento) */}
+                {[...new Set([...UNIDADES_BASE, ...loadUnidadesExtra(), form.unidad].filter(Boolean))]
+                  .map(u => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
             <div className={styles.field}>
