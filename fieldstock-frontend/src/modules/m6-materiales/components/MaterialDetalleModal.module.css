@@ -79,9 +79,66 @@
 }
 
 .actions {
-  display: flex; gap: var(--space-3); justify-content: flex-end;
+  display: flex; gap: var(--space-3); align-items: center;
+  justify-content: space-between;
   padding-top: var(--space-2);
   border-top: 1px solid var(--color-border);
+}
+.actionsRight {
+  display: flex; gap: var(--space-3);
+}
+
+/* Banner de error si la operación de eliminar/etc falla */
+.errorBanner {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: #b91c1c;
+}
+
+/* Bloque de confirmación cuando el usuario tocó "Eliminar" */
+.confirmBlock {
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-3);
+}
+.confirmText {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin: 0;
+}
+.confirmText strong { color: #b91c1c; }
+
+/* Botón rojo sólido (acción destructiva confirmada) */
+.btnDanger {
+  background: #dc2626; color: #fff;
+  font-size: var(--text-sm); font-weight: 500;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+.btnDanger:hover { background: #b91c1c; }
+.btnDanger:disabled {
+  background: #fca5a5; cursor: not-allowed;
+}
+
+/* Botón rojo ghost (intención destructiva, antes del confirm) */
+.btnDangerGhost {
+  font-size: var(--text-sm); color: #dc2626;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: var(--radius-md);
+  background: transparent;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.btnDangerGhost:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(220, 38, 38, 0.5);
 }
 .btnPrimary {
   background: var(--color-primary); color: #fff;
@@ -102,9 +159,12 @@
   background: var(--color-surface-alt); color: var(--text-primary);
 }
 
-/* Mobile: grid en una sola columna */
+/* Mobile: grid en una sola columna, botones full width apilados */
 @media (max-width: 600px) {
-  .fieldsGrid { grid-template-columns: 1fr; }
-  .actions { flex-direction: column-reverse; }
-  .actions button { width: 100%; }
+  .fieldsGrid    { grid-template-columns: 1fr; }
+  .actions       { flex-direction: column; align-items: stretch; }
+  .actionsRight  { flex-direction: column; }
+  .actions button     { width: 100%; }
+  /* Eliminar queda abajo (menos prominente en mobile) */
+  .btnDangerGhost { order: 99; }
 }

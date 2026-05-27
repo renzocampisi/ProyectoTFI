@@ -24,7 +24,7 @@ export default function MateriasListPage() {
   const [busqueda, setBusqueda] = useState('')
   // Material a mostrar en el modal de detalle. null = modal cerrado (Word #19).
   const [materialDetalle, setMaterialDetalle] = useState(null)
-  const { materiales, loading, error } = useMateriales({ q: busqueda || undefined })
+  const { materiales, loading, error, refetch } = useMateriales({ q: busqueda || undefined })
 
   return (
     <div className={styles.page}>
@@ -150,6 +150,7 @@ export default function MateriasListPage() {
         <MaterialDetalleModal
           material={materialDetalle}
           onClose={() => setMaterialDetalle(null)}
+          onDeleted={refetch}
         />
       )}
 

@@ -47,3 +47,11 @@ export async function getMarcas(req, res, next) {
     res.json({ ok: true, data })
   } catch (err) { next(err) }
 }
+
+// Word #19 — soft delete (activo=false). El frontend confirma con el usuario.
+export async function remove(req, res, next) {
+  try {
+    await MateriasService.remove(req.params.id)
+    res.json({ ok: true })
+  } catch (err) { next(err) }
+}

@@ -97,6 +97,30 @@ export async function update(id, body) {
 }
 
 /**
+ * Soft delete del material: solo marca `activo = false`. La fila queda en
+ * la DB para preservar la integridad referencial con remitos viejos que
+ * la usen (un remito CERRADO con materiales eliminados sigue siendo
+ * auditable).
+ *
+ * getAll() ya filtra por `activo = true` así que el material desaparece
+ * de la lista. Si se quiere "recuperar" un material eliminado, hoy hay
+ * que hacer un UPDATE manual desde el dashboard de Supabase.
+ *
+ * TODO: validar que no haya movimientos/remitos no-cerrados con este
+ * material antes de eliminar (similar a remitos.eliminar que chequea
+ * herramientas EN_OBRA). Por ahora dejamos al usuario la decisión via
+ * el confirm dialog del frontend.
+ */
+export async function remove(id) {
+  const { error } = await supabase
+    .from('materiales')
+    .update({ activo: false })
+    .eq('id', id)
+
+  if (error) throw error
+}
+
+/**
  * Aplica un delta de stock al material. Operación 'descontar' resta,
  * 'reponer' suma. Falla con status 400 si el resultado quedaría negativo.
  * Uso interno desde remitos.service.js — NO exponer vía endpoint HTTP.

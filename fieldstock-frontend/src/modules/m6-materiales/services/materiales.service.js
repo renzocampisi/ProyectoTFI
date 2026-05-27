@@ -18,6 +18,10 @@ export const MaterialesService = {
   getById: (id)       => api.get(`/materiales/${id}`),
   create:  (body)     => api.post('/materiales', body),
   update:  (id, body) => api.put(`/materiales/${id}`, body),
+  // Soft delete (activo=false). El backend deja la fila para preservar
+  // integridad con remitos viejos — el material sale del listado pero
+  // sigue existiendo en la DB. Word #19.
+  remove:  (id)       => api.delete(`/materiales/${id}`),
 
   // Lista de marcas únicas para autocomplete del form (Word #17)
   getMarcas: ()       => api.get('/materiales/marcas'),

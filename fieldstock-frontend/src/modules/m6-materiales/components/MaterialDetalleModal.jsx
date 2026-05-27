@@ -8,7 +8,9 @@
  * existe en el schema; queda pendiente para un PR futuro que agregue
  * tracking de precios.
  */
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { MaterialesService } from '../services/materiales.service'
 import styles from './MaterialDetalleModal.module.css'
 
 // Formato dd/mm/yyyy + hh:mm a partir de un ISO timestamp.
@@ -30,11 +32,28 @@ function estadoStockLabel(actual, minimo) {
   return { label: 'OK', cls: styles.estadoOk }
 }
 
-export default function MaterialDetalleModal({ material, onClose }) {
+export default function MaterialDetalleModal({ material, onClose, onDeleted }) {
   const navigate = useNavigate()
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting,      setDeleting]      = useState(false)
+  const [error,         setError]         = useState(null)
+
   if (!material) return null
 
   const estado = estadoStockLabel(material.stock_actual, material.stock_minimo)
+
+  const handleEliminar = async () => {
+    setDeleting(true); setError(null)
+    try {
+      await MaterialesService.remove(material.id)
+      onDeleted?.()  // avisa al padre para refetchear la lista
+      onClose()
+    } catch (err) {
+      setError(err.message || 'No se pudo eliminar el material.')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -100,15 +119,52 @@ export default function MaterialDetalleModal({ material, onClose }) {
           </dl>
         </div>
 
-        <div className={styles.actions}>
-          <button className={styles.btnGhost} onClick={onClose}>Cerrar</button>
-          <button
-            className={styles.btnPrimary}
-            onClick={() => navigate(`/materiales/${material.id}/editar`)}
-          >
-            ✎ Editar material
-          </button>
-        </div>
+        {error && <div className={styles.errorBanner}>⚠ {error}</div>}
+
+        {/* Confirmación de eliminación (Word #19) — el confirm reemplaza
+            las acciones normales para forzar atención del usuario. */}
+        {confirmDelete ? (
+          <div className={styles.confirmBlock}>
+            <p className={styles.confirmText}>
+              ¿Eliminar <strong>{material.nombre}</strong> del catálogo? Sale del listado pero queda en remitos viejos para no romper la auditoría.
+            </p>
+            <div className={styles.actions}>
+              <button
+                className={styles.btnGhost}
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleting}
+              >
+                Cancelar
+              </button>
+              <button
+                className={styles.btnDanger}
+                onClick={handleEliminar}
+                disabled={deleting}
+              >
+                {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className={styles.actions}>
+            <button
+              className={styles.btnDangerGhost}
+              onClick={() => setConfirmDelete(true)}
+              title="Soft delete: el material sale del listado pero la fila queda en la DB"
+            >
+              🗑 Eliminar
+            </button>
+            <div className={styles.actionsRight}>
+              <button className={styles.btnGhost} onClick={onClose}>Cerrar</button>
+              <button
+                className={styles.btnPrimary}
+                onClick={() => navigate(`/materiales/${material.id}/editar`)}
+              >
+                ✎ Editar material
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
