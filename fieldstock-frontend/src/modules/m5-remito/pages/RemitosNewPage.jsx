@@ -4,17 +4,25 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { RemitosService } from '../services/remitos.service'
 import { TransportesService, ClientesService } from '@modules/m7-directorio/services/directorio.service'
 import { ObrasService } from '@modules/m4-obra/services/obras.service'
+import { useAuth } from '@shared/hooks/useAuth'
 import styles from './RemitosNewPage.module.css'
 
 export default function RemitosNewPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const obraIdParam = searchParams.get('obraId') || ''
+  // El usuario logueado se carga del AuthProvider y se aplica como
+  // responsable default. El nombre queda editable (por si firma otro
+  // empleado), pero el responsable_user_id se mantiene apuntando al user
+  // logueado para que el PDF muestre su teléfono.
+  const { profile } = useAuth()
 
   const [form, setForm] = useState({
     obraId:         obraIdParam,
     obraNombre:     '',
-    responsable:    '',
+    // Pre-llenamos con el nombre del user logueado. Si todavía no cargó
+    // el profile, queda vacío y el useEffect lo completa al estar disponible.
+    responsable:    profile?.nombre || '',
     transporteId:   '',
     fechaEgreso:    new Date().toISOString().split('T')[0],
     observacion:    '',
@@ -48,6 +56,15 @@ export default function RemitosNewPage() {
     }).catch(() => {})
     .finally(() => setLoadingDir(false))
   }, [])
+
+  // Si el profile carga después del primer render (race con el AuthProvider),
+  // completamos el campo responsable acá. Solo si el user no editó nada.
+  useEffect(() => {
+    if (profile?.nombre && !form.responsable) {
+      setForm(f => ({ ...f, responsable: profile.nombre }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.nombre])
 
   // Helper: dada una obra, devuelve el cliente_id correcto.
   // Camino feliz post-normalización: obras.cliente_id viene de la vista,
@@ -92,6 +109,13 @@ export default function RemitosNewPage() {
       const remito = await RemitosService.create({
         obra:              form.obraNombre,
         responsable:       form.responsable,
+        // Solo enviamos responsableUserId si el texto del responsable no
+        // fue cambiado a otro nombre — si el user lo editó, asumimos que
+        // está delegando a alguien que NO es el del login, así que no
+        // queremos asociar el teléfono equivocado.
+        responsableUserId: form.responsable.trim() === (profile?.nombre || '').trim()
+                            ? profile?.id
+                            : null,
         empresaTransporte: transporte?.nombre || null,
         transporteId:      form.transporteId  || null,
         clienteId,

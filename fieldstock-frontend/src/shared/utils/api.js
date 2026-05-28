@@ -23,14 +23,40 @@
 // frontend se sirve sobre HTTPS (issue #12) — todas las requests son
 // same-origin desde el browser y el proxy hace el hop a HTTP plano
 // server-to-server, donde la regla no aplica.
+import { supabase } from './supabaseClient.js'
+
 const API_BASE = import.meta.env.VITE_API_URL || ''
 const BASE_URL = `${API_BASE}/api`
 
+// Cuando una request del backend vuelve 401 (sesión inválida o expirada),
+// limpiamos la sesión local y disparamos una redirección dura a /login.
+// Hard reload para asegurarnos de que cualquier state in-memory se resetea.
+async function on401() {
+  try { await supabase.auth.signOut() } catch { /* ignore */ }
+  if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+    window.location.href = '/login'
+  }
+}
+
 async function request(path, options = {}) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  })
+  // Inyectar el JWT actual de Supabase Auth en cada request. Hacemos un
+  // getSession() por request porque Supabase ya maneja el refresh automático
+  // y devuelve el token vigente. No cacheamos para no servir uno expirado.
+  const { data: { session } } = await supabase.auth.getSession()
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    ...(options.headers || {}),
+  }
+
+  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers })
+
+  if (res.status === 401) {
+    on401()
+    const err = new Error('Sesión inválida o expirada')
+    err.status = 401; throw err
+  }
+
   const json = await res.json()
   if (!res.ok) {
     const err = new Error(json.error || 'Error de red')

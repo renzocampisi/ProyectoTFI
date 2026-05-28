@@ -150,6 +150,90 @@
   color: var(--text-secondary);
 }
 
+/* ── UserMenu (Login feature) ────────────────────────────── */
+.userMenu { position: relative; }
+
+.userBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+  cursor: pointer;
+}
+.userBtn:hover { background: var(--color-surface-alt); }
+
+.avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary-dim);
+  color: var(--color-primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.userInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-align: left;
+  line-height: 1.2;
+}
+.userName {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.userRole {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.userCaret {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: var(--space-1);
+}
+
+.userDropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 180px;
+  padding: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+}
+.userDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+.userDropdownItem:hover { background: var(--color-surface-alt); }
+.userDropdownSep {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-1) 0;
+}
+
 .signOutBtn {
   font-size: var(--text-sm);
   color: var(--text-muted);
@@ -437,4 +521,7 @@
     overflow-y: auto;
   }
   .userEmail { display: none; }
+  /* En mobile dejamos solo el avatar para ahorrar espacio en el topbar */
+  .userInfo  { display: none; }
+  .userCaret { display: none; }
 }

@@ -117,6 +117,11 @@ export async function create(body) {
       estado:             'BORRADOR',
       obra:               body.obra,
       responsable:        body.responsable,
+      // Vínculo con el usuario logueado que creó el remito. Permite que
+      // el PDF muestre tel del responsable joineado desde la tabla
+      // usuarios (en vez de un campo texto separado). Opcional para
+      // backwards-compat con remitos creados antes del login.
+      responsable_user_id: body.responsableUserId || null,
       empresa_transporte: body.empresaTransporte || null,
       transporte_id:      body.transporteId      || null,
       cliente_id:         body.clienteId         || null,
