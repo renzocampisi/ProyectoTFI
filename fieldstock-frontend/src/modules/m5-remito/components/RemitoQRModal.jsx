@@ -79,7 +79,8 @@ export default function RemitoQRModal({ remito, onClose }) {
             <span className="qr-numero">{remito.numero}</span>
             <div className="qr-meta">
               <span className="qr-meta-row">
-                <span className="qr-meta-label">Obra:</span> {remito.obra}
+                <span className="qr-meta-label">Obra:</span>{' '}
+                {remito.cliente_nombre ? `${remito.cliente_nombre} - ${remito.obra}` : remito.obra}
               </span>
               {remito.responsable && (
                 <span className="qr-meta-row">

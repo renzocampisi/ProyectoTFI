@@ -16,7 +16,15 @@
  * backend viven bajo /api). Los services llaman con rutas relativas:
  *   api.get('/herramientas')  →  http://localhost:3000/api/herramientas
  */
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api'
+// BASE_URL: si VITE_API_URL viene seteada se respeta (útil para apuntar a
+// un backend remoto desde un build de producción). Si no, usamos rutas
+// RELATIVAS (`/api/...`) y dejamos que el dev server de Vite proxee al
+// backend. Esto evita el bloqueo de mixed content en mobile cuando el
+// frontend se sirve sobre HTTPS (issue #12) — todas las requests son
+// same-origin desde el browser y el proxy hace el hop a HTTP plano
+// server-to-server, donde la regla no aplica.
+const API_BASE = import.meta.env.VITE_API_URL || ''
+const BASE_URL = `${API_BASE}/api`
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {

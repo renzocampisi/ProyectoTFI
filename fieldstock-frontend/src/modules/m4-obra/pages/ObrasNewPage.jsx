@@ -5,7 +5,15 @@ import { ObrasService } from '../services/obras.service'
 import { ClientesService } from '@modules/m7-directorio/services/directorio.service'
 import styles from './ObrasNewPage.module.css'
 
-const INICIAL = { nombre: '', direccion: '', cliente: '', fechaInicio: new Date().toISOString().split('T')[0], fechaFin: '' }
+// Estado del form: ahora trackeamos `clienteId` (FK real) y solo derivamos
+// `cliente` (nombre) para mostrar en el select. La normalización del modelo
+// elimina el matching por texto que generaba bugs cuando había typos.
+const INICIAL = {
+  nombre: '', direccion: '',
+  clienteId: '', cliente: '',
+  fechaInicio: new Date().toISOString().split('T')[0],
+  fechaFin: '',
+}
 
 export default function ObrasNewPage() {
   const navigate = useNavigate()
@@ -28,20 +36,25 @@ export default function ObrasNewPage() {
     setErrores(e => ({ ...e, [campo]: undefined }))
   }
 
-  // Al seleccionar cliente → auto-completar dirección
-  const handleClienteChange = (nombreCliente) => {
-    set('cliente', nombreCliente)
-    const clienteObj = clientes.find(c => c.nombre === nombreCliente)
-    if (clienteObj?.direccion) {
-      set('direccion', clienteObj.direccion)
-    }
+  // Al seleccionar cliente → guardar el ID + autocompletar dirección.
+  // Trackeamos también el nombre por si el form viejo lo necesita en algún
+  // lugar (aunque el backend resuelve el nombre desde el FK).
+  const handleClienteChange = (clienteId) => {
+    const clienteObj = clientes.find(c => c.id === clienteId)
+    setForm(f => ({
+      ...f,
+      clienteId,
+      cliente:   clienteObj?.nombre    || '',
+      direccion: clienteObj?.direccion || f.direccion,
+    }))
+    setErrores(e => ({ ...e, clienteId: undefined }))
   }
 
   const validar = () => {
     const e = {}
     if (!form.nombre.trim())    e.nombre      = 'El nombre es obligatorio.'
     if (!form.direccion.trim()) e.direccion   = 'La dirección es obligatoria.'
-    if (!form.cliente.trim())   e.cliente     = 'El cliente es obligatorio.'
+    if (!form.clienteId)        e.clienteId   = 'El cliente es obligatorio.'
     if (!form.fechaInicio)      e.fechaInicio = 'La fecha de inicio es obligatoria.'
     return e
   }
@@ -55,7 +68,7 @@ export default function ObrasNewPage() {
       const obra = await ObrasService.create({
         nombre:      form.nombre.trim(),
         direccion:   form.direccion.trim(),
-        cliente:     form.cliente.trim(),
+        clienteId:   form.clienteId,
         fechaInicio: form.fechaInicio,
         fechaFin:    form.fechaFin || null,
       })
@@ -122,12 +135,13 @@ export default function ObrasNewPage() {
               ) : (
                 <div className={styles.selectorRow}>
                   <select
-                    className={`${styles.input} ${errores.cliente ? styles.inputError : ''}`}
-                    value={form.cliente}
+                    className={`${styles.input} ${errores.clienteId ? styles.inputError : ''}`}
+                    value={form.clienteId}
                     onChange={e => handleClienteChange(e.target.value)}>
                     <option value="">— Seleccioná un cliente —</option>
                     {clientes.map(c => (
-                      <option key={c.id} value={c.nombre}>{c.nombre}</option>
+                      // value = id (FK), label = nombre legible
+                      <option key={c.id} value={c.id}>{c.nombre}</option>
                     ))}
                   </select>
                   <button type="button" className={styles.btnMasIcono}
@@ -135,7 +149,7 @@ export default function ObrasNewPage() {
                     title="Gestionar clientes">+</button>
                 </div>
               )}
-              {errores.cliente && <span className={styles.error}>{errores.cliente}</span>}
+              {errores.clienteId && <span className={styles.error}>{errores.clienteId}</span>}
             </div>
 
             {/* Dirección — auto-completada, editable */}

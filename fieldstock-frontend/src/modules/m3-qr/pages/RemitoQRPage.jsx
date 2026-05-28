@@ -28,6 +28,10 @@ export default function RemitoQRPage() {
   const [showProblema, setShowProblema] = useState(false)
   const [problema,     setProblema]     = useState('')
   const [confirmado,   setConfirmado]   = useState(false)
+  // Conductor / persona que realiza el traslado. Se pide únicamente en
+  // SALIDA (1er escaneo) y queda guardado en el remito para mostrarse
+  // después en el PDF y en la llegada.
+  const [conductor,    setConductor]    = useState('')
 
   useEffect(() => {
     api.get(`/remitos/${id}`)
@@ -42,9 +46,19 @@ export default function RemitoQRPage() {
   }, [id])
 
   const handleConfirmar = async () => {
+    // En SALIDA el conductor es obligatorio. Doble guarda: el botón ya
+    // queda disabled, pero validamos también acá por si llega un click
+    // duplicado o un autocompletar raro.
+    if (accion === 'SALIDA' && !conductor.trim()) {
+      setError('Ingresá el nombre del conductor o persona a cargo del traslado.')
+      return
+    }
     setProcesando(true)
+    setError(null)
     try {
-      await api.post(`/remitos/${id}/confirmar-escaneo`, {})
+      await api.post(`/remitos/${id}/confirmar-escaneo`,
+        accion === 'SALIDA' ? { conductor: conductor.trim() } : {}
+      )
       setConfirmado(true)
     } catch (err) { setError(err.message) }
     finally { setProcesando(false) }
@@ -169,7 +183,9 @@ export default function RemitoQRPage() {
       <div className={styles.card}>
         <div className={styles.cardRow}>
           <span className={styles.cardLabel}>Obra</span>
-          <span className={styles.cardValue}>{remito.obra}</span>
+          <span className={styles.cardValue}>
+            {remito.cliente_nombre ? `${remito.cliente_nombre} - ${remito.obra}` : remito.obra}
+          </span>
         </div>
         <div className={styles.cardRow}>
           <span className={styles.cardLabel}>Responsable</span>
@@ -179,6 +195,13 @@ export default function RemitoQRPage() {
           <div className={styles.cardRow}>
             <span className={styles.cardLabel}>Transporte</span>
             <span className={styles.cardValue}>{remito.empresa_transporte}</span>
+          </div>
+        )}
+        {/* En LLEGADA mostramos quién hizo el traslado (cargado en SALIDA) */}
+        {remito.conductor && (
+          <div className={styles.cardRow}>
+            <span className={styles.cardLabel}>Conductor</span>
+            <span className={styles.cardValue}>{remito.conductor}</span>
           </div>
         )}
         <div className={styles.cardRow}>
@@ -239,10 +262,30 @@ export default function RemitoQRPage() {
         </div>
       )}
 
+      {/* Conductor — solo en SALIDA. Obligatorio para confirmar. */}
+      {esSalida && (
+        <div className={styles.conductorBox}>
+          <label className={styles.conductorLabel} htmlFor="conductor">
+            Conductor / persona a cargo del traslado <span className={styles.req}>*</span>
+          </label>
+          <input id="conductor" type="text"
+            className={styles.conductorInput}
+            placeholder="Nombre y apellido"
+            value={conductor}
+            onChange={e => setConductor(e.target.value)}
+            autoComplete="off"
+            autoCapitalize="words" />
+          <p className={styles.conductorHint}>
+            Queda registrado en el remito y se muestra en el PDF.
+          </p>
+        </div>
+      )}
+
       {/* Acciones */}
       <div className={styles.acciones}>
         {esSalida && (
-          <button className={styles.btnPrimary} onClick={handleConfirmar} disabled={procesando}>
+          <button className={styles.btnPrimary} onClick={handleConfirmar}
+            disabled={procesando || !conductor.trim()}>
             {procesando ? 'Procesando...' : '✓ Confirmar salida del depósito'}
           </button>
         )}

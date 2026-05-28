@@ -643,3 +643,50 @@ export async function eliminar(id) {
   const { error } = await supabase.from('remitos').delete().eq('id', id)
   if (error) throw error
 }
+
+// ── Confirmar escaneo desde el QR mobile ──────────────────────
+// El controller usaba avanzarEstado() directamente, pero ahora la SALIDA
+// (CONFIRMADO → EN_TRANSITO) requiere capturar el nombre del conductor /
+// persona que físicamente traslada la carga. Centralizamos la lógica acá:
+//
+//   - CONFIRMADO → EN_TRANSITO  → conductor obligatorio, se persiste
+//   - EN_TRANSITO → EN_OBRA     → conductor opcional (ya quedó del primer
+//                                  escaneo), solo avanza el estado
+//   - cualquier otro estado     → error 400
+//
+// Devuelve { remito, accion } para que la UI mobile sepa si fue SALIDA
+// o LLEGADA y muestre el mensaje correcto.
+export async function confirmarEscaneo(id, { conductor } = {}) {
+  const { data: remito, error: errR } = await supabase
+    .from('remitos').select('estado').eq('id', id).single()
+  if (errR) throw errR
+  if (!remito) {
+    const err = new Error('Remito no encontrado'); err.status = 404; throw err
+  }
+
+  if (!['CONFIRMADO', 'EN_TRANSITO'].includes(remito.estado)) {
+    const err = new Error(
+      `El remito está en estado ${remito.estado} y no puede confirmarse por QR.`
+    )
+    err.status = 400; throw err
+  }
+
+  const accion = remito.estado === 'CONFIRMADO' ? 'SALIDA' : 'LLEGADA'
+
+  // En la SALIDA se persiste el conductor antes de avanzar el estado.
+  // En la LLEGADA ya quedó del primer escaneo, no se pide de nuevo.
+  if (accion === 'SALIDA') {
+    if (!conductor?.trim()) {
+      const err = new Error('Hay que indicar el nombre del conductor o persona a cargo del traslado.')
+      err.status = 400; throw err
+    }
+    const { error: errU } = await supabase
+      .from('remitos')
+      .update({ conductor: conductor.trim() })
+      .eq('id', id)
+    if (errU) throw errU
+  }
+
+  const data = await avanzarEstado(id)
+  return { data, accion }
+}

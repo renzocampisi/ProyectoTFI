@@ -27,9 +27,14 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    // Proxy /api → backend Node. Esto permite que el frontend (servido
+    // en HTTPS para que funcione la cámara del QR en mobile, issue #12)
+    // hable con el backend sin disparar bloqueo de mixed content del
+    // browser. Las requests salen relativas desde la app y Vite las
+    // forwardea al backend HTTP server-to-server.
     proxy: {
       '/api': {
-        target: '192.168.100.19:3000',
+        target: 'http://localhost:3000',
         changeOrigin: true,
       },
     },

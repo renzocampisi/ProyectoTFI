@@ -38,7 +38,9 @@ function TablaObras({ obras, navigate }) {
           {obras.map(o => (
             <tr key={o.id} className={styles.row} onClick={() => navigate(`/obras/${o.id}`)}>
               <td className={styles.nombre}>{o.nombre}</td>
-              <td className={styles.cliente}>{o.cliente}</td>
+              {/* cliente_nombre viene del FK (post-normalización); el texto
+                  legacy queda como fallback para obras no editadas. */}
+              <td className={styles.cliente}>{o.cliente_nombre || o.cliente || '—'}</td>
               <td className={styles.direccion}>{o.direccion}</td>
               <td className={styles.fecha}>{formatFecha(o.fecha_inicio)}</td>
               <td className={styles.fecha}>{formatFecha(o.fecha_fin)}</td>

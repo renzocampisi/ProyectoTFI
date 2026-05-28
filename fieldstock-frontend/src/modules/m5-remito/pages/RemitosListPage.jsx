@@ -21,7 +21,11 @@ function TablaRemitos({ remitos, navigate, onEliminar, mostrarEliminar }) {
         <thead>
           <tr>
             <th>Número</th>
+            {/* Obra y cliente separados en columnas independientes —
+                cuando el mismo cliente tiene varias obras, ayuda
+                a ubicarse rápido sin tener que parsear un string compuesto. */}
             <th>Obra</th>
+            <th>Cliente</th>
             <th>Responsable</th>
             <th>Fecha egreso</th>
             <th>Herramientas</th>
@@ -32,14 +36,18 @@ function TablaRemitos({ remitos, navigate, onEliminar, mostrarEliminar }) {
         </thead>
         <tbody>
           {remitos.map(r => (
+            // Las clases puntuales (.numero, .obra, .cliente, etc.) sirven en
+            // desktop como estilo de columna y en mobile como grid-area dentro
+            // de la card responsiva. Ver media queries en el CSS.
             <tr key={r.id} className={styles.row} onClick={() => navigate(`/remitos/${r.id}`)}>
               <td className={styles.numero}>{r.numero}</td>
-              <td className={styles.obra}>{r.obra}</td>
+              <td className={styles.obra}>{r.obra || '—'}</td>
+              <td className={styles.cliente}>{r.cliente_nombre || '—'}</td>
               <td className={styles.resp}>{r.responsable}</td>
               <td className={styles.fecha}>{formatFecha(r.fecha_egreso)}</td>
               <td className={styles.cant}>{r.cantidad_herramientas ?? 0}</td>
               <td className={styles.cant}>{r.cantidad_materiales ?? 0}</td>
-              <td><EstadoRemitoBadge estado={r.estado} /></td>
+              <td className={styles.estadoCell}><EstadoRemitoBadge estado={r.estado} /></td>
               <td className={styles.actions}>
                 <button className={styles.btnRow}
                   onClick={e => { e.stopPropagation(); navigate(`/remitos/${r.id}`) }}>
@@ -126,7 +134,7 @@ export default function RemitosListPage() {
             <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
           <input type="search" className={styles.searchInput}
-            placeholder="Buscar por número (FS-00001) u obra..."
+            placeholder="Buscar por número (FS-00001), obra o cliente..."
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)} />
         </div>

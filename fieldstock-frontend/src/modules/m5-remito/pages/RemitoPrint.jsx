@@ -44,14 +44,32 @@ export default function RemitoPrint({ remito }) {
       </div>
 
       {/* Datos */}
+      {/*
+        Bloques del destino y del envío:
+        - "Destino" usa la EMPRESA (cliente) como header principal — en este
+          flujo no nos importa el nombre interno de la obra/sector, sino a qué
+          empresa va dirigido el remito. Mostramos la dirección y el contacto
+          del responsable (este último queda '—' hasta que tengamos login,
+          momento en el que vendrá del perfil del usuario responsable).
+        - "Datos del envío" agrega el teléfono del transporte para que el
+          chofer/responsable de planta tengan contacto directo.
+      */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '16px', background: '#f8f8f8', padding: '12px', borderRadius: '4px', border: '1px solid #e0e0e0' }}>
         <div>
-          <div style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#555', borderBottom: '1px solid #ccc', paddingBottom: '4px', marginBottom: '8px' }}>Destino / Obra</div>
+          <div style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#555', borderBottom: '1px solid #ccc', paddingBottom: '4px', marginBottom: '8px' }}>Destino</div>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <tbody>
-              {[['Obra:', remito.obra], ['Responsable:', remito.responsable]].map(([label, val]) => (
+              {[
+                ['Empresa:',    remito.cliente_nombre],
+                ['Dirección:',  [remito.cliente_direccion, remito.cliente_localidad, remito.cliente_provincia].filter(Boolean).join(', ')],
+                ['Responsable:', remito.responsable],
+                // TODO: cuando esté el login, este campo viene del perfil
+                // del usuario responsable. Por ahora se imprime vacío y se
+                // completa a mano.
+                ['Tel. responsable:', remito.responsable_telefono],
+              ].map(([label, val]) => (
                 <tr key={label}>
-                  <td style={{ color: '#555', paddingBottom: '4px', whiteSpace: 'nowrap', paddingRight: '6px', verticalAlign: 'top', width: '90px' }}>{label}</td>
+                  <td style={{ color: '#555', paddingBottom: '4px', whiteSpace: 'nowrap', paddingRight: '6px', verticalAlign: 'top', width: '110px' }}>{label}</td>
                   <td style={{ fontWeight: '500', paddingBottom: '4px', verticalAlign: 'top' }}>{val || '—'}</td>
                 </tr>
               ))}
@@ -63,12 +81,18 @@ export default function RemitoPrint({ remito }) {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <tbody>
               {[
-                ['Transporte:', remito.empresa_transporte || '—'],
-                ['Fecha egreso:', formatFecha(remito.fecha_egreso)],
+                ['Transporte:',      remito.empresa_transporte],
+                ['Tel. transporte:', remito.transporte_telefono],
+                // El conductor / persona que físicamente traslada se carga
+                // al escanear el QR de SALIDA desde el celular (es campo
+                // obligatorio en esa pantalla). En BORRADOR / CONFIRMADO
+                // todavía está vacío y sale como '—'.
+                ['Persona a cargo:', remito.conductor],
+                ['Fecha egreso:',    formatFecha(remito.fecha_egreso)],
                 ...(esIngreso ? [['Fecha retorno:', formatFecha(remito.fecha_retorno)]] : []),
               ].map(([label, val]) => (
                 <tr key={label}>
-                  <td style={{ color: '#555', paddingBottom: '4px', whiteSpace: 'nowrap', paddingRight: '6px', verticalAlign: 'top', width: '100px' }}>{label}</td>
+                  <td style={{ color: '#555', paddingBottom: '4px', whiteSpace: 'nowrap', paddingRight: '6px', verticalAlign: 'top', width: '110px' }}>{label}</td>
                   <td style={{ fontWeight: '500', paddingBottom: '4px', verticalAlign: 'top' }}>{val || '—'}</td>
                 </tr>
               ))}

@@ -26,8 +26,13 @@ import * as ObrasCtrl           from '../controllers/obras.controller.js'
 import * as DirectorioCtrl      from '../controllers/directorio.controller.js'
 import * as EstanteriasCtrl     from '../controllers/estanterias.controller.js'
 import * as NotificacionesCtrl  from '../controllers/notificaciones.controller.js'
+import * as DashboardCtrl       from '../controllers/dashboard.controller.js'
 
 const router = Router()
+
+// ── Dashboard ─────────────────────────────────────────────────
+// Word #16 — single endpoint que agrega KPIs + listas para la home.
+router.get('/dashboard', DashboardCtrl.getResumen)
 
 // ── Categorías ────────────────────────────────────────────────
 router.get ('/categorias', CategoriasCtrl.getAll)

@@ -71,7 +71,7 @@ export default function ObrasDetailPage() {
           <div className={styles.headerInfo}>
             <h1 className={styles.title}>{obra.nombre}</h1>
             <div className={styles.headerMeta}>
-              <span className={styles.cliente}>{obra.cliente}</span>
+              <span className={styles.cliente}>{obra.cliente_nombre || obra.cliente}</span>
               <EstadoBadge estado={obra.estado} />
             </div>
           </div>
@@ -103,7 +103,7 @@ export default function ObrasDetailPage() {
             <div className={styles.campos}>
               {[
                 { label: 'Nombre',    value: obra.nombre },
-                { label: 'Cliente',   value: obra.cliente },
+                { label: 'Cliente',   value: obra.cliente_nombre || obra.cliente },
                 { label: 'Dirección', value: obra.direccion },
                 { label: 'Inicio',    value: formatFecha(obra.fecha_inicio) },
                 { label: 'Fin',       value: formatFecha(obra.fecha_fin) },
