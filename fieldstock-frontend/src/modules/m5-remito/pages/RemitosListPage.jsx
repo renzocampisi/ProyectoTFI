@@ -21,7 +21,11 @@ function TablaRemitos({ remitos, navigate, onEliminar, mostrarEliminar }) {
         <thead>
           <tr>
             <th>Número</th>
+            {/* Obra y cliente separados en columnas independientes —
+                cuando el mismo cliente tiene varias obras, ayuda
+                a ubicarse rápido sin tener que parsear un string compuesto. */}
             <th>Obra</th>
+            <th>Cliente</th>
             <th>Responsable</th>
             <th>Fecha egreso</th>
             <th>Herramientas</th>
@@ -34,7 +38,8 @@ function TablaRemitos({ remitos, navigate, onEliminar, mostrarEliminar }) {
           {remitos.map(r => (
             <tr key={r.id} className={styles.row} onClick={() => navigate(`/remitos/${r.id}`)}>
               <td className={styles.numero}>{r.numero}</td>
-              <td className={styles.obra}>{r.obra}</td>
+              <td className={styles.obra}>{r.obra || '—'}</td>
+              <td className={styles.obra}>{r.cliente_nombre || '—'}</td>
               <td className={styles.resp}>{r.responsable}</td>
               <td className={styles.fecha}>{formatFecha(r.fecha_egreso)}</td>
               <td className={styles.cant}>{r.cantidad_herramientas ?? 0}</td>
@@ -126,7 +131,7 @@ export default function RemitosListPage() {
             <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
           <input type="search" className={styles.searchInput}
-            placeholder="Buscar por número (FS-00001) u obra..."
+            placeholder="Buscar por número (FS-00001), obra o cliente..."
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)} />
         </div>

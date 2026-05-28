@@ -76,19 +76,14 @@ export async function volverABorrador(req, res, next) {
 // mobile pueda mostrar el mensaje correcto.
 export async function confirmarEscaneo(req, res, next) {
   try {
-    const { id } = req.params
-    const remito = await RemitosService.getById(id)
-    if (!remito) return res.status(404).json({ ok: false, error: 'Remito no encontrado' })
-
-    if (!['CONFIRMADO', 'EN_TRANSITO'].includes(remito.estado)) {
-      return res.status(400).json({
-        ok: false,
-        error: `El remito está en estado ${remito.estado} y no puede confirmarse por QR.`
-      })
-    }
-
-    const data = await RemitosService.avanzarEstado(id)
-    res.json({ ok: true, data, accion: remito.estado === 'CONFIRMADO' ? 'SALIDA' : 'LLEGADA' })
+    // El service ahora encapsula la validación (estado, conductor obligatorio
+    // en SALIDA) y la persistencia del conductor. Mantenemos la respuesta con
+    // `accion` arriba del objeto para no romper a la app mobile.
+    const { data, accion } = await RemitosService.confirmarEscaneo(
+      req.params.id,
+      { conductor: req.body?.conductor }
+    )
+    res.json({ ok: true, data, accion })
   } catch (err) { next(err) }
 }
 

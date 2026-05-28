@@ -12,18 +12,8 @@
  */
 import { Link } from 'react-router-dom'
 import { useDashboard } from '../hooks/useDashboard'
+import EstadoRemitoBadge from '@modules/m5-remito/components/EstadoRemitoBadge'
 import styles from './DashboardPage.module.css'
-
-// Mapa de estados de remito → label legible
-const ESTADOS_REMITO_LABEL = {
-  BORRADOR:            'Borrador',
-  CONFIRMADO:          'Confirmado',
-  EN_TRANSITO:         'En tránsito',
-  EN_OBRA:             'En obra',
-  EN_RETORNO:          'En retorno',
-  EN_TRANSITO_RETORNO: 'En tránsito (retorno)',
-  CERRADO:             'Cerrado',
-}
 
 // Formateo de fecha corto — solo día/mes (la home es de un vistazo rápido)
 function fechaCorta(iso) {
@@ -190,17 +180,19 @@ export default function DashboardPage() {
               {ultimosRemitos.map(r => (
                 <Link key={r.id} to={`/remitos/${r.id}`} className={styles.listItem}>
                   <div className={styles.listMain}>
+                    {/* Cliente y obra separados en dos líneas — el cliente
+                        manda la jerarquía visual y la obra queda como
+                        contexto secundario. Coherente con el resto de la app. */}
                     <span className={styles.listTitle}>
-                      {r.numero} — {r.obra || 'Sin obra'}
+                      {r.numero} — {r.cliente_nombre || 'Sin cliente'}
                     </span>
                     <span className={styles.listSub}>
-                      Egreso: {fechaCorta(r.fecha_egreso)}
+                      {r.obra || 'Sin obra'} · Egreso: {fechaCorta(r.fecha_egreso)}
                       {r.fecha_retorno && ` · Retorno: ${fechaCorta(r.fecha_retorno)}`}
                     </span>
                   </div>
-                  <span className={styles.estadoPill}>
-                    {ESTADOS_REMITO_LABEL[r.estado] || r.estado}
-                  </span>
+                  {/* Mismo badge coloreado que en /remitos para consistencia */}
+                  <EstadoRemitoBadge estado={r.estado} />
                 </Link>
               ))}
             </div>

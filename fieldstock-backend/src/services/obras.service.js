@@ -50,12 +50,25 @@ export async function getById(id) {
 }
 
 export async function create(body) {
+  // Tras la normalización del modelo, `cliente_id` (FK) es la fuente de
+  // verdad. Si llega, resolvemos el nombre del cliente desde la tabla
+  // clientes y persistimos AMBOS (texto + FK) por backwards-compat con
+  // código viejo que sigue leyendo el campo texto. La columna texto se
+  // puede dropear cuando confirmemos que ningún consumer la usa.
+  let clienteNombre = body.cliente || null
+  if (body.clienteId) {
+    const { data: c } = await supabase
+      .from('clientes').select('nombre').eq('id', body.clienteId).single()
+    clienteNombre = c?.nombre || clienteNombre
+  }
+
   const { data, error } = await supabase
     .from('obras')
     .insert({
       nombre:       body.nombre,
       direccion:    body.direccion,
-      cliente:      body.cliente,
+      cliente:      clienteNombre,
+      cliente_id:   body.clienteId || null,
       fecha_inicio: body.fechaInicio,
       fecha_fin:    body.fechaFin    || null,
       estado:       'ACTIVA',
@@ -70,7 +83,20 @@ export async function update(id, body) {
   const campos = {}
   if (body.nombre      !== undefined) campos.nombre       = body.nombre
   if (body.direccion   !== undefined) campos.direccion    = body.direccion
-  if (body.cliente     !== undefined) campos.cliente      = body.cliente
+  // Si llega clienteId nuevo, resolvemos el nombre y actualizamos ambos
+  // campos en simultáneo para que no queden desincronizados.
+  if (body.clienteId   !== undefined) {
+    campos.cliente_id = body.clienteId || null
+    if (body.clienteId) {
+      const { data: c } = await supabase
+        .from('clientes').select('nombre').eq('id', body.clienteId).single()
+      campos.cliente = c?.nombre || null
+    } else {
+      campos.cliente = null
+    }
+  } else if (body.cliente !== undefined) {
+    campos.cliente = body.cliente
+  }
   if (body.fechaInicio !== undefined) campos.fecha_inicio = body.fechaInicio
   if (body.fechaFin    !== undefined) campos.fecha_fin    = body.fechaFin || null
 

@@ -25,8 +25,11 @@ export async function getById(req, res, next) {
 
 export async function create(req, res, next) {
   try {
-    const { nombre, direccion, cliente, fechaInicio } = req.body
-    if (!nombre || !direccion || !cliente || !fechaInicio)
+    // Post-normalización, el frontend manda `clienteId` (FK). Aceptamos
+    // también `cliente` (texto) por backwards-compat con APIs viejas —
+    // basta con que llegue cualquiera de los dos.
+    const { nombre, direccion, cliente, clienteId, fechaInicio } = req.body
+    if (!nombre || !direccion || !(cliente || clienteId) || !fechaInicio)
       return res.status(400).json({ ok: false, error: 'nombre, direccion, cliente y fechaInicio son obligatorios' })
     const data = await ObrasService.create(req.body)
     res.status(201).json({ ok: true, data })

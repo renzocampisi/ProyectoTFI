@@ -102,7 +102,10 @@ async function getUltimasNotificaciones() {
 async function getUltimosRemitos() {
   const { data, error } = await supabase
     .from('remitos_resumen')
-    .select('id, numero, obra, estado, fecha_egreso, fecha_retorno')
+    // cliente_nombre se incluye para que el frontend pueda mostrar
+    // "Cliente - Obra" en el listado (más útil cuando un mismo cliente
+    // tiene varias obras corriendo en paralelo).
+    .select('id, numero, obra, cliente_nombre, estado, fecha_egreso, fecha_retorno')
     .order('fecha_egreso', { ascending: false })
     .limit(LIMITE_LISTAS)
   if (error) throw error

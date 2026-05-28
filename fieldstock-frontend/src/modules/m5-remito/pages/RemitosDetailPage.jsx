@@ -9,6 +9,7 @@ import EstadoRemitoBadge from '../components/EstadoRemitoBadge'
 import RemitoQRModal from '../components/RemitoQRModal'
 import RemitoEditModal from './RemitoEditModal'
 import RemitoPrint from './RemitoPrint'
+import { nombreRemito } from '../utils/remito-format'
 import styles from './RemitosDetailPage.module.css'
 
 const PASOS = [
@@ -586,7 +587,7 @@ export default function RemitosDetailPage() {
               <EstadoRemitoBadge estado={remito.estado} />
             </div>
             <p className={styles.headerSub}>
-              {remito.obra} · {remito.responsable}
+              {nombreRemito(remito)} · {remito.responsable}
               {remito.empresa_transporte && ` · ${remito.empresa_transporte}`}
               · {formatFecha(remito.fecha_egreso)}
             </p>
@@ -815,16 +816,28 @@ export default function RemitosDetailPage() {
                 <span className={styles.campoLabel}>Empresa</span>
                 <span className={styles.campoValue}>{remito.empresa_transporte}</span>
               </div>
-              {remito.transporte_contacto && (
+              {/* Conductor: viene del campo capturado en el QR de salida
+                  (remito.conductor), que es quien físicamente está haciendo
+                  el traslado. Antes mostrábamos transporte_contacto, que es
+                  el contacto genérico de la empresa de transporte — útil
+                  para llamarlos, pero no es necesariamente el conductor
+                  específico de este envío. */}
+              {remito.conductor && (
                 <div className={styles.campo}>
                   <span className={styles.campoLabel}>Conductor</span>
-                  <span className={styles.campoValue}>{remito.transporte_contacto}</span>
+                  <span className={styles.campoValue}>{remito.conductor}</span>
                 </div>
               )}
               {remito.transporte_telefono && (
                 <div className={styles.campo}>
-                  <span className={styles.campoLabel}>Teléfono</span>
+                  <span className={styles.campoLabel}>Tel. transporte</span>
                   <span className={styles.campoValue}>{remito.transporte_telefono}</span>
+                </div>
+              )}
+              {remito.transporte_contacto && (
+                <div className={styles.campo}>
+                  <span className={styles.campoLabel}>Contacto empresa</span>
+                  <span className={styles.campoValue}>{remito.transporte_contacto}</span>
                 </div>
               )}
             </div>

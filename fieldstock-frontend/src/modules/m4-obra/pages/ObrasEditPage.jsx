@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ObrasService } from '../services/obras.service'
+import { ClientesService } from '@modules/m7-directorio/services/directorio.service'
 import styles from './ObrasNewPage.module.css'
 
 export default function ObrasEditPage() {
@@ -13,14 +14,24 @@ export default function ObrasEditPage() {
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [guardado,setGuardado]= useState(false)
+  const [clientes,setClientes]= useState([])
 
   useEffect(() => {
-    ObrasService.getById(id)
-      .then(obra => {
+    Promise.all([
+      ObrasService.getById(id),
+      ClientesService.getAll().catch(() => []),
+    ])
+      .then(([obra, clientesAll]) => {
+        setClientes(clientesAll)
         setForm({
           nombre:      obra.nombre     || '',
           direccion:   obra.direccion  || '',
-          cliente:     obra.cliente    || '',
+          // cliente_id (FK) es la fuente de verdad post-normalización.
+          // Si el remito viejo no tiene FK, intentamos matchearlo por
+          // nombre para que el select muestre la opción correcta.
+          clienteId:   obra.cliente_id
+                       || clientesAll.find(c => c.nombre?.toLowerCase() === obra.cliente?.toLowerCase())?.id
+                       || '',
           fechaInicio: obra.fecha_inicio?.split('T')[0] || '',
           fechaFin:    obra.fecha_fin?.split('T')[0]    || '',
         })
@@ -34,11 +45,23 @@ export default function ObrasEditPage() {
     setErrores(e => ({ ...e, [campo]: undefined }))
   }
 
+  const handleClienteChange = (clienteId) => {
+    const clienteObj = clientes.find(c => c.id === clienteId)
+    setForm(f => ({
+      ...f,
+      clienteId,
+      // Si el cliente nuevo tiene dirección y el campo está vacío,
+      // lo pre-llenamos. No pisamos si ya editaron manualmente.
+      direccion: f.direccion || clienteObj?.direccion || '',
+    }))
+    setErrores(e => ({ ...e, clienteId: undefined }))
+  }
+
   const validar = () => {
     const e = {}
-    if (!form.nombre.trim())    e.nombre    = 'El nombre es obligatorio.'
-    if (!form.direccion.trim()) e.direccion = 'La dirección es obligatoria.'
-    if (!form.cliente.trim())   e.cliente   = 'El cliente es obligatorio.'
+    if (!form.nombre.trim())    e.nombre      = 'El nombre es obligatorio.'
+    if (!form.direccion.trim()) e.direccion   = 'La dirección es obligatoria.'
+    if (!form.clienteId)        e.clienteId   = 'El cliente es obligatorio.'
     if (!form.fechaInicio)      e.fechaInicio = 'La fecha de inicio es obligatoria.'
     return e
   }
@@ -52,7 +75,7 @@ export default function ObrasEditPage() {
       await ObrasService.update(id, {
         nombre:      form.nombre.trim(),
         direccion:   form.direccion.trim(),
-        cliente:     form.cliente.trim(),
+        clienteId:   form.clienteId,
         fechaInicio: form.fechaInicio,
         fechaFin:    form.fechaFin || null,
       })
@@ -107,11 +130,17 @@ export default function ObrasEditPage() {
             </div>
 
             <div className={styles.field}>
-              <label className={styles.label} htmlFor="cliente">Cliente <span className={styles.req}>*</span></label>
-              <input id="cliente" type="text"
-                className={`${styles.input} ${errores.cliente ? styles.inputError : ''}`}
-                value={form.cliente} onChange={e => set('cliente', e.target.value)} />
-              {errores.cliente && <span className={styles.error}>{errores.cliente}</span>}
+              <label className={styles.label}>Cliente <span className={styles.req}>*</span></label>
+              <select
+                className={`${styles.input} ${errores.clienteId ? styles.inputError : ''}`}
+                value={form.clienteId}
+                onChange={e => handleClienteChange(e.target.value)}>
+                <option value="">— Seleccioná un cliente —</option>
+                {clientes.map(c => (
+                  <option key={c.id} value={c.id}>{c.nombre}</option>
+                ))}
+              </select>
+              {errores.clienteId && <span className={styles.error}>{errores.clienteId}</span>}
             </div>
 
             <div className={styles.field}>

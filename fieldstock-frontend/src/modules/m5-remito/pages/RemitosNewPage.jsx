@@ -23,15 +23,24 @@ export default function RemitosNewPage() {
   const [loading,     setLoading]     = useState(false)
   const [transportes, setTransportes] = useState([])
   const [obras,       setObras]       = useState([])
+  // Cargamos también la lista completa de clientes para poder resolver el
+  // cliente_id por nombre cuando se crea el remito. La tabla `obras` guarda
+  // el cliente como texto (no como FK), así que tenemos que hacer el match
+  // acá en el frontend para que el remito quede vinculado al cliente real
+  // y la vista remitos_resumen pueda devolver datos joineados (dirección,
+  // teléfono, etc.).
+  const [clientes,    setClientes]    = useState([])
   const [loadingDir,  setLoadingDir]  = useState(true)
 
   useEffect(() => {
     Promise.all([
       TransportesService.getAll(),
       ObrasService.getAll({ estado: 'ACTIVA' }),
-    ]).then(([transp, obrasActivas]) => {
+      ClientesService.getAll().catch(() => []),
+    ]).then(([transp, obrasActivas, clientesAll]) => {
       setTransportes(transp)
       setObras(obrasActivas)
+      setClientes(clientesAll)
       if (obraIdParam) {
         const obraObj = obrasActivas.find(o => o.id === obraIdParam)
         if (obraObj) setForm(f => ({ ...f, obraId: obraObj.id, obraNombre: obraObj.nombre }))
@@ -39,6 +48,18 @@ export default function RemitosNewPage() {
     }).catch(() => {})
     .finally(() => setLoadingDir(false))
   }, [])
+
+  // Helper: dada una obra, devuelve el cliente_id correcto.
+  // Camino feliz post-normalización: obras.cliente_id viene de la vista,
+  // lo usamos directo. Si por alguna razón no está seteado (obra creada
+  // antes de la normalización y nunca editada), caemos a un match por
+  // texto contra la lista de clientes.
+  const resolverClienteId = (obra) => {
+    if (obra?.cliente_id) return obra.cliente_id
+    const texto = obra?.cliente?.trim().toLowerCase()
+    if (!texto) return null
+    return clientes.find(c => c.nombre?.trim().toLowerCase() === texto)?.id || null
+  }
 
   const set = (campo, valor) => {
     setForm(f => ({ ...f, [campo]: valor }))
@@ -64,6 +85,8 @@ export default function RemitosNewPage() {
     if (Object.keys(e2).length) { setErrores(e2); return }
 
     const transporte = transportes.find(t => t.id === form.transporteId)
+    const obraObj    = obras.find(o => o.id === form.obraId)
+    const clienteId  = resolverClienteId(obraObj)
     setLoading(true)
     try {
       const remito = await RemitosService.create({
@@ -71,7 +94,7 @@ export default function RemitosNewPage() {
         responsable:       form.responsable,
         empresaTransporte: transporte?.nombre || null,
         transporteId:      form.transporteId  || null,
-        clienteId:         obras.find(o => o.id === form.obraId)?.cliente_id || null,
+        clienteId,
         fechaEgreso:       form.fechaEgreso,
         observacion:       form.observacion || null,
       })
@@ -111,9 +134,16 @@ export default function RemitosNewPage() {
                   <select className={`${styles.input} ${errores.obraId ? styles.inputError : ''}`}
                     value={form.obraId} onChange={e => handleObraChange(e.target.value)}>
                     <option value="">— Seleccioná una obra activa —</option>
-                    {obras.map(o => (
-                      <option key={o.id} value={o.id}>{o.nombre}{o.cliente ? ` — ${o.cliente}` : ''}</option>
-                    ))}
+                    {obras.map(o => {
+                      // Preferimos cliente_nombre (FK joineado, post-normalización);
+                      // si la obra es vieja y no fue editada, caemos al texto legacy.
+                      const clienteLabel = o.cliente_nombre || o.cliente
+                      return (
+                        <option key={o.id} value={o.id}>
+                          {clienteLabel ? `${clienteLabel} — ${o.nombre}` : o.nombre}
+                        </option>
+                      )
+                    })}
                   </select>
                   <button type="button" className={styles.btnMasIcono}
                     onClick={() => navigate('/obras/nueva')} title="Nueva obra">+</button>
