@@ -36,15 +36,18 @@ function TablaRemitos({ remitos, navigate, onEliminar, mostrarEliminar }) {
         </thead>
         <tbody>
           {remitos.map(r => (
+            // Las clases puntuales (.numero, .obra, .cliente, etc.) sirven en
+            // desktop como estilo de columna y en mobile como grid-area dentro
+            // de la card responsiva. Ver media queries en el CSS.
             <tr key={r.id} className={styles.row} onClick={() => navigate(`/remitos/${r.id}`)}>
               <td className={styles.numero}>{r.numero}</td>
               <td className={styles.obra}>{r.obra || '—'}</td>
-              <td className={styles.obra}>{r.cliente_nombre || '—'}</td>
+              <td className={styles.cliente}>{r.cliente_nombre || '—'}</td>
               <td className={styles.resp}>{r.responsable}</td>
               <td className={styles.fecha}>{formatFecha(r.fecha_egreso)}</td>
               <td className={styles.cant}>{r.cantidad_herramientas ?? 0}</td>
               <td className={styles.cant}>{r.cantidad_materiales ?? 0}</td>
-              <td><EstadoRemitoBadge estado={r.estado} /></td>
+              <td className={styles.estadoCell}><EstadoRemitoBadge estado={r.estado} /></td>
               <td className={styles.actions}>
                 <button className={styles.btnRow}
                   onClick={e => { e.stopPropagation(); navigate(`/remitos/${r.id}`) }}>

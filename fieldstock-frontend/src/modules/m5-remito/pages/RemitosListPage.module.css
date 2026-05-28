@@ -36,11 +36,13 @@
 .row:last-child { border-bottom: none; }
 .row:hover { background: var(--color-surface-alt); }
 .row td { padding: var(--space-3) var(--space-4); vertical-align: middle; }
-.numero { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-primary); letter-spacing: 0.04em; }
-.obra   { color: var(--text-primary); font-weight: 500; }
-.resp   { color: var(--text-secondary); }
-.fecha  { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
-.cant   { color: var(--text-secondary); text-align: center; }
+.numero  { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-primary); letter-spacing: 0.04em; }
+.obra    { color: var(--text-primary); font-weight: 500; }
+.cliente { color: var(--text-primary); font-weight: 500; }
+.resp    { color: var(--text-secondary); }
+.fecha   { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+.cant    { color: var(--text-secondary); text-align: center; }
+.estadoCell { white-space: nowrap; }
 .actions { text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
 .btnRow { font-size: var(--text-xs); color: var(--text-muted); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); transition: color var(--transition-fast), background var(--transition-fast); }
 .btnRow:hover { color: var(--color-primary); background: var(--color-primary-dim); }
@@ -57,20 +59,73 @@
 .btnEliminarConfirm:hover:not(:disabled) { opacity: 0.85; }
 .btnEliminarConfirm:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* En tablet ocultamos Responsable + Fecha egreso (ahora son columnas 4 y 5
+   tras agregar la columna Cliente). Para el resto seguimos mostrando todo. */
 @media (max-width: 1024px) {
   .table thead th:nth-child(4),
   .table td:nth-child(4),
   .table thead th:nth-child(5),
   .table td:nth-child(5) { display: none; }
 }
- 
-@media (max-width: 430px) {
+
+/* ──────────────────────────────────────────────────────────────
+   Mobile: la tabla se convierte en una pila de cards verticales.
+   Cada <tr> pasa a ser una card con grid-template-areas, así
+   ocupa exactamente el ancho del viewport y no requiere scroll
+   horizontal (que era confuso en el celular).
+   Layout de la card:
+     ┌─────────────────────────────────┐
+     │ FS-00020         [Confirmado]   │   numero | estado
+     │ Caldera nueva                   │   obra
+     │ Grobocopatel                    │   cliente
+     │ 28/05               [Ver →]     │   fecha | actions
+     └─────────────────────────────────┘
+   El resto de columnas (responsable, contadores) quedan ocultas
+   en mobile — siguen accesibles desde el detalle.
+   ────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
   .header { flex-direction: column; gap: var(--space-3); }
   .header .btnPrimary { width: 100%; text-align: center; }
   .toolbar { flex-direction: column; }
   .searchWrapper { max-width: 100%; }
-  .tableWrapper { overflow-x: auto; }
-  .table { min-width: 480px; }
   .tabs { width: 100%; justify-content: stretch; }
   .tab { flex: 1; justify-content: center; }
+
+  /* Reset del look "tabla" — la card pisa todo */
+  .tableWrapper {
+    background: transparent;
+    border: none;
+    overflow: visible;
+  }
+  .table, .table tbody { display: block; width: 100%; }
+  .table thead { display: none; }
+
+  .table tr.row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "numero  estado"
+      "obra    obra"
+      "cliente cliente"
+      "fecha   actions";
+    gap: var(--space-2) var(--space-3);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-3);
+  }
+  .table tr.row:hover { background: var(--color-surface); }  /* sin hover en touch */
+
+  .table td { padding: 0; border: none; }
+  .table td.numero    { grid-area: numero; align-self: center; }
+  .table td.estadoCell { grid-area: estado; justify-self: end; align-self: center; }
+  .table td.obra      { grid-area: obra; font-size: var(--text-base); font-weight: 500; }
+  .table td.cliente   { grid-area: cliente; font-size: var(--text-sm); color: var(--text-muted); font-weight: 400; }
+  .table td.fecha     { grid-area: fecha; align-self: center; }
+  .table td.actions   { grid-area: actions; justify-self: end; align-self: center; }
+
+  /* Columnas que no aparecen en la card mobile */
+  .table td.resp,
+  .table td.cant { display: none; }
 }
