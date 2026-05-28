@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FieldStock · Implementación: Login + Roles</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --ink-2: #4a4a4a;
+    --muted: #888;
+    --line: #e5e5e5;
+    --bg: #fafaf7;
+    --card: #ffffff;
+    --accent: #2563eb;
+    --warn: #c2410c;
+    --ok: #15803d;
+    --code-bg: #f4f4f0;
+    --radius: 8px;
+    --maxw: 760px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: var(--maxw); margin: 0 auto; padding: 56px 24px 96px; }
+  header.h { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 32px; }
+  header.h .tag {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
+  }
+  header.h h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 6px; }
+  header.h .sub { font-size: 14px; color: var(--ink-2); margin: 0; }
+
+  section.card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px 26px; margin-bottom: 18px;
+  }
+  section.card h2 {
+    font-size: 13px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 14px;
+  }
+  section.card h3 { font-size: 16px; font-weight: 600; margin: 18px 0 8px; }
+  section.card h4 { font-size: 14px; font-weight: 600; margin: 14px 0 6px; color: var(--ink); }
+  section.card p { margin: 8px 0; color: var(--ink-2); }
+  section.card ul, section.card ol { padding-left: 18px; margin: 8px 0; color: var(--ink-2); }
+  section.card li { margin: 4px 0; }
+  section.card strong { color: var(--ink); font-weight: 600; }
+  section.card em { color: var(--ink); font-style: normal; font-weight: 500; }
+
+  code {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    background: var(--code-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--ink);
+  }
+  pre.code {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    background: var(--code-bg);
+    padding: 14px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    line-height: 1.5;
+    margin: 8px 0;
+  }
+  pre.mermaid {
+    background: #fcfcfa; border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 18px; text-align: center;
+    margin: 14px 0 6px; overflow-x: auto;
+  }
+
+  .phase {
+    background: #fcfcfa;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 12px 0;
+  }
+  .phase h4 {
+    margin: 0 0 6px;
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .phase .files {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    margin-bottom: 8px;
+    line-height: 1.7;
+  }
+  .phase p, .phase ul { font-size: 14px; margin: 6px 0; color: var(--ink-2); }
+
+  .pill {
+    display: inline-block; font-size: 11px; font-weight: 500;
+    padding: 2px 8px; border-radius: 99px; margin-right: 6px;
+  }
+  .pill.warn { background: #fff7ed; color: var(--warn); }
+  .pill.new  { background: #f0fdf4; color: var(--ok); }
+
+  @media (max-width: 600px) {
+    main { padding: 32px 16px 64px; }
+  }
+  @media print { body { background: white; } section.card { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<main>
+
+  <header class="h">
+    <div class="tag">FieldStock AI · Etapa 2 · Implementación</div>
+    <h1>Login, perfiles y roles</h1>
+    <p class="sub">Plan ordenado con patrones, rutas de archivo y verificación. Asume aprobada la <a href="./login-architecture.html">arquitectura de la Etapa 1</a>.</p>
+  </header>
+
+  <section class="card">
+    <h2>Patrones a aplicar</h2>
+    <ul>
+      <li><strong>Controller → Service</strong> (convención del repo): toda lógica en el service; controllers thin (req/res + delegación).</li>
+      <li><strong>Middleware composable</strong>: <code>requireAuth</code> y <code>requireRole([...])</code> se aplican en la definición de rutas en <code>routes/index.js</code>. La auth se prepende a todo el router excepto <code>/health</code>.</li>
+      <li><strong>Hook por módulo</strong>: <code>useUsuarios</code>, <code>useUsuario</code> en <code>m9-usuarios/hooks/</code>. <code>useAuth</code> existente se extiende para cargar el perfil del backend.</li>
+      <li><strong>CSS Modules</strong>: un <code>.module.css</code> por página/componente.</li>
+      <li><strong>Migrations idempotentes</strong>: <code>IF NOT EXISTS</code> + <code>CREATE OR REPLACE VIEW</code> con columnas nuevas al final (lección del PR #25).</li>
+      <li><strong>Inyección de JWT</strong> centralizada en <code>api.js</code>: cada request hace pull del token actual de Supabase Auth y lo manda en el header <code>Authorization</code>.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Flujo de Login + creación de usuario</h2>
+    <pre class="mermaid">
+sequenceDiagram
+  actor U as Usuario
+  actor D as Dueño
+  participant F as Frontend
+  participant SA as Supabase Auth
+  participant B as Backend Express
+  participant DB as Postgres
+
+  Note over U,DB: Login normal
+  U->>F: email + password
+  F->>SA: signInWithPassword
+  SA-->>F: JWT + session
+  F->>B: GET /api/usuarios/me (Bearer JWT)
+  B->>SA: getUser(JWT)
+  SA-->>B: user.id
+  B->>DB: SELECT * FROM usuarios WHERE id = user.id
+  DB-->>B: perfil (nombre, tel, role)
+  B-->>F: { user, profile }
+  F-->>U: dashboard con sidebar identificada
+
+  Note over D,DB: Dueño crea usuario nuevo
+  D->>F: form (email, nombre, tel, rol)
+  F->>B: POST /api/usuarios (Bearer JWT)
+  B->>B: requireAuth + requireRole(['DUEÑO'])
+  B->>B: genPassword(8)
+  B->>SA: admin.createUser(email, password)
+  SA-->>B: nuevo user.id
+  B->>DB: INSERT INTO usuarios (id, nombre, tel, role, activo)
+  B-->>F: { user, passwordPlano }
+  F-->>D: modal "Password: aB3xZ9pQ — copialá, no se vuelve a mostrar"
+    </pre>
+  </section>
+
+  <section class="card">
+    <h2>Schema · migrations SQL</h2>
+    <p>Se corren manualmente en Supabase Dashboard. Idempotentes — se pueden re-correr sin riesgo.</p>
+    <pre class="code">-- 1) Tabla de perfiles vinculada a auth.users
+CREATE TABLE IF NOT EXISTS public.usuarios (
+  id          UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  nombre      TEXT NOT NULL,
+  telefono    TEXT,
+  role        TEXT NOT NULL CHECK (role IN ('DUEÑO','ENCARGADO','OPERARIO')),
+  activo      BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ DEFAULT now(),
+  updated_at  TIMESTAMPTZ DEFAULT now()
+);
+
+-- 2) Vista para exponer email (que vive en auth.users) junto al perfil
+CREATE OR REPLACE VIEW public.usuarios_resumen AS
+  SELECT u.id, u.nombre, u.telefono, u.role, u.activo,
+         au.email, u.created_at, u.updated_at
+    FROM public.usuarios u
+    JOIN auth.users au ON au.id = u.id;
+
+-- 3) Vínculo opcional remito ↔ user (para autocompletar tel en PDF)
+ALTER TABLE public.remitos
+  ADD COLUMN IF NOT EXISTS responsable_user_id UUID REFERENCES public.usuarios(id);
+
+-- 4) Recrear remitos_resumen agregando responsable_telefono al final
+--    (mantener orden de columnas existente — restricción de CREATE OR REPLACE VIEW)
+CREATE OR REPLACE VIEW public.remitos_resumen AS
+  SELECT r.id, r.numero, r.estado, r.obra, r.responsable, r.empresa_transporte,
+    r.fecha_egreso, r.fecha_retorno, r.observacion, r.observacion_llegada,
+    r.created_at, r.cliente_id, r.transporte_id,
+    c.nombre AS cliente_nombre, c.direccion AS cliente_direccion,
+    c.localidad AS cliente_localidad, c.provincia AS cliente_provincia,
+    c.telefono AS cliente_telefono,
+    t.nombre AS transporte_nombre, t.telefono AS transporte_telefono,
+    t.contacto AS transporte_contacto,
+    (SELECT count(*) FROM remito_items      ri WHERE ri.remito_id = r.id) AS cantidad_herramientas,
+    (SELECT count(*) FROM remito_materiales rm WHERE rm.remito_id = r.id) AS cantidad_materiales,
+    r.conductor,
+    r.responsable_user_id,
+    u.telefono AS responsable_telefono
+   FROM remitos r
+     LEFT JOIN clientes    c ON c.id = r.cliente_id
+     LEFT JOIN transportes t ON t.id = r.transporte_id
+     LEFT JOIN usuarios    u ON u.id = r.responsable_user_id;</pre>
+    <h4>Seed del primer dueño (después de crear las migrations)</h4>
+    <p>Como auth.users solo se puede insertar via la API de Supabase, el seed tiene <em>dos partes</em>: crear el user desde el dashboard de Auth, y luego correr el SQL del perfil.</p>
+    <ol>
+      <li>En Supabase Dashboard → Authentication → Users → "Add user" con tu email y password.</li>
+      <li>Copiar el <code>uuid</code> del user recién creado.</li>
+      <li>Correr en el SQL Editor:</li>
+    </ol>
+    <pre class="code">INSERT INTO public.usuarios (id, nombre, telefono, role, activo)
+VALUES ('&lt;UUID-COPIADO&gt;', 'Renzo Campisi', '+54 ...', 'DUEÑO', true);</pre>
+  </section>
+
+  <section class="card">
+    <h2>Fases de implementación · orden</h2>
+    <p>Cada fase es autocontenida y verificable. El orden minimiza el tiempo en que el árbol queda roto.</p>
+
+    <div class="phase">
+      <h4>Fase 1 · DB + seed</h4>
+      <div class="files">migration manual en Supabase Dashboard</div>
+      <p>Aplicar las 4 sentencias SQL de arriba. Crear el primer dueño según el seed.</p>
+      <p><strong>Verificación:</strong> <code>SELECT * FROM usuarios_resumen;</code> debe mostrar el dueño con rol correcto.</p>
+    </div>
+
+    <div class="phase">
+      <h4>Fase 2 · Backend · middleware de auth</h4>
+      <div class="files">
+        fieldstock-backend/src/middlewares/requireAuth.js (NEW)<br>
+        fieldstock-backend/src/middlewares/requireRole.js (NEW)<br>
+        fieldstock-backend/src/index.js (modify)<br>
+        fieldstock-backend/src/routes/index.js (modify)
+      </div>
+      <p><code>requireAuth</code> hace <code>supabase.auth.getUser(token)</code> + SELECT del perfil → pone todo en <code>req.user</code>. Devuelve 401 si falla. <code>requireRole(roles)</code> filtra después.</p>
+      <p>En <code>routes/index.js</code> se aplica <code>router.use(requireAuth)</code> antes de todas las rutas (excepto /health que vive fuera del prefijo /api).</p>
+      <p><strong>Verificación:</strong> con <code>curl</code> sin token → 401. Con token válido → respuesta normal.</p>
+    </div>
+
+    <div class="phase">
+      <h4>Fase 3 · Backend · CRUD de usuarios</h4>
+      <div class="files">
+        fieldstock-backend/src/services/usuarios.service.js (NEW)<br>
+        fieldstock-backend/src/controllers/usuarios.controller.js (NEW)<br>
+        fieldstock-backend/src/utils/genPassword.js (NEW)<br>
+        fieldstock-backend/src/routes/index.js (modify)
+      </div>
+      <p>Service: <code>getAll()</code>, <code>getById(id)</code>, <code>getMe(userId)</code>, <code>create({email, nombre, telefono, role})</code>, <code>update(id, body)</code>, <code>desactivar(id)</code>, <code>updateMe(userId, {nombre, telefono})</code>.</p>
+      <p>El <code>create</code> hace: <code>genPassword(8)</code> → <code>supabase.auth.admin.createUser</code> → <code>INSERT INTO usuarios</code> → retorna <code>{ user, passwordPlano }</code>. El <code>passwordPlano</code> solo se devuelve en esta única respuesta.</p>
+      <p>Endpoints (todos requieren auth; los marcados también rol):</p>
+      <ul>
+        <li><code>GET    /api/usuarios/me</code></li>
+        <li><code>PATCH  /api/usuarios/me</code></li>
+        <li><code>GET    /api/usuarios</code> &nbsp; <span class="pill warn">DUEÑO</span></li>
+        <li><code>POST   /api/usuarios</code> &nbsp; <span class="pill warn">DUEÑO</span></li>
+        <li><code>PATCH  /api/usuarios/:id</code> &nbsp; <span class="pill warn">DUEÑO</span></li>
+        <li><code>DELETE /api/usuarios/:id</code> &nbsp; <span class="pill warn">DUEÑO</span> (soft delete: activo=false)</li>
+      </ul>
+      <p><strong>Verificación:</strong> POST con curl + token de dueño crea usuario. Con token de operario → 403.</p>
+    </div>
+
+    <div class="phase">
+      <h4>Fase 4 · Frontend · inyección de JWT y carga de perfil</h4>
+      <div class="files">
+        fieldstock-frontend/src/shared/utils/api.js (modify)<br>
+        fieldstock-frontend/src/shared/hooks/useAuth.jsx (modify)
+      </div>
+      <p><code>api.js</code> obtiene el JWT actual con <code>supabase.auth.getSession()</code> y lo agrega como <code>Authorization: Bearer ...</code> en cada request. Si el response es 401, dispara un signOut + redirect a /login.</p>
+      <p><code>useAuth</code> se extiende para llamar <code>GET /usuarios/me</code> después del login exitoso y exponer <code>{ user, profile, role, loading, signIn, signOut }</code>. <code>profile</code> tiene <code>nombre/telefono/role</code>.</p>
+      <p><strong>Verificación:</strong> network tab muestra el header Authorization en cada call.</p>
+    </div>
+
+    <div class="phase">
+      <h4>Fase 5 · Frontend · página de login + guards</h4>
+      <div class="files">
+        fieldstock-frontend/src/modules/m0-auth/pages/LoginPage.jsx (NEW)<br>
+        fieldstock-frontend/src/modules/m0-auth/pages/LoginPage.module.css (NEW)<br>
+        fieldstock-frontend/src/layouts/AuthLayout.jsx (modify · fix redirect a /)<br>
+        fieldstock-frontend/src/routes/AppRouter.jsx (modify)<br>
+        fieldstock-frontend/src/components/RequireAuth.jsx (NEW)<br>
+        fieldstock-frontend/src/components/RequireRole.jsx (NEW)
+      </div>
+      <p>Página simple: form con email + password, llama <code>signIn</code>, muestra error si falla, redirige a / si OK.</p>
+      <p><code>RequireAuth</code> wrappea las rutas privadas en AppRouter: si no hay user → <code>&lt;Navigate to="/login" /&gt;</code>. <code>RequireRole</code> wrappea las que exigen rol específico (ej. /usuarios) y muestra un 403 amigable si el rol no alcanza.</p>
+      <p><strong>Verificación:</strong> abrir <code>/</code> sin sesión → redirige a /login. Loguear → vuelve a /. Logout desde sidebar → patea a /login.</p>
+    </div>
+
+    <div class="phase">
+      <h4>Fase 6 · Frontend · sidebar con identidad + logout</h4>
+      <div class="files">
+        fieldstock-frontend/src/layouts/AppLayout.jsx (modify)<br>
+        fieldstock-frontend/src/layouts/AppLayout.module.css (modify)
+      </div>
+      <p>En el footer del sidebar: avatar de iniciales + nombre + rol + botón logout. El item "Usuarios" del menú solo se renderiza si <code>role === 'DUEÑO'</code>.</p>
+    </div>
+
+    <div class="phase">
+      <h4>Fase 7 · Frontend · módulo de usuarios (solo DUEÑO)</h4>
+      <div class="files">
+        fieldstock-frontend/src/modules/m9-usuarios/pages/UsuariosListPage.jsx (NEW)<br>
+        fieldstock-frontend/src/modules/m9-usuarios/pages/UsuariosListPage.module.css (NEW)<br>
+        fieldstock-frontend/src/modules/m9-usuarios/components/UsuarioFormModal.jsx (NEW)<br>
+        fieldstock-frontend/src/modules/m9-usuarios/components/PasswordRevealModal.jsx (NEW)<br>
+        fieldstock-frontend/src/modules/m9-usuarios/hooks/useUsuarios.js (NEW)<br>
+        fieldstock-frontend/src/modules/m9-usuarios/services/usuarios.service.js (NEW)<br>
+        fieldstock-frontend/src/routes/AppRouter.jsx (modify)
+      </div>
+      <p>Lista: tabla con nombre, email, rol, activo, fecha de alta + acción "Editar" y "Desactivar". Botón "+ Nuevo usuario" abre <code>UsuarioFormModal</code>.</p>
+      <p><code>UsuarioFormModal</code>: pide email, nombre, teléfono, rol. Al crear, el response trae la password plano → se monta <code>PasswordRevealModal</code> con la pass en mono + botón "Copiar" + advertencia "se muestra una sola vez".</p>
+    </div>
+
+    <div class="phase">
+      <h4>Fase 8 · Frontend · perfil propio</h4>
+      <div class="files">
+        fieldstock-frontend/src/modules/m0-auth/pages/PerfilPage.jsx (NEW)<br>
+        fieldstock-frontend/src/modules/m0-auth/pages/PerfilPage.module.css (NEW)<br>
+        fieldstock-frontend/src/routes/AppRouter.jsx (modify)
+      </div>
+      <p>Página simple en <code>/perfil</code>: muestra email (read-only), permite editar nombre y teléfono. Accesible desde el footer del sidebar al hacer click en el nombre. Disponible para los 3 roles.</p>
+    </div>
+
+    <div class="phase">
+      <h4>Fase 9 · Integración con remitos</h4>
+      <div class="files">
+        fieldstock-backend/src/services/remitos.service.js (modify · create)<br>
+        fieldstock-backend/src/controllers/remitos.controller.js (modify)<br>
+        fieldstock-frontend/src/modules/m5-remito/pages/RemitosNewPage.jsx (modify)<br>
+        fieldstock-frontend/src/modules/m5-remito/pages/RemitoPrint.jsx (modify)
+      </div>
+      <p>Backend: <code>create()</code> acepta <code>responsable_user_id</code> opcional. La nueva vista ya lo expone con el teléfono joineado.</p>
+      <p>Frontend: <code>RemitosNewPage</code> mapea por default <code>responsable = profile.nombre</code> y <code>responsableUserId = profile.id</code>. Si el rol es DUEÑO o ENCARGADO el campo es editable como texto libre (por si firma otro); si es OPERARIO queda fijo (aunque OPERARIO no puede crear remitos según la matriz, esto es defensa en profundidad).</p>
+      <p><code>RemitoPrint</code> muestra <code>remito.responsable_telefono</code> (que sale de la vista). Si no está, queda <code>—</code> (caso remitos viejos).</p>
+    </div>
+
+  </section>
+
+  <section class="card">
+    <h2>Riesgos puntuales</h2>
+    <ul>
+      <li><span class="pill warn">!</span><strong>auth.admin.createUser requiere service_role.</strong> El backend ya tiene esa key cargada (<code>SUPABASE_SERVICE_KEY</code>) — verificar antes de empezar la Fase 3.</li>
+      <li><span class="pill warn">!</span><strong>Validación de JWT.</strong> <code>supabase.auth.getUser(token)</code> hace un round-trip a Supabase por cada request. Para esta escala no es problema; si en el futuro la latencia molesta, se puede cachear el resultado por X segundos.</li>
+      <li><span class="pill warn">!</span><strong>El cliente Supabase del frontend ya persiste la sesión en localStorage</strong> — el JWT sobrevive a refrescos del browser. <code>signOut</code> la limpia.</li>
+      <li><span class="pill warn">!</span><strong>El check del rol "DUEÑO" tiene tilde.</strong> Consistencia en backend y frontend importa — usar una constante exportada desde un único lugar.</li>
+      <li><span class="pill warn">!</span><strong>Compatibilidad con tests existentes.</strong> 54 tests pasan actualmente. Los que pinchan endpoints van a romperse al exigir auth — hay que mockear el middleware en cada describe que use rutas protegidas, o exponer un helper de test.</li>
+      <li><span class="pill new">✓</span><strong>El QR mobile también requiere login.</strong> Quien escanea es siempre un empleado (operario / encargado / dueño), no el cliente. El cliente recibe el PDF impreso como comprobante. Esto simplifica: <code>requireAuth</code> se aplica a TODAS las rutas /api sin excepciones, y la página <code>/remitos/:id/qr</code> queda detrás del guard de login como cualquier otra.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Verificación end-to-end</h2>
+    <ol>
+      <li>Aplicar migrations + seed → dueño existe.</li>
+      <li><code>npm run dev</code> desde la raíz → backend y frontend levantan.</li>
+      <li>Abrir <code>/</code> sin sesión → redirige a /login.</li>
+      <li>Loguear con el dueño → llega al dashboard, sidebar muestra "Dueño · Renzo" y el item "Usuarios" visible.</li>
+      <li>/usuarios → crear un ENCARGADO. Password aparece en modal.</li>
+      <li>Logout, loguear con el ENCARGADO → no ve item "Usuarios" en sidebar. Si fuerza la URL → ve la página 403.</li>
+      <li>Crear remito como ENCARGADO → el responsable viene autocompletado con su nombre.</li>
+      <li>Bajar PDF → "Tel. responsable" muestra el teléfono del encargado, no <code>—</code>.</li>
+      <li><code>npm test --prefix fieldstock-backend</code> → todos los tests verdes (con los mocks del middleware aplicados).</li>
+      <li><code>npm run lint --prefix fieldstock-frontend</code> → sin nuevos warnings.</li>
+      <li>Escanear QR del remito desde celular <em>logueado</em> como operario → puede confirmar salida (cargando el conductor) y llegada. Si no hay sesión, la app redirige a /login antes de mostrar el QR scanner.</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>Estimación de esfuerzo</h2>
+    <p>Trabajo serial, considerando que la base auth ya está parcialmente armada:</p>
+    <ul>
+      <li>Fase 1 (DB + seed): ~15 min</li>
+      <li>Fase 2 (middleware): ~30 min</li>
+      <li>Fase 3 (CRUD usuarios backend): ~45 min</li>
+      <li>Fase 4 (JWT inject + useAuth extendido): ~30 min</li>
+      <li>Fase 5 (login + guards): ~45 min</li>
+      <li>Fase 6 (sidebar): ~20 min</li>
+      <li>Fase 7 (módulo usuarios frontend): ~60 min</li>
+      <li>Fase 8 (perfil propio): ~25 min</li>
+      <li>Fase 9 (integración remitos): ~25 min</li>
+    </ul>
+    <p><strong>Total: ~5 horas</strong>, sin contar testing manual y mock de tests existentes.</p>
+  </section>
+
+</main>
+
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+mermaid.initialize({ startOnLoad: true, theme: 'neutral', fontFamily: 'inherit' })
+</script>
+</body>
+</html>

@@ -16,6 +16,9 @@
  * cualquier lógica que aparezca acá es señal de mal lugar.
  */
 import { Router } from 'express'
+import { requireAuth } from '../middlewares/requireAuth.js'
+import { requireRole } from '../middlewares/requireRole.js'
+import { ROLES }       from '../constants/roles.js'
 import * as CategoriasCtrl      from '../controllers/categorias.controller.js'
 import * as MarcasCtrl          from '../controllers/marcas.controller.js'
 import * as HerramientasCtrl    from '../controllers/herramientas.controller.js'
@@ -27,12 +30,34 @@ import * as DirectorioCtrl      from '../controllers/directorio.controller.js'
 import * as EstanteriasCtrl     from '../controllers/estanterias.controller.js'
 import * as NotificacionesCtrl  from '../controllers/notificaciones.controller.js'
 import * as DashboardCtrl       from '../controllers/dashboard.controller.js'
+import * as UsuariosCtrl        from '../controllers/usuarios.controller.js'
 
 const router = Router()
+
+// ── Auth global ───────────────────────────────────────────────
+// Toda la API /api requiere autenticación. El único endpoint público
+// es /health (montado fuera de este router, en index.js). Esto incluye
+// los endpoints del QR mobile: el usuario que escanea es siempre un
+// empleado logueado (operario / encargado / dueño) — el cliente recibe
+// el PDF impreso pero no opera la app.
+router.use(requireAuth)
 
 // ── Dashboard ─────────────────────────────────────────────────
 // Word #16 — single endpoint que agrega KPIs + listas para la home.
 router.get('/dashboard', DashboardCtrl.getResumen)
+
+// ── Usuarios ──────────────────────────────────────────────────
+// /me: accesible para cualquier user autenticado (es su propio perfil).
+// El resto: solo DUEÑO (gestión de usuarios).
+// IMPORTANTE: rutas literales /me antes de las paramétricas /:id para que
+// Express no las capture como id.
+router.get  ('/usuarios/me', UsuariosCtrl.getMe)
+router.patch('/usuarios/me', UsuariosCtrl.updateMe)
+router.get   ('/usuarios',     requireRole([ROLES.DUEÑO]), UsuariosCtrl.getAll)
+router.post  ('/usuarios',     requireRole([ROLES.DUEÑO]), UsuariosCtrl.create)
+router.get   ('/usuarios/:id', requireRole([ROLES.DUEÑO]), UsuariosCtrl.getById)
+router.patch ('/usuarios/:id', requireRole([ROLES.DUEÑO]), UsuariosCtrl.update)
+router.delete('/usuarios/:id', requireRole([ROLES.DUEÑO]), UsuariosCtrl.desactivar)
 
 // ── Categorías ────────────────────────────────────────────────
 router.get ('/categorias', CategoriasCtrl.getAll)
