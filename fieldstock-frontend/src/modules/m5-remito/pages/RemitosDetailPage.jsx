@@ -650,7 +650,19 @@ export default function RemitosDetailPage() {
                     <tbody>
                       {remito.items.map(item => (
                         <tr key={item.id} className={styles.row}>
-                          <td className={styles.itemNombre}>{item.herramienta_nombre}</td>
+                          <td className={styles.itemNombre}>
+                            <div className={styles.itemNombreRow}>
+                              <span>{item.herramienta_nombre}</span>
+                              {/* Word C: badge si el responsable marcó este
+                                  ítem con problema al escanear la llegada */}
+                              {item.tiene_problema && (
+                                <span className={styles.badgeProblema}>⚠ Problema</span>
+                              )}
+                            </div>
+                            {item.tiene_problema && item.observacion && (
+                              <div className={styles.itemProblemaDesc}>{item.observacion}</div>
+                            )}
+                          </td>
                           <td className={styles.itemSub}>{item.herramienta_qr}</td>
                           <td>
                             <span className={`${styles.estadoItem} ${styles[item.estado_salida?.toLowerCase() ?? 'bueno']}`}>
@@ -716,8 +728,17 @@ export default function RemitosDetailPage() {
                       {remito.materiales.map(m => (
                         <tr key={m.id} className={styles.row}>
                           <td className={styles.itemNombre}>
-                            {m.material_nombre || m.descripcion_libre}
-                            {!m.material_id && <span className={styles.libreTag}>libre</span>}
+                            <div className={styles.itemNombreRow}>
+                              <span>{m.material_nombre || m.descripcion_libre}</span>
+                              {!m.material_id && <span className={styles.libreTag}>libre</span>}
+                              {/* Word C: badge si el responsable marcó este material con problema */}
+                              {m.tiene_problema && (
+                                <span className={styles.badgeProblema}>⚠ Problema</span>
+                              )}
+                            </div>
+                            {m.tiene_problema && m.observacion && (
+                              <div className={styles.itemProblemaDesc}>{m.observacion}</div>
+                            )}
                           </td>
                           <td className={styles.itemSub}>{m.cantidad_egreso}</td>
                           <td className={styles.itemSub}>{m.unidad}</td>
