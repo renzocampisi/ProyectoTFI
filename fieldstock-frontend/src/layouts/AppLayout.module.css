@@ -150,6 +150,23 @@
   color: var(--text-secondary);
 }
 
+/* Logo del topbar: oculto en desktop (sidebar ya lo muestra), visible
+   en mobile cuando el sidebar pasa a barra inferior y oculta su header. */
+.topbarLogo {
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  display: none;
+}
+.topbarLogoTag {
+  font-size: var(--text-xs);
+  color: var(--color-primary);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-left: 2px;
+}
+
 /* ── UserMenu (Login feature) ────────────────────────────── */
 .userMenu { position: relative; }
 
@@ -524,4 +541,6 @@
   /* En mobile dejamos solo el avatar para ahorrar espacio en el topbar */
   .userInfo  { display: none; }
   .userCaret { display: none; }
+  /* Mostrar el logo en el topbar (en desktop lo trae el sidebar) */
+  .topbarLogo { display: inline-block; }
 }

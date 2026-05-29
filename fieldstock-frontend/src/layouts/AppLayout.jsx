@@ -201,7 +201,10 @@ export default function AppLayout() {
       </aside>
 
       <header className={styles.topbar}>
-        <span />
+        {/* Logo en el topbar — visible en mobile (donde el sidebar
+            pasa a ser una barra inferior y oculta su propio header).
+            En desktop está oculto vía CSS para no duplicar con el del sidebar. */}
+        <span className={styles.topbarLogo}>FieldStock <span className={styles.topbarLogoTag}>AI</span></span>
         <div className={styles.topbarRight}>
           <button className={styles.temaBtn} onClick={toggle}
             title={tema === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>

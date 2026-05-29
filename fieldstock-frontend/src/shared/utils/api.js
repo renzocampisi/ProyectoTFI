@@ -28,11 +28,31 @@ import { supabase } from './supabaseClient.js'
 const API_BASE = import.meta.env.VITE_API_URL || ''
 const BASE_URL = `${API_BASE}/api`
 
-// Cuando una request del backend vuelve 401 (sesión inválida o expirada),
-// limpiamos la sesión local y disparamos una redirección dura a /login.
-// Hard reload para asegurarnos de que cualquier state in-memory se resetea.
-async function on401() {
-  try { await supabase.auth.signOut() } catch { /* ignore */ }
+// Timeouts defensivos: previenen que la UI quede "esperando" para siempre
+// cuando el browser estuvo inactivo y la sesión Supabase quedó en estado
+// raro (refresh hangueado, network cortado, etc.). Si después de N segundos
+// no hay respuesta, abortamos y dejamos que el caller decida qué hacer.
+const SESSION_TIMEOUT_MS = 5_000   // getSession debería ser instantáneo (localStorage)
+const FETCH_TIMEOUT_MS   = 15_000  // backend tiene que responder en este tiempo
+
+// Promesa que rechaza después de N ms — para race contra operaciones que
+// pueden colgar (típicamente getSession cuando intenta refrescar un token).
+function timeout(ms, label) {
+  return new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`Timeout (${label}) tras ${ms}ms`)), ms)
+  )
+}
+
+// Cuando el backend responde 401 (sesión inválida o expirada), limpiamos
+// la sesión local y redirigimos a /login. Fire-and-forget el signOut
+// para no quedar esperando si Supabase está lento — el redirect es lo
+// importante. Hard reload con window.location.href para resetear todo
+// el state in-memory.
+let yaRedirigiendo = false
+function on401() {
+  if (yaRedirigiendo) return
+  yaRedirigiendo = true
+  supabase.auth.signOut().catch(() => {})
   if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
     window.location.href = '/login'
   }
@@ -40,16 +60,49 @@ async function on401() {
 
 async function request(path, options = {}) {
   // Inyectar el JWT actual de Supabase Auth en cada request. Hacemos un
-  // getSession() por request porque Supabase ya maneja el refresh automático
-  // y devuelve el token vigente. No cacheamos para no servir uno expirado.
-  const { data: { session } } = await supabase.auth.getSession()
+  // getSession() por request porque Supabase maneja el refresh automático
+  // internamente y devuelve el token vigente. Si la llamada se cuelga
+  // (caso edge: tab estuvo idle y el refresh quedó pendiente), abortamos
+  // tras 5s y mandamos la request SIN token — el backend va a responder
+  // 401 y on401() se encarga de redirigir.
+  let session = null
+  try {
+    const result = await Promise.race([
+      supabase.auth.getSession(),
+      timeout(SESSION_TIMEOUT_MS, 'getSession'),
+    ])
+    session = result?.data?.session ?? null
+  } catch {
+    // Timeout o error al leer la sesión → tratamos como "sin sesión".
+    // Igual seguimos con la request; el backend la rechazará si hace falta.
+    session = null
+  }
+
   const headers = {
     'Content-Type': 'application/json',
     ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
     ...(options.headers || {}),
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers })
+  // Fetch con AbortController + timeout. Si el backend nunca responde
+  // (caso edge: proxy de Vite roto, backend hangueado), evitamos que el
+  // hook que llamó nunca termine y deje la UI "cargando" para siempre.
+  const controller = new AbortController()
+  const timeoutId  = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+
+  let res
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { ...options, headers, signal: controller.signal })
+  } catch (err) {
+    clearTimeout(timeoutId)
+    if (err.name === 'AbortError') {
+      const e = new Error('El servidor tardó demasiado en responder. Reintentá en un momento.')
+      e.status = 0
+      throw e
+    }
+    throw err
+  }
+  clearTimeout(timeoutId)
 
   if (res.status === 401) {
     on401()
