@@ -110,6 +110,21 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+/* Word C2: badge más intenso para items extraviados (no llegaron).
+   Visualmente más fuerte que "Problema" para que se distinga al toque. */
+.badgeExtraviado {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background: var(--color-danger);
+  color: #fff;
+  border: 1px solid var(--color-danger);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 .itemProblemaDesc {
   margin-top: var(--space-1);
   font-size: var(--text-xs);

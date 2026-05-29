@@ -560,26 +560,29 @@ export async function avanzarEstado(id, body = {}) {
   return data
 }
 
-// ── Reportar problema al llegar a obra (issue #7 + Word C) ────
-// Variante del 2° escaneo del QR desde la app mobile: la carga llegó
-// pero hay un problema. Word C extendió este flow para que el responsable
-// pueda marcar items específicos (herramientas y/o materiales) que tuvieron
-// el problema, no solo una descripción genérica.
+// ── Reportar problema al llegar a obra (issue #7 + Word C + C2) ──
+// Variante del 2° escaneo del QR desde la app mobile.
+//
+// Word C: granular por ítem (no solo descripción genérica).
+// Word C2: cada ítem afectado puede marcarse como EXTRAVIADO (no llegó)
+// o como problema regular (llegó pero con defecto). Si TODOS los ítems
+// del remito quedan extraviados, el remito va directamente a CERRADO
+// (saltando EN_OBRA y el flow de retorno — no tiene sentido esperar
+// que vuelva algo que nunca llegó).
 //
 // Body acepta:
-//   { descripcion?: string,                   // descripción general (opcional)
-//     items?: [{ remitoItemId, descripcion }],     // herramientas con problema
-//     materiales?: [{ remitoMaterialId, descripcion }] }
-//
-// Se exige al menos una de las tres cosas (descripción general o algún
-// item marcado). Si no, devolvemos 400.
+//   { descripcion?: string,
+//     items?:     [{ remitoItemId,    descripcion, extraviado: boolean }],
+//     materiales?:[{ remitoMaterialId, descripcion, extraviado: boolean }] }
 //
 // Efectos en orden:
-//   1) marca los items/materiales especificados con tiene_problema=true y
-//      su observacion con la descripción puntual del problema
-//   2) persiste la descripción general en remito.observacion_llegada
-//   3) crea una notificación PROBLEMA_LLEGADA agregando los items afectados
-//   4) avanza el estado a EN_OBRA (el problema no bloquea el flujo)
+//   1) Marca los items/materiales con tiene_problema=true (+ extraviado
+//      si corresponde) y guarda descripción puntual en observacion.
+//   2) Persiste la descripción general en remito.observacion_llegada.
+//   3) Decide el estado destino:
+//      - Si TODOS los ítems del remito están extraviados → CERRADO directo
+//      - Sino → flow normal (avanzarEstado: EN_TRANSITO → EN_OBRA)
+//   4) Crea una notificación PROBLEMA_LLEGADA con el contexto.
 export async function reportarProblema(id, body = {}) {
   // Acepta tanto la firma vieja (string directamente) como la nueva (objeto).
   // Esto preserva backwards-compat por si algún caller no migró.
@@ -620,6 +623,7 @@ export async function reportarProblema(id, body = {}) {
       .from('remito_items')
       .update({
         tiene_problema: true,
+        extraviado:     !!it.extraviado,
         observacion:    it.descripcion?.trim() || null,
       })
       .eq('id', it.remitoItemId)
@@ -633,6 +637,7 @@ export async function reportarProblema(id, body = {}) {
       .from('remito_materiales')
       .update({
         tiene_problema: true,
+        extraviado:     !!m.extraviado,
         observacion:    m.descripcion?.trim() || null,
       })
       .eq('id', m.remitoMaterialId)
@@ -645,13 +650,33 @@ export async function reportarProblema(id, body = {}) {
     .update({ observacion_llegada: desc || null })
     .eq('id', id)
 
-  // 3) Notificación al sistema. El título lleva la cantidad de items
-  //    afectados si los hubo; el mensaje resume contexto + descripción.
-  //    Como la tabla notificaciones no tiene user_id (es global, todos la
-  //    ven), creamos una sola fila.
-  const titulo = totalItems > 0
-    ? `Problema en remito ${remito.numero}: ${totalItems} ítem${totalItems !== 1 ? 's' : ''} afectado${totalItems !== 1 ? 's' : ''}`
-    : `Problema en remito ${remito.numero}`
+  // 3) Detectar caso de extravío TOTAL: si todos los ítems del remito
+  //    (después de los updates de arriba) están marcados como extraviados,
+  //    el remito va directo a CERRADO. No tiene sentido esperar retorno
+  //    de algo que nunca llegó.
+  const { data: allItems, error: errA } = await supabase
+    .from('remito_items').select('id, extraviado').eq('remito_id', id)
+  if (errA) throw errA
+  const { data: allMats, error: errB } = await supabase
+    .from('remito_materiales').select('id, extraviado').eq('remito_id', id)
+  if (errB) throw errB
+
+  const totalRemito  = (allItems?.length || 0) + (allMats?.length || 0)
+  const extraviados  = (allItems || []).filter(i => i.extraviado).length +
+                       (allMats  || []).filter(m => m.extraviado).length
+  const extravioTotal = totalRemito > 0 && extraviados === totalRemito
+
+  // 4) Notificación al sistema. Título contextual: distingue "X items
+  //    afectados" del caso especial "EXTRAVÍO TOTAL". Como la tabla
+  //    notificaciones no tiene user_id (es global), creamos una sola fila.
+  let titulo
+  if (extravioTotal) {
+    titulo = `⚠ Extravío TOTAL del remito ${remito.numero}`
+  } else if (totalItems > 0) {
+    titulo = `Problema en remito ${remito.numero}: ${totalItems} ítem${totalItems !== 1 ? 's' : ''} afectado${totalItems !== 1 ? 's' : ''}`
+  } else {
+    titulo = `Problema en remito ${remito.numero}`
+  }
   const mensaje = `Obra: ${remito.obra}. ${desc || 'Sin descripción general.'}`
 
   await NotifService.create({
@@ -661,7 +686,15 @@ export async function reportarProblema(id, body = {}) {
     remitoId: id,
   })
 
-  // 4) Avanzar de EN_TRANSITO → EN_OBRA
+  // 5) Avance del estado. Atajo si fue extravío total → CERRADO directo
+  //    (saltando el state machine normal). Sino, EN_TRANSITO → EN_OBRA
+  //    como antes.
+  if (extravioTotal) {
+    const { data, error } = await supabase
+      .from('remitos').update({ estado: 'CERRADO' }).eq('id', id).select().single()
+    if (error) throw error
+    return data
+  }
   return avanzarEstado(id)
 }
 

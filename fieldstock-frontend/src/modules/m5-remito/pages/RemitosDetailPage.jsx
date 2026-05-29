@@ -653,9 +653,12 @@ export default function RemitosDetailPage() {
                           <td className={styles.itemNombre}>
                             <div className={styles.itemNombreRow}>
                               <span>{item.herramienta_nombre}</span>
-                              {/* Word C: badge si el responsable marcó este
-                                  ítem con problema al escanear la llegada */}
-                              {item.tiene_problema && (
+                              {/* Word C / C2: distinguimos "llegó con problema"
+                                  vs "no llegó (extraviado)". El extraviado tiene
+                                  prioridad visual porque es más grave. */}
+                              {item.extraviado ? (
+                                <span className={styles.badgeExtraviado}>✕ Extraviado</span>
+                              ) : item.tiene_problema && (
                                 <span className={styles.badgeProblema}>⚠ Problema</span>
                               )}
                             </div>
@@ -731,8 +734,10 @@ export default function RemitosDetailPage() {
                             <div className={styles.itemNombreRow}>
                               <span>{m.material_nombre || m.descripcion_libre}</span>
                               {!m.material_id && <span className={styles.libreTag}>libre</span>}
-                              {/* Word C: badge si el responsable marcó este material con problema */}
-                              {m.tiene_problema && (
+                              {/* Word C / C2: extraviado pisa al badge de problema */}
+                              {m.extraviado ? (
+                                <span className={styles.badgeExtraviado}>✕ Extraviado</span>
+                              ) : m.tiene_problema && (
                                 <span className={styles.badgeProblema}>⚠ Problema</span>
                               )}
                             </div>
