@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MaterialesService } from '../services/materiales.service'
+import DuplicateMaterialModal from '../components/DuplicateMaterialModal'
 import styles from './MateriasNewPage.module.css'
 
 // Unidades base que vienen con el sistema. Si el usuario crea unidades
@@ -45,6 +46,9 @@ export default function MateriasNewPage() {
   // Estado del modal "agregar unidad nueva"
   const [showNuevaUnidad, setShowNuevaUnidad] = useState(false)
   const [nuevaUnidadValor, setNuevaUnidadValor] = useState('')
+  // Word #B: si al intentar crear detectamos un duplicado, guardamos el
+  // material existente acá y mostramos el modal preguntando si sumar stock.
+  const [duplicado, setDuplicado] = useState(null)
 
   // Lista combinada (base + custom) para el select
   const todasLasUnidades = [...UNIDADES_BASE, ...unidadesExtra]
@@ -94,24 +98,56 @@ export default function MateriasNewPage() {
     return e
   }
 
+  // Crea el material asumiendo que ya validamos que no hay duplicado.
+  // Extraída en función aparte para que el flow del modal de duplicado
+  // pueda reutilizar el path "crear nuevo igualmente" si en el futuro
+  // agregamos esa opción (hoy solo ofrecemos sumar o cancelar).
+  const crearMaterial = async () => {
+    const mat = await MaterialesService.create({
+      nombre:      form.nombre.trim(),
+      descripcion: form.descripcion.trim() || null,
+      marca:       form.marca.trim() || null,
+      unidad:      form.unidad,
+      stockActual: form.stockActual ? Number(form.stockActual) : 0,
+      stockMinimo: form.stockMinimo ? Number(form.stockMinimo) : 0,
+    })
+    setGuardado(mat)
+  }
+
   const handleSubmit = async (ev) => {
     ev.preventDefault()
     const e2 = validar()
     if (Object.keys(e2).length) { setErrores(e2); return }
     setLoading(true)
+    setErrores({})
     try {
-      const mat = await MaterialesService.create({
-        nombre:      form.nombre.trim(),
-        descripcion: form.descripcion.trim() || null,
-        marca:       form.marca.trim() || null,
-        unidad:      form.unidad,
-        stockActual: form.stockActual ? Number(form.stockActual) : 0,
-        stockMinimo: form.stockMinimo ? Number(form.stockMinimo) : 0,
+      // Word #B: antes de crear, chequear si ya existe un material con
+      // mismo nombre + marca. Si existe, abrir modal preguntando si sumar
+      // stock al existente en vez de duplicar.
+      const existente = await MaterialesService.checkDuplicate({
+        nombre: form.nombre.trim(),
+        marca:  form.marca.trim() || undefined,
       })
-      setGuardado(mat)
+      if (existente) {
+        setDuplicado(existente)
+        setLoading(false)
+        return
+      }
+      await crearMaterial()
     } catch (err) {
       setErrores({ general: err.message })
     } finally { setLoading(false) }
+  }
+
+  // Confirmar el "sumar stock al existente" desde el modal de duplicado.
+  // El backend hace el UPDATE atómico y devuelve el material con stock nuevo.
+  const handleConfirmSumarStock = async () => {
+    if (!duplicado) return
+    const cantidad = Number(form.stockActual) || 0
+    const matActualizado = await MaterialesService.agregarStock(duplicado.id, cantidad)
+    setDuplicado(null)
+    // Reusamos la pantalla de éxito mostrando el material con stock nuevo.
+    setGuardado(matActualizado)
   }
 
   if (guardado) return (
@@ -252,6 +288,18 @@ export default function MateriasNewPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de duplicado (Word #B) — aparece si checkDuplicate encontró
+          un material existente con mismo nombre + marca. Le da al usuario
+          la opción de sumar al existente o cancelar para diferenciar. */}
+      {duplicado && (
+        <DuplicateMaterialModal
+          existente={duplicado}
+          cantidadASumar={Number(form.stockActual) || 0}
+          unidadNueva={form.unidad}
+          onConfirm={handleConfirmSumarStock}
+          onCancel={() => setDuplicado(null)} />
       )}
     </div>
   )

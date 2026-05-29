@@ -55,6 +55,42 @@ export async function getMarcas() {
   return [...new Set((data ?? []).map(r => r.marca))]
 }
 
+/**
+ * Busca un material existente que tenga el mismo nombre + marca (case-insensitive,
+ * trimmed). Si existe, lo devuelve; si no, devuelve null. Usado por el frontend
+ * antes de crear para detectar duplicados (Word: "redundancia de datos") y
+ * ofrecerle al usuario sumar stock al existente en vez de duplicar la fila.
+ *
+ * Comparamos por nombre + marca porque dos materiales con el mismo nombre pero
+ * marca distinta son materiales distintos legítimos (ej. "Bulones M12" Tacsa vs
+ * "Bulones M12" Roda). La unidad NO se compara — si difieren, mostramos ambas
+ * en el modal del frontend para que el usuario decida.
+ *
+ * Solo considera materiales con activo=true. Un material soft-deleted con el
+ * mismo nombre no cuenta como duplicado (el sistema lo considera "borrado").
+ */
+export async function findDuplicate({ nombre, marca }) {
+  if (!nombre?.trim()) return null
+
+  const nombreNorm = nombre.trim().toLowerCase()
+  const marcaNorm  = marca?.trim().toLowerCase() || null
+
+  const { data, error } = await supabase
+    .from('materiales')
+    .select('*')
+    .eq('activo', true)
+    .ilike('nombre', nombreNorm)
+  if (error) throw error
+
+  // ilike es case-insensitive pero no normaliza whitespace. Filtramos en JS
+  // para asegurar match exacto sobre nombre+marca normalizados.
+  return (data ?? []).find(m => {
+    const mNombre = m.nombre?.trim().toLowerCase()
+    const mMarca  = m.marca?.trim().toLowerCase() || null
+    return mNombre === nombreNorm && mMarca === marcaNorm
+  }) || null
+}
+
 export async function create(body) {
   const { data, error } = await supabase
     .from('materiales')
@@ -71,6 +107,24 @@ export async function create(body) {
     .select().single()
   if (error) throw error
   return data
+}
+
+/**
+ * Suma una cantidad al stock_actual de un material existente. Usado por el
+ * flow de "agregar stock" desde el form de nuevo material cuando se detecta
+ * un duplicado y el usuario elige sumar al existente.
+ *
+ * Es un wrapper sobre updateStock con operación 'reponer', expuesto vía HTTP
+ * porque acá sí queremos un endpoint público (a diferencia del updateStock
+ * interno que solo lo llama remitos.service).
+ */
+export async function agregarStock(id, cantidad) {
+  const num = Number(cantidad)
+  if (!Number.isFinite(num) || num <= 0) {
+    const err = new Error('La cantidad a sumar debe ser un número mayor a 0')
+    err.status = 400; throw err
+  }
+  return updateStock(id, num, 'reponer')
 }
 
 export async function update(id, body) {
