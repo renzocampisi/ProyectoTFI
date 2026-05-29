@@ -155,9 +155,25 @@ export function AuthProvider({ children }) {
   }, [cargarPerfil])
 
   const signIn = async (email, password) => {
-    const res = await supabase.auth.signInWithPassword({ email, password })
-    // onAuthStateChange dispara cargarPerfil automáticamente.
-    return res
+    // Timeout defensivo igual que en getSession/fetchPerfil. Si Supabase
+    // no responde en 10s, devolvemos un "error" simulado para que la
+    // LoginPage muestre algo accionable en vez de "Ingresando..." infinito.
+    try {
+      const res = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        10_000,
+        'signIn'
+      )
+      // onAuthStateChange dispara cargarPerfil automáticamente.
+      return res
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[useAuth] signIn timeout/error:', err)
+      return {
+        data: null,
+        error: { message: 'Supabase no respondió. Revisá tu conexión a internet o reintentá.' },
+      }
+    }
   }
 
   const signOut = () => supabase.auth.signOut()
