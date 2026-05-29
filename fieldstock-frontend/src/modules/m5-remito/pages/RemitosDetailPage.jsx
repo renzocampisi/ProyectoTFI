@@ -638,7 +638,16 @@ export default function RemitosDetailPage() {
 
             {(!remito.items?.length)
               ? <div className={styles.emptySection}>Sin herramientas. {esBorrador && 'Usá "+ Agregar" para seleccionar varias a la vez.'}</div>
-              : <div className={styles.tableWrapper}>
+              : <>
+                  {/* Leyenda de colores del estado_salida — visible solo
+                      en mobile donde el badge se reemplaza por un punto. */}
+                  <div className={styles.leyendaEstados}>
+                    Estado:
+                    <span className={styles.leyendaItem}><span className={`${styles.leyendaDot} ${styles.bueno}`} /> Bueno</span>
+                    <span className={styles.leyendaItem}><span className={`${styles.leyendaDot} ${styles.regular}`} /> Regular</span>
+                    <span className={styles.leyendaItem}><span className={`${styles.leyendaDot} ${styles.malo}`} /> Malo</span>
+                  </div>
+                <div className={styles.tableWrapper}>
                   <table className={styles.table}>
                     <thead><tr>
                       <th>Herramienta</th>
@@ -674,23 +683,36 @@ export default function RemitosDetailPage() {
                           </td>
                           {esRetorno && (
                             <td>
-                              <div className={styles.retornoSelector}>
-                                {ESTADOS_RETORNO_HERR.map(er => {
-                                  // Optimistic: override local > valor del backend
-                                  const valorActual = retornosLocales[item.id] ?? item.estado_retorno
-                                  return (
-                                    <button key={er.value}
-                                      className={`${styles.retornoBtn} ${valorActual === er.value ? styles[er.cls] : ''}`}
-                                      onClick={() => handleRetornoHerramienta(item.id, er.value)}>
-                                      {er.label}
-                                    </button>
-                                  )
-                                })}
-                              </div>
+                              {item.extraviado ? (
+                                // Word C2: si el ítem se extravió, no aplica
+                                // retorno. Lo omitimos de los controles y
+                                // mostramos un placeholder para que se entienda
+                                // por qué no está disponible.
+                                <span className={styles.extraviadoNote}>— No aplica (extraviado)</span>
+                              ) : (
+                                <div className={styles.retornoSelector}>
+                                  {ESTADOS_RETORNO_HERR.map(er => {
+                                    // Optimistic: override local > valor del backend
+                                    const valorActual = retornosLocales[item.id] ?? item.estado_retorno
+                                    return (
+                                      <button key={er.value}
+                                        className={`${styles.retornoBtn} ${valorActual === er.value ? styles[er.cls] : ''}`}
+                                        onClick={() => handleRetornoHerramienta(item.id, er.value)}>
+                                        {er.label}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              )}
                             </td>
                           )}
                           {!esRetorno && (remito.estado === 'EN_TRANSITO_RETORNO' || remito.estado === 'CERRADO') && (
-                            <td><span className={styles.estadoItem}>{item.estado_retorno?.replace(/_/g,' ') ?? '—'}</span></td>
+                            <td>
+                              {item.extraviado
+                                ? <span className={styles.extraviadoNote}>—</span>
+                                : <span className={styles.estadoItem}>{item.estado_retorno?.replace(/_/g,' ') ?? '—'}</span>
+                              }
+                            </td>
                           )}
                           {esBorrador && (
                             <td><button className={styles.btnRemove} onClick={() => handleRemoveHerramienta(item.id)}>✕</button></td>
@@ -700,6 +722,7 @@ export default function RemitosDetailPage() {
                     </tbody>
                   </table>
                 </div>
+                </>
             }
           </div>
 
@@ -749,6 +772,11 @@ export default function RemitosDetailPage() {
                           <td className={styles.itemSub}>{m.unidad}</td>
                           {esRetorno && (
                             <td>
+                              {m.extraviado ? (
+                                // Word C2: si el material se extravió, no aplica
+                                // cantidad de retorno (queda en 0 por default).
+                                <span className={styles.extraviadoNote}>— No aplica (extraviado)</span>
+                              ) : (
                               <input type="number" min="0" step="1"
                                 className={styles.cantidadRetornoInput}
                                 placeholder={`Máx: ${m.cantidad_egreso}`}
@@ -762,10 +790,13 @@ export default function RemitosDetailPage() {
                                   if (val !== '' && nuevo !== actual)
                                     handleRetornoMaterial(m.id, nuevo)
                                 }} />
+                              )}
                             </td>
                           )}
                           {!esRetorno && (remito.estado === 'EN_TRANSITO_RETORNO' || remito.estado === 'CERRADO') && (
-                            <td className={styles.itemSub}>{m.cantidad_retorno ?? '—'}</td>
+                            <td className={styles.itemSub}>
+                              {m.extraviado ? '—' : (m.cantidad_retorno ?? '—')}
+                            </td>
                           )}
                           {esBorrador && (
                             <td><button className={styles.btnRemove} onClick={() => handleRemoveMaterial(m.id)}>✕</button></td>

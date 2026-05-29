@@ -436,11 +436,16 @@ export async function avanzarEstado(id, body = {}) {
 
   // ── Transición EN_RETORNO → EN_TRANSITO_RETORNO ───────────────
   // Bloquea avance si quedan items sin definir su estado de retorno.
+  // Excluye los items marcados como extraviados (Word C2): no tienen
+  // estado de retorno porque nunca llegaron a la obra — no hay nada
+  // que volver.
   if (remito.estado === 'EN_RETORNO') {
     const { data: items } = await supabase
-      .from('remito_items').select('id, estado_retorno').eq('remito_id', id)
+      .from('remito_items')
+      .select('id, estado_retorno, extraviado')
+      .eq('remito_id', id)
 
-    const sinRetorno = items?.filter(i => !i.estado_retorno)
+    const sinRetorno = items?.filter(i => !i.estado_retorno && !i.extraviado)
     if (sinRetorno?.length) {
       const err = new Error(`Faltan definir el estado de retorno de ${sinRetorno.length} herramienta(s)`)
       err.status = 400; throw err
@@ -459,10 +464,17 @@ export async function avanzarEstado(id, body = {}) {
   // 3. Materiales libres que vuelven → se agregan al catálogo o suman a uno existente
   if (remito.estado === 'EN_TRANSITO_RETORNO') {
     const { data: items } = await supabase
-      .from('remito_items').select('herramienta_id, estado_retorno').eq('remito_id', id)
+      .from('remito_items')
+      .select('herramienta_id, estado_retorno, extraviado')
+      .eq('remito_id', id)
 
-    // Aplica el estado final por herramienta según cómo volvió
+    // Aplica el estado final por herramienta según cómo volvió.
+    // Los items extraviados (Word C2) se omiten: nunca llegaron, así que no
+    // hay estado final que aplicar. La herramienta queda en EN_OBRA en la
+    // tabla `herramientas` — el usuario puede darle de baja manualmente
+    // con la RPC dar_baja_herramienta si decide considerarla perdida.
     for (const item of (items ?? [])) {
+      if (item.extraviado) continue
       if (item.estado_retorno === 'VUELVE') {
         await supabase.from('herramientas')
           .update({ estado: 'DISPONIBLE' }).eq('id', item.herramienta_id)
