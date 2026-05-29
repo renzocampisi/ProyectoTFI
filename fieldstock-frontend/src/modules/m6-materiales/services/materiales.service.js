@@ -25,4 +25,17 @@ export const MaterialesService = {
 
   // Lista de marcas únicas para autocomplete del form (Word #17)
   getMarcas: ()       => api.get('/materiales/marcas'),
+
+  // Word #B: detección de duplicados antes de crear. Devuelve el material
+  // existente con mismo nombre+marca, o null si no existe.
+  checkDuplicate: ({ nombre, marca }) => {
+    const p = new URLSearchParams({ nombre: nombre || '' })
+    if (marca) p.set('marca', marca)
+    return api.get(`/materiales/check-duplicate?${p.toString()}`)
+  },
+
+  // Word #B: suma cantidad al stock_actual de un material existente.
+  // Disparado desde el modal cuando el usuario elige "sumar al existente".
+  agregarStock: (id, cantidad) =>
+    api.post(`/materiales/${id}/agregar-stock`, { cantidad }),
 }

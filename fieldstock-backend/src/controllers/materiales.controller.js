@@ -55,3 +55,24 @@ export async function remove(req, res, next) {
     res.json({ ok: true })
   } catch (err) { next(err) }
 }
+
+// Word #B — check de duplicados antes de crear. El frontend lo llama con
+// query params ?nombre=...&marca=... y recibe el material existente o null.
+// Permite ofrecer "sumar stock al existente" en vez de duplicar.
+export async function checkDuplicate(req, res, next) {
+  try {
+    const { nombre, marca } = req.query
+    const existente = await MateriasService.findDuplicate({ nombre, marca })
+    res.json({ ok: true, data: existente })
+  } catch (err) { next(err) }
+}
+
+// Word #B — agrega cantidad al stock_actual de un material existente.
+// Disparado desde el modal "Este material ya existe, ¿sumar stock?".
+export async function agregarStock(req, res, next) {
+  try {
+    const { cantidad } = req.body
+    const data = await MateriasService.agregarStock(req.params.id, cantidad)
+    res.json({ ok: true, data })
+  } catch (err) { next(err) }
+}

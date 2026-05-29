@@ -83,12 +83,14 @@ router.post('/herramientas/:id/movimientos', MovimientosCtrl.create)
 // ── Materiales ────────────────────────────────────────────────
 // IMPORTANTE: rutas literales antes de las paramétricas (ej. /marcas
 // antes de /:id) para que Express no las capture como id.
-router.get   ('/materiales/marcas', MateriasCtrl.getMarcas)
-router.get   ('/materiales',        MateriasCtrl.getAll)
-router.post  ('/materiales',        MateriasCtrl.create)
-router.get   ('/materiales/:id',    MateriasCtrl.getById)
-router.put   ('/materiales/:id',    MateriasCtrl.update)
-router.delete('/materiales/:id',    MateriasCtrl.remove)
+router.get   ('/materiales/marcas',         MateriasCtrl.getMarcas)
+router.get   ('/materiales/check-duplicate', MateriasCtrl.checkDuplicate)
+router.get   ('/materiales',                MateriasCtrl.getAll)
+router.post  ('/materiales',                MateriasCtrl.create)
+router.get   ('/materiales/:id',            MateriasCtrl.getById)
+router.put   ('/materiales/:id',            MateriasCtrl.update)
+router.delete('/materiales/:id',            MateriasCtrl.remove)
+router.post  ('/materiales/:id/agregar-stock', MateriasCtrl.agregarStock)
 
 // ── Remitos ───────────────────────────────────────────────────
 router.get   ('/remitos',                                    RemitosCtrl.getAll)
