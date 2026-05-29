@@ -29,21 +29,34 @@ const AuthContext = createContext(null)
 // Helper interno: GET /api/usuarios/me usando el JWT actual. No usamos `api`
 // de utils/api.js para no crear dependencia circular (api importa supabase
 // para el JWT, y este hook también lo usaría).
+//
+// CRÍTICO: esta función NUNCA debe lanzar. Si lo hace, el await en el boot
+// del AuthProvider rompe el flujo y `loading` se queda en true → pantalla
+// en negro. Atrapamos todo error de red/CORS internamente y devolvemos null.
 async function fetchPerfil() {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.access_token) return null
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) return null
 
-  const apiBase = import.meta.env.VITE_API_URL || ''
-  const res = await fetch(`${apiBase}/api/usuarios/me`, {
-    headers: { Authorization: `Bearer ${session.access_token}` },
-  })
-  if (!res.ok) {
-    // 401 = sesión inválida; 404 = sin perfil; cualquier otro = error de red.
-    // Devolvemos null para que el AuthProvider trate al user como "no autenticado".
+    const apiBase = import.meta.env.VITE_API_URL || ''
+    const res = await fetch(`${apiBase}/api/usuarios/me`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+    if (!res.ok) {
+      // 401 = sesión inválida; 404 = endpoint no encontrado (backend desactualizado);
+      // cualquier otro = error del backend. Lo logueamos para diagnóstico.
+      // eslint-disable-next-line no-console
+      console.warn(`[useAuth] fetchPerfil falló con HTTP ${res.status}`)
+      return null
+    }
+    const json = await res.json()
+    return json.data
+  } catch (err) {
+    // Captura típica: backend bajo, CORS, JSON malformado, fetch abortado.
+    // eslint-disable-next-line no-console
+    console.error('[useAuth] fetchPerfil exception:', err)
     return null
   }
-  const json = await res.json()
-  return json.data
 }
 
 export function AuthProvider({ children }) {
@@ -68,13 +81,21 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true
 
-    // Boot: sesión + perfil en paralelo.
+    // Boot: sesión + perfil. CRÍTICO: setLoading(false) DEBE ejecutarse
+    // siempre, pase lo que pase, sino la app queda en pantalla negra
+    // (RequireAuth devuelve null mientras loading=true).
     ;(async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!mounted) return
-      setUser(session?.user ?? null)
-      if (session) await cargarPerfil()
-      if (mounted) setLoading(false)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!mounted) return
+        setUser(session?.user ?? null)
+        if (session) await cargarPerfil()
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[AuthProvider] error en boot:', err)
+      } finally {
+        if (mounted) setLoading(false)
+      }
     })()
 
     // Reactividad: si la sesión cambia (login/logout en otro tab), sincronizamos.
