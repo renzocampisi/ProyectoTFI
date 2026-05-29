@@ -1,6 +1,12 @@
 // src/routes/AppRouter.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import AppLayout from '@layouts/AppLayout'
+import RequireAuth from '@shared/components/RequireAuth'
+import RequireRole from '@shared/components/RequireRole'
+import { ROLES } from '@shared/constants/roles'
+
+import LoginPage  from '@modules/m0-auth/pages/LoginPage'
+import PerfilPage from '@modules/m0-auth/pages/PerfilPage'
 
 import DashboardPage        from '@modules/m1-dashboard/pages/DashboardPage'
 
@@ -30,6 +36,8 @@ import ClientesPage    from '@modules/m7-directorio/pages/ClientesPage'
 
 import EstanteriasPage from '@modules/m8-estanterias/pages/EstanteriasPage'
 
+import UsuariosListPage from '@modules/m9-usuarios/pages/UsuariosListPage'
+
 import ComingSoon from '@shared/components/ComingSoon'
 
 export default function AppRouter() {
@@ -37,12 +45,30 @@ export default function AppRouter() {
     <BrowserRouter>
       <Routes>
 
-        {/* Ruta pública mobile — QR de remito, sin sidebar */}
-        <Route path="/remitos/:id/qr" element={<RemitoQRPage />} />
+        {/* /login es la única ruta pública (sin RequireAuth). */}
+        <Route path="/login" element={<LoginPage />} />
 
-        <Route element={<AppLayout />}>
+        {/* QR mobile del remito: privada también — quien escanea es siempre
+            un empleado (operario/encargado/dueño). El responsable del cliente
+            recibe el PDF impreso pero no opera la app. */}
+        <Route path="/remitos/:id/qr" element={
+          <RequireAuth><RemitoQRPage /></RequireAuth>
+        } />
+
+        {/* Todo el resto vive detrás de auth + AppLayout. */}
+        <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
           {/* Word #16 — dashboard de inicio reemplaza el redirect a /herramientas */}
           <Route index element={<DashboardPage />} />
+
+          {/* Mi perfil — accesible para los 3 roles */}
+          <Route path="perfil" element={<PerfilPage />} />
+
+          {/* Gestión de usuarios — solo DUEÑO */}
+          <Route path="usuarios" element={
+            <RequireRole roles={[ROLES.DUEÑO]}>
+              <UsuariosListPage />
+            </RequireRole>
+          } />
 
           <Route path="herramientas">
             <Route index             element={<InventarioListPage />} />

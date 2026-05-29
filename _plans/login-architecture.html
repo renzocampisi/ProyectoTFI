@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FieldStock · Arquitectura: Login + Roles</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --ink-2: #4a4a4a;
+    --muted: #888;
+    --line: #e5e5e5;
+    --bg: #fafaf7;
+    --card: #ffffff;
+    --accent: #2563eb;
+    --warn: #c2410c;
+    --ok: #15803d;
+    --radius: 8px;
+    --maxw: 720px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+  main {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+  }
+  header.h {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 32px;
+  }
+  header.h .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  header.h h1 {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0 0 6px;
+  }
+  header.h .sub {
+    font-size: 14px;
+    color: var(--ink-2);
+    margin: 0;
+  }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px 26px;
+    margin-bottom: 18px;
+  }
+  section.card h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  section.card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 18px 0 8px;
+  }
+  section.card p {
+    margin: 8px 0;
+    color: var(--ink-2);
+  }
+  section.card ul {
+    padding-left: 18px;
+    margin: 8px 0;
+    color: var(--ink-2);
+  }
+  section.card li { margin: 4px 0; }
+  section.card strong { color: var(--ink); font-weight: 600; }
+  .pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 99px;
+    background: #eef2ff;
+    color: var(--accent);
+    margin-right: 6px;
+  }
+  .pill.warn { background: #fff7ed; color: var(--warn); }
+  .pill.ok   { background: #f0fdf4; color: var(--ok); }
+  .pill.muted { background: #f4f4f5; color: var(--muted); }
+
+  pre.mermaid {
+    background: #fcfcfa;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    text-align: center;
+    margin: 14px 0 6px;
+    overflow-x: auto;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .option {
+    background: #fcfcfa;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 12px 14px;
+  }
+  .option h4 {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+  .option p {
+    font-size: 13px;
+    color: var(--ink-2);
+    margin: 0;
+  }
+  .option.chosen { border-color: var(--accent); background: #f5f8ff; }
+  .option.chosen h4::after {
+    content: " ← elegida";
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  table.matrix {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 13px;
+  }
+  table.matrix th, table.matrix td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+  }
+  table.matrix th {
+    font-weight: 600;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  table.matrix td.role { font-weight: 500; }
+  table.matrix .yes { color: var(--ok); font-weight: 600; }
+  table.matrix .no  { color: var(--muted); }
+  table.matrix .own { color: var(--accent); font-weight: 500; }
+
+  @media print {
+    body { background: white; }
+    section.card { break-inside: avoid; }
+  }
+  @media (max-width: 600px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    main { padding: 32px 16px 64px; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <header class="h">
+    <div class="tag">FieldStock AI · Etapa 1 · Arquitectura</div>
+    <h1>Login, perfiles y roles</h1>
+    <p class="sub">Sistema de autenticación con 3 roles, gestión de usuarios desde la app por el dueño, e integración del usuario logueado con el flujo de remitos.</p>
+  </header>
+
+  <section class="card">
+    <h2>El problema</h2>
+    <p>Hoy la app no tiene autenticación: cualquiera que llegue al host puede operar todo. Además, el "responsable" del remito es un campo de texto libre que se reescribe cada vez, y el teléfono de contacto no existe en el modelo. Antes de seguir agregando features que dependen de "quién hace qué", necesitamos cerrar la base de usuarios y roles.</p>
+  </section>
+
+  <section class="card">
+    <h2>Diagrama de sistema</h2>
+    <pre class="mermaid">
+flowchart TB
+  subgraph Browser
+    UI[App React<br/>AuthProvider]
+    LP[Página /login]
+    UP[Página /usuarios<br/>solo DUEÑO]
+    RP[Form Remito Nuevo<br/>resp = user logueado]
+  end
+
+  subgraph Supabase
+    SA[(Supabase Auth<br/>auth.users)]
+    DB[(Postgres<br/>tabla usuarios)]
+  end
+
+  subgraph BackendNode["Backend Express"]
+    MW[Middleware<br/>requireAuth + requireRole]
+    UC[Controller usuarios]
+    RC[Controllers existentes<br/>remitos / materiales / ...]
+  end
+
+  LP -- "email + password" --> SA
+  SA -- "JWT sesión" --> UI
+  UI -. "perfil cargado<br/>nombre + tel + rol" .- DB
+
+  UP -- "POST /api/usuarios<br/>(JWT)" --> MW
+  MW --> UC
+  UC -- "createUser + insert" --> SA
+  UC -- "insert profile" --> DB
+
+  RP -- "POST /remitos (JWT)" --> MW
+  MW --> RC
+  RC -- "user_id del JWT" --> DB
+
+  classDef new fill:#f5f8ff,stroke:#2563eb,color:#1a1a1a
+  class LP,UP,MW,UC new
+    </pre>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px;">Las cajas en celeste son lo que se agrega en este PR. El backend sigue siendo el único guardián de permisos — el frontend solo oculta UI según el rol.</p>
+  </section>
+
+  <section class="card">
+    <h2>Decisiones de scope ya tomadas</h2>
+    <ul>
+      <li><strong>3 roles fijos:</strong> DUEÑO, ENCARGADO, OPERARIO.</li>
+      <li><strong>Solo el DUEÑO crea usuarios</strong> desde una página dedicada dentro de la app. No hay sign-up público.</li>
+      <li><strong>Creación de usuario:</strong> el sistema <em>genera</em> una password aleatoria de 8 caracteres (mayúsculas + minúsculas + números) y la muestra <em>una sola vez</em> al dueño en el modal de éxito. El dueño la copia y la pasa al nuevo usuario por fuera (WhatsApp, persona). Sin email/SMTP. Si el usuario la pierde, en una próxima iteración agregaremos un botón "regenerar password".</li>
+      <li><strong>Operario sin asociación a cliente:</strong> ve todo lo que la empresa maneja; solo se limita su capacidad de modificar maestros.</li>
+      <li><strong>Bootstrap del primer dueño:</strong> seed SQL manual aplicado una vez en Supabase Dashboard.</li>
+      <li><strong>El user logueado se integra con remitos en este mismo PR:</strong> el responsable se autocompleta del perfil, y el teléfono del responsable sale en el PDF.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Matriz de permisos</h2>
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th>Acción</th>
+          <th>DUEÑO</th>
+          <th>ENCARGADO</th>
+          <th>OPERARIO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="role">Ver dashboard, listas y detalles</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td class="role">Escanear QR (salida / llegada)</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td class="role">Crear / editar remitos</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
+        <tr><td class="role">Alta / edición de herramientas, materiales, obras</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
+        <tr><td class="role">Dar de baja / eliminar</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
+        <tr><td class="role">Gestionar usuarios (crear, desactivar)</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr><td class="role">Editar perfil propio</td><td class="own">propio</td><td class="own">propio</td><td class="own">propio</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Componentes nuevos</h2>
+    <h3>Persistencia</h3>
+    <ul>
+      <li>Tabla <strong>usuarios</strong> en Postgres con <em>id</em> (FK a <em>auth.users.id</em>), <em>nombre</em>, <em>telefono</em>, <em>role</em>, <em>activo</em>. El email vive en <em>auth.users</em>; lo joineamos para mostrar.</li>
+      <li>Columna opcional <strong>responsable_user_id</strong> en <em>remitos</em>. El campo <em>responsable</em> texto se preserva por compatibilidad con datos viejos.</li>
+    </ul>
+    <h3>Backend</h3>
+    <ul>
+      <li>Middleware <strong>requireAuth</strong>: valida el JWT del header, carga el perfil del usuario, lo expone en <em>req.user</em>. Bloquea con 401 si no hay token o es inválido.</li>
+      <li>Middleware <strong>requireRole([...])</strong>: filtra por rol después de requireAuth.</li>
+      <li>Service + controller <strong>usuarios</strong>: listar, crear, actualizar, desactivar.</li>
+      <li>Aplicar requireAuth a todas las rutas /api excepto /health. Aplicar requireRole(['DUEÑO']) a las de gestión de usuarios.</li>
+    </ul>
+    <h3>Frontend</h3>
+    <ul>
+      <li>Página <strong>/login</strong> con form simple. Si hay sesión activa, redirige a /.</li>
+      <li>Página <strong>/usuarios</strong> (solo DUEÑO) — lista + crear + editar + desactivar.</li>
+      <li>Página <strong>/perfil</strong> — el user edita su propio nombre y teléfono.</li>
+      <li>Guard de rutas en AppRouter: sin user → /login; rol insuficiente → página 403.</li>
+      <li>Sidebar muestra el user actual (nombre, rol, avatar inicial) y un botón Logout.</li>
+      <li>Form de nuevo remito: campo <em>Responsable</em> se autocompleta del user logueado, editable solo si el rol lo permite.</li>
+      <li>api.js inyecta automáticamente el JWT en cada request.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Formas evaluadas</h2>
+    <div class="grid-2">
+      <div class="option chosen">
+        <h4>A · Todo-en-uno</h4>
+        <p>Un PR grande con auth + tabla usuarios + roles + gestión + integración con remitos. El siguiente PR puede asumir que el sistema de usuarios está completo.</p>
+      </div>
+      <div class="option">
+        <h4>B · Incremental en 3 PRs</h4>
+        <p>PR1 login básico, PR2 roles + gestión, PR3 integración con remitos. Más chico cada uno pero deja varios días con un estado a medio configurar.</p>
+      </div>
+      <div class="option">
+        <h4>C · Lite</h4>
+        <p>Auth + roles + integración, pero los usuarios se crean en Supabase Dashboard (sin UI propia). Más rápido pero contradice la decisión de gestión desde la app.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Límites del scope · qué entra, qué no</h2>
+    <h3>Entra</h3>
+    <ul>
+      <li><span class="pill ok">✓</span>Login email + password, logout</li>
+      <li><span class="pill ok">✓</span>3 roles hardcoded con matriz de permisos validada en backend</li>
+      <li><span class="pill ok">✓</span>Gestión de usuarios (CRUD básico) desde la app por el DUEÑO, con password generada al crear (visible una sola vez)</li>
+      <li><span class="pill ok">✓</span>Edición de perfil propio (nombre, teléfono)</li>
+      <li><span class="pill ok">✓</span>Guards de rutas + sidebar con identidad y logout</li>
+      <li><span class="pill ok">✓</span>Responsable de remito autocompletado del user logueado</li>
+      <li><span class="pill ok">✓</span>PDF: tel del responsable se llena del perfil</li>
+    </ul>
+    <h3>Queda fuera (futuro)</h3>
+    <ul>
+      <li><span class="pill muted">—</span>Reset de password por email (requiere SMTP en Supabase)</li>
+      <li><span class="pill muted">—</span>Cambio de password desde el perfil</li>
+      <li><span class="pill muted">—</span>Regenerar password de un usuario existente (botón futuro en /usuarios para cuando el operario pierda la suya)</li>
+      <li><span class="pill muted">—</span>2FA, SSO con Google</li>
+      <li><span class="pill muted">—</span>Auditoría de quién hizo cada acción (movimientos ya tienen <em>responsable</em> texto; el <em>user_id</em> se puede sumar después sin migración disruptiva)</li>
+      <li><span class="pill muted">—</span>Asociar operarios a clientes específicos</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Riesgos arquitectónicos</h2>
+    <ul>
+      <li><span class="pill warn">!</span><strong>Backend bypassa RLS de Supabase.</strong> Usa la service_role key, así que la validación de permisos vive en el middleware del backend, no en políticas de Postgres. El frontend solo oculta UI por ergonomía — la fuente de verdad es siempre el backend.</li>
+      <li><span class="pill warn">!</span><strong>Compatibilidad con remitos existentes.</strong> Los remitos viejos no tienen <em>user_id</em>; solo el campo <em>responsable</em> texto. Se preserva ese campo y se agrega <em>responsable_user_id</em> opcional para remitos nuevos.</li>
+      <li><span class="pill warn">!</span><strong>Bootstrap del primer dueño.</strong> El seed SQL es un punto manual fuera del control de la app. Hay que documentarlo en CLAUDE.md o un README para que sea reproducible al resetear la DB.</li>
+      <li><span class="pill warn">!</span><strong>Token de Supabase Auth.</strong> Se refresha solo via onAuthStateChange; mientras el AuthProvider esté montado, no debería expirar. Si en algún caso edge expira en medio de un request, el backend responde 401 y el frontend redirige a /login.</li>
+      <li><span class="pill warn">!</span><strong>El QR mobile también requiere login.</strong> Quien escanea (en salida y en llegada) es <em>siempre</em> un empleado de la empresa (operario / encargado / dueño) — no el cliente. El responsable del cliente recibe el PDF impreso como comprobante, no opera la app. Esto simplifica el modelo: <strong>todas las rutas son privadas, sin excepciones</strong>.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Próximo paso</h2>
+    <p>Si aprobás esta arquitectura, en la Etapa 2 produzco el plan de implementación: patrones puntuales a aplicar (Controller→Service, hook por módulo, etc.), pasos ordenados con rutas exactas de archivo, las migraciones SQL específicas, y cómo verificar cada paso. También quedaría definido cómo se ejecuta el seed del primer dueño.</p>
+  </section>
+
+</main>
+
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+mermaid.initialize({ startOnLoad: true, theme: 'neutral', fontFamily: 'inherit' })
+</script>
+</body>
+</html>

@@ -63,9 +63,8 @@ export default function RemitoPrint({ remito }) {
                 ['Empresa:',    remito.cliente_nombre],
                 ['Dirección:',  [remito.cliente_direccion, remito.cliente_localidad, remito.cliente_provincia].filter(Boolean).join(', ')],
                 ['Responsable:', remito.responsable],
-                // TODO: cuando esté el login, este campo viene del perfil
-                // del usuario responsable. Por ahora se imprime vacío y se
-                // completa a mano.
+                // Viene de la vista remitos_resumen joineando responsable_user_id
+                // → usuarios.telefono. Para remitos viejos (sin user_id) queda '—'.
                 ['Tel. responsable:', remito.responsable_telefono],
               ].map(([label, val]) => (
                 <tr key={label}>

@@ -370,7 +370,20 @@
 @media (max-width: 640px) {
   .headerMain { flex-direction: column; gap: var(--space-3); }
   .headerActions { flex-wrap: wrap; gap: var(--space-2); }
-  .headerActions button { flex: 1; min-width: 0; font-size: var(--text-xs); padding: var(--space-2); }
+  .headerActions button {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--text-xs);
+    padding: var(--space-2) var(--space-3);
+    /* Sin nowrap los botones empezaban a desbordar el texto en mobile
+       (ej. "Editar datos" o "Volver a borrador" se escapaban del recuadro).
+       Permitimos wrap + un line-height bajo para que dos líneas no agranden
+       desproporcionado, y centramos el contenido. */
+    white-space: normal;
+    line-height: 1.15;
+    text-align: center;
+    word-break: keep-all;
+  }
   .stepper { gap: 0; }
   .pasoLabel { display: none; }
   .pasoCirculo { width: 20px; height: 20px; font-size: 10px; }
