@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMateriales } from '../hooks/useMateriales'
 import MaterialDetalleModal from '../components/MaterialDetalleModal'
+import AgregarStockModal from '../components/AgregarStockModal'
 import styles from './MateriasListPage.module.css'
 
 // Badge de texto para desktop/tablet
@@ -24,6 +25,10 @@ export default function MateriasListPage() {
   const [busqueda, setBusqueda] = useState('')
   // Material a mostrar en el modal de detalle. null = modal cerrado (Word #19).
   const [materialDetalle, setMaterialDetalle] = useState(null)
+  // Material al que sumarle stock vía el modal dedicado (Word A).
+  // Es independiente del modal de detalle — un material puede estar en uno
+  // o en el otro, no en ambos al mismo tiempo.
+  const [materialStock,   setMaterialStock]   = useState(null)
   const { materiales, loading, error, refetch } = useMateriales({ q: busqueda || undefined })
 
   return (
@@ -59,7 +64,7 @@ export default function MateriasListPage() {
           <input
             type="search"
             className={styles.searchInput}
-            placeholder="Buscar material..."
+            placeholder="Buscar por nombre o marca..."
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)}
           />
@@ -94,6 +99,7 @@ export default function MateriasListPage() {
             <thead>
               <tr>
                 <th>Nombre</th>
+                <th>Marca</th>
                 <th>Unidad</th>
                 <th>Stock actual</th>
                 <th>Stock mínimo</th>
@@ -119,6 +125,14 @@ export default function MateriasListPage() {
                     {m.nombre}
                   </td>
 
+                  {/* Marca (Word: redundancia visual cuando hay mismo nombre con
+                      distinta marca tras el fix de duplicados). Si no tiene
+                      marca cargada mostramos '—' en tono apagado para que la
+                      celda no quede vacía. */}
+                  <td className={styles.marca} data-label="Marca">
+                    {m.marca || <span className={styles.marcaVacia}>—</span>}
+                  </td>
+
                   <td className={styles.unidad} data-label="Unidad">{m.unidad}</td>
                   <td className={styles.stock}  data-label="Stock actual">{m.stock_actual}</td>
                   <td className={styles.stock}  data-label="Stock mínimo">{m.stock_minimo}</td>
@@ -128,8 +142,16 @@ export default function MateriasListPage() {
                     <StockBadge actual={m.stock_actual} minimo={m.stock_minimo} />
                   </td>
 
-                  {/* Botón "Detalle" — abre el modal con la info completa (Word #19) */}
+                  {/* Acciones: agregar stock (Word A) + detalle (Word #19).
+                      stopPropagation para que el click no dispare el modal
+                      de detalle al mismo tiempo. */}
                   <td className={styles.actions}>
+                    <button
+                      className={styles.btnStock}
+                      onClick={e => { e.stopPropagation(); setMaterialStock(m) }}
+                      title="Agregar stock a este material">
+                      + Stock
+                    </button>
                     <button
                       className={styles.btnRow}
                       onClick={e => { e.stopPropagation(); setMaterialDetalle(m) }}
@@ -151,6 +173,16 @@ export default function MateriasListPage() {
           material={materialDetalle}
           onClose={() => setMaterialDetalle(null)}
           onDeleted={refetch}
+        />
+      )}
+
+      {/* Modal "Agregar stock" (Word A) — flujo dedicado desde la lista,
+          sin tener que pasar por "Nuevo material". */}
+      {materialStock && (
+        <AgregarStockModal
+          material={materialStock}
+          onClose={() => setMaterialStock(null)}
+          onSuccess={() => { setMaterialStock(null); refetch() }}
         />
       )}
 
