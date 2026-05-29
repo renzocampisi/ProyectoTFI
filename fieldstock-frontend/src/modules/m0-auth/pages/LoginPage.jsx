@@ -46,6 +46,11 @@ export default function LoginPage() {
     try {
       const { error: errAuth } = await signIn(email.trim(), password)
       if (errAuth) {
+        // Mensaje genérico para no facilitar enumeración de usuarios.
+        // El detalle del error de Supabase queda solo en consola para
+        // diagnóstico (útil si bloquean POST/auth, ver issue del 28/05).
+        // eslint-disable-next-line no-console
+        console.error('[Login] signIn error:', errAuth)
         setError('Email o contraseña incorrectos.')
         return
       }
