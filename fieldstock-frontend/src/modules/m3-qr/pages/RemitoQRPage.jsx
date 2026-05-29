@@ -26,7 +26,15 @@ export default function RemitoQRPage() {
   const [accion,       setAccion]       = useState(null) // 'SALIDA' | 'LLEGADA'
   const [procesando,   setProcesando]   = useState(false)
   const [showProblema, setShowProblema] = useState(false)
-  const [problema,     setProblema]     = useState('')
+  // Word C: reporte de problema ahora granular por ítem.
+  //   - descGeneral: descripción general del incidente (opcional)
+  //   - itemsProblema:     { [remitoItemId]:     descripcion }
+  //   - materialesProblema:{ [remitoMaterialId]: descripcion }
+  // La presencia de una key en el objeto = "este ítem tuvo problema",
+  // su value = descripción puntual (puede ser '').
+  const [descGeneral,         setDescGeneral]         = useState('')
+  const [itemsProblema,       setItemsProblema]       = useState({})
+  const [materialesProblema,  setMaterialesProblema]  = useState({})
   const [confirmado,   setConfirmado]   = useState(false)
   // Conductor / persona que realiza el traslado. Se pide únicamente en
   // SALIDA (1er escaneo) y queda guardado en el remito para mostrarse
@@ -64,11 +72,48 @@ export default function RemitoQRPage() {
     finally { setProcesando(false) }
   }
 
+  // Helpers para marcar/desmarcar ítems y editar su descripción
+  const toggleItem = (itemId) => {
+    setItemsProblema(prev => {
+      const next = { ...prev }
+      if (itemId in next) delete next[itemId]
+      else                next[itemId] = ''
+      return next
+    })
+  }
+  const setItemDesc = (itemId, desc) =>
+    setItemsProblema(prev => ({ ...prev, [itemId]: desc }))
+
+  const toggleMaterial = (matId) => {
+    setMaterialesProblema(prev => {
+      const next = { ...prev }
+      if (matId in next) delete next[matId]
+      else               next[matId] = ''
+      return next
+    })
+  }
+  const setMaterialDesc = (matId, desc) =>
+    setMaterialesProblema(prev => ({ ...prev, [matId]: desc }))
+
+  // Para el botón submit y mensajes informativos
+  const totalAfectados = Object.keys(itemsProblema).length +
+                         Object.keys(materialesProblema).length
+  const puedeReportar = totalAfectados > 0 || descGeneral.trim().length > 0
+
   const handleReportarProblema = async () => {
-    if (!problema.trim()) return
+    if (!puedeReportar) return
     setProcesando(true)
+    setError(null)
     try {
-      await api.post(`/remitos/${id}/reportar-problema`, { descripcion: problema.trim() })
+      await api.post(`/remitos/${id}/reportar-problema`, {
+        descripcion: descGeneral.trim() || null,
+        items: Object.entries(itemsProblema).map(([remitoItemId, descripcion]) => ({
+          remitoItemId, descripcion: descripcion?.trim() || null,
+        })),
+        materiales: Object.entries(materialesProblema).map(([remitoMaterialId, descripcion]) => ({
+          remitoMaterialId, descripcion: descripcion?.trim() || null,
+        })),
+      })
       setConfirmado(true)
     } catch (err) { setError(err.message) }
     finally { setProcesando(false) }
@@ -126,7 +171,7 @@ export default function RemitoQRPage() {
     </div>
   )
 
-  // ── Pantalla de problema ──────────────────────────────────────
+  // ── Pantalla de problema (Word C: por ítem) ──────────────────
   if (showProblema) return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -137,25 +182,105 @@ export default function RemitoQRPage() {
         <span className={styles.problemaIcon}>⚠</span>
         <h2 className={styles.problemaTitle}>Reportar problema</h2>
         <p className={styles.problemaDesc}>
-          Describí qué pasó. Se guardará en el remito y se notificará al sistema.
+          Marcá los ítems con problema y/o agregá una descripción general.
+          El sistema avisa al encargado y al dueño automáticamente.
         </p>
-        <textarea
-          className={styles.problemaTextarea}
-          placeholder="Ej: Faltó una herramienta, llegó dañada, llegó incompleto..."
-          value={problema}
-          onChange={e => setProblema(e.target.value)}
-          rows={5}
-          autoFocus
-        />
+
+        {/* Herramientas */}
+        {remito.items?.length > 0 && (
+          <div className={styles.checkSection}>
+            <p className={styles.checkSectionTitle}>🔧 Herramientas</p>
+            {remito.items.map(item => {
+              const marcada = item.id in itemsProblema
+              return (
+                <div key={item.id} className={`${styles.checkRow} ${marcada ? styles.checkRowActive : ''}`}>
+                  <label className={styles.checkLabel}>
+                    <input type="checkbox" checked={marcada}
+                      onChange={() => toggleItem(item.id)} />
+                    <div className={styles.checkInfo}>
+                      <span className={styles.checkNombre}>{item.herramienta_nombre}</span>
+                      <span className={styles.checkSub}>{item.herramienta_qr}</span>
+                    </div>
+                  </label>
+                  {marcada && (
+                    <textarea
+                      className={styles.checkDescripcion}
+                      placeholder="¿Qué le pasó? (opcional — ej. rota, faltante, devuelta dañada)"
+                      value={itemsProblema[item.id]}
+                      onChange={e => setItemDesc(item.id, e.target.value)}
+                      rows={2}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Materiales */}
+        {remito.materiales?.length > 0 && (
+          <div className={styles.checkSection}>
+            <p className={styles.checkSectionTitle}>📦 Materiales / insumos</p>
+            {remito.materiales.map(m => {
+              const marcado = m.id in materialesProblema
+              return (
+                <div key={m.id} className={`${styles.checkRow} ${marcado ? styles.checkRowActive : ''}`}>
+                  <label className={styles.checkLabel}>
+                    <input type="checkbox" checked={marcado}
+                      onChange={() => toggleMaterial(m.id)} />
+                    <div className={styles.checkInfo}>
+                      <span className={styles.checkNombre}>{m.material_nombre || m.descripcion_libre}</span>
+                      <span className={styles.checkSub}>{m.cantidad_egreso} {m.unidad}</span>
+                    </div>
+                  </label>
+                  {marcado && (
+                    <textarea
+                      className={styles.checkDescripcion}
+                      placeholder="¿Qué le pasó? (opcional — ej. faltante, vino menos cantidad)"
+                      value={materialesProblema[m.id]}
+                      onChange={e => setMaterialDesc(m.id, e.target.value)}
+                      rows={2}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Descripción general — opcional, agrega contexto si nada específico */}
+        <div className={styles.checkSection}>
+          <label className={styles.checkSectionTitle} htmlFor="descGeneral">
+            Descripción general <span className={styles.opt}>(opcional)</span>
+          </label>
+          <textarea id="descGeneral"
+            className={styles.problemaTextarea}
+            placeholder="Contexto general del problema, situación en obra..."
+            value={descGeneral}
+            onChange={e => setDescGeneral(e.target.value)}
+            rows={3}
+          />
+        </div>
+
+        {error && <div className={styles.errorBox}>⚠ {error}</div>}
+
         <button
           className={styles.btnDanger}
           onClick={handleReportarProblema}
-          disabled={procesando || !problema.trim()}>
-          {procesando ? 'Enviando...' : '⚠ Confirmar y reportar problema'}
+          disabled={procesando || !puedeReportar}>
+          {procesando
+            ? 'Enviando...'
+            : totalAfectados > 0
+              ? `⚠ Confirmar (${totalAfectados} ítem${totalAfectados !== 1 ? 's' : ''} afectado${totalAfectados !== 1 ? 's' : ''})`
+              : '⚠ Confirmar y reportar problema'
+          }
         </button>
-        <p className={styles.problemaHint}>
-          El remito avanzará a EN_OBRA con el problema registrado.
-        </p>
+
+        {!puedeReportar && (
+          <p className={styles.problemaHint}>
+            Marcá al menos un ítem o escribí una descripción general para continuar.
+          </p>
+        )}
       </div>
     </div>
   )

@@ -94,7 +94,9 @@ export async function confirmarEscaneo(req, res, next) {
 // refactor + bug fix.
 export async function reportarProblema(req, res, next) {
   try {
-    const data = await RemitosService.reportarProblema(req.params.id, req.body.descripcion)
+    // El body acepta { descripcion?, items?, materiales? } — el service
+    // valida que al menos algo venga y rechaza con 400 si todo está vacío.
+    const data = await RemitosService.reportarProblema(req.params.id, req.body)
     res.json({ ok: true, data })
   } catch (err) { next(err) }
 }

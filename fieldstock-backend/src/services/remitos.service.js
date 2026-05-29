@@ -560,21 +560,39 @@ export async function avanzarEstado(id, body = {}) {
   return data
 }
 
-// ── Reportar problema al llegar a obra (issue #7) ─────────────
+// ── Reportar problema al llegar a obra (issue #7 + Word C) ────
 // Variante del 2° escaneo del QR desde la app mobile: la carga llegó
-// pero hay un problema (faltan items, hay roturas, etc). Aplica 3
-// efectos en orden:
-//   1) guarda la descripción en remito.observacion_llegada
-//   2) crea una notificación tipo PROBLEMA_LLEGADA
-//   3) avanza el estado igual a EN_OBRA (el problema no bloquea el flujo)
+// pero hay un problema. Word C extendió este flow para que el responsable
+// pueda marcar items específicos (herramientas y/o materiales) que tuvieron
+// el problema, no solo una descripción genérica.
 //
-// El UPDATE de observacion_llegada se hace directo a la tabla (sin pasar
-// por update() del propio service) porque update() valida que el estado
-// sea BORRADOR|CONFIRMADO — pero acá el remito está en EN_TRANSITO.
-// Mezclar ambas semánticas en update() rompería ese contrato.
-export async function reportarProblema(id, descripcion) {
-  if (!descripcion?.trim()) {
-    const err = new Error('La descripción del problema es obligatoria')
+// Body acepta:
+//   { descripcion?: string,                   // descripción general (opcional)
+//     items?: [{ remitoItemId, descripcion }],     // herramientas con problema
+//     materiales?: [{ remitoMaterialId, descripcion }] }
+//
+// Se exige al menos una de las tres cosas (descripción general o algún
+// item marcado). Si no, devolvemos 400.
+//
+// Efectos en orden:
+//   1) marca los items/materiales especificados con tiene_problema=true y
+//      su observacion con la descripción puntual del problema
+//   2) persiste la descripción general en remito.observacion_llegada
+//   3) crea una notificación PROBLEMA_LLEGADA agregando los items afectados
+//   4) avanza el estado a EN_OBRA (el problema no bloquea el flujo)
+export async function reportarProblema(id, body = {}) {
+  // Acepta tanto la firma vieja (string directamente) como la nueva (objeto).
+  // Esto preserva backwards-compat por si algún caller no migró.
+  const payload = typeof body === 'string' ? { descripcion: body } : body
+  const { descripcion = '', items = [], materiales = [] } = payload
+
+  const desc = descripcion?.trim() || ''
+  const itemsLimpios     = (items || []).filter(it => it?.remitoItemId)
+  const materialesLimpios = (materiales || []).filter(m => m?.remitoMaterialId)
+  const totalItems = itemsLimpios.length + materialesLimpios.length
+
+  if (!desc && totalItems === 0) {
+    const err = new Error('Indicá la descripción del problema o al menos un ítem afectado')
     err.status = 400; throw err
   }
 
@@ -586,9 +604,6 @@ export async function reportarProblema(id, descripcion) {
     err.status = 404; throw err
   }
 
-  // El problema solo se reporta al llegar a obra (estado EN_TRANSITO).
-  // En otros estados no tiene sentido y avanzarEstado() haría un cambio
-  // distinto al esperado.
   if (remito.estado !== 'EN_TRANSITO') {
     const err = new Error(
       `No se puede reportar problema: el remito está en estado ${remito.estado}. ` +
@@ -597,23 +612,56 @@ export async function reportarProblema(id, descripcion) {
     err.status = 400; throw err
   }
 
-  const desc = descripcion.trim()
+  // 1) Marcar items de herramientas afectados. Filtramos por remito_id como
+  //    safety check para evitar que un body manipulado afecte items de otro
+  //    remito por confusión de IDs.
+  for (const it of itemsLimpios) {
+    const { error: e } = await supabase
+      .from('remito_items')
+      .update({
+        tiene_problema: true,
+        observacion:    it.descripcion?.trim() || null,
+      })
+      .eq('id', it.remitoItemId)
+      .eq('remito_id', id)
+    if (e) throw e
+  }
 
-  // 1) Persistir la observación de llegada
+  // 1b) Marcar materiales afectados
+  for (const m of materialesLimpios) {
+    const { error: e } = await supabase
+      .from('remito_materiales')
+      .update({
+        tiene_problema: true,
+        observacion:    m.descripcion?.trim() || null,
+      })
+      .eq('id', m.remitoMaterialId)
+      .eq('remito_id', id)
+    if (e) throw e
+  }
+
+  // 2) Descripción general del problema en la cabecera del remito
   await supabase.from('remitos')
-    .update({ observacion_llegada: desc })
+    .update({ observacion_llegada: desc || null })
     .eq('id', id)
 
-  // 2) Crear notificación en el sistema
+  // 3) Notificación al sistema. El título lleva la cantidad de items
+  //    afectados si los hubo; el mensaje resume contexto + descripción.
+  //    Como la tabla notificaciones no tiene user_id (es global, todos la
+  //    ven), creamos una sola fila.
+  const titulo = totalItems > 0
+    ? `Problema en remito ${remito.numero}: ${totalItems} ítem${totalItems !== 1 ? 's' : ''} afectado${totalItems !== 1 ? 's' : ''}`
+    : `Problema en remito ${remito.numero}`
+  const mensaje = `Obra: ${remito.obra}. ${desc || 'Sin descripción general.'}`
+
   await NotifService.create({
     tipo:     'PROBLEMA_LLEGADA',
-    titulo:   `Problema en remito ${remito.numero}`,
-    mensaje:  `Obra: ${remito.obra}. Problema reportado: ${desc}`,
+    titulo,
+    mensaje,
     remitoId: id,
   })
 
-  // 3) Avanzar de EN_TRANSITO → EN_OBRA (la state machine no tiene
-  // side-effects para esta transición, solo cambia el estado).
+  // 4) Avanzar de EN_TRANSITO → EN_OBRA
   return avanzarEstado(id)
 }
 
