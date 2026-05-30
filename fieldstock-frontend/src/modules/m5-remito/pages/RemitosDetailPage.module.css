@@ -9,7 +9,14 @@
 .headerSub { font-size: var(--text-sm); color: var(--text-secondary); }
 .headerActions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; flex-wrap: wrap; }
 
-.btnPDF { font-size: var(--text-sm); color: var(--text-secondary); padding: var(--space-2) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); transition: background var(--transition-fast); white-space: nowrap; }
+/* Botones QR/PDF del header. inline-flex con gap garantiza que el icono
+   (emoji) y el texto queden alineados horizontalmente y no se apilen en
+   mobile cuando los ajustes responsivos achicaron el font-size. */
+.btnPDF { font-size: var(--text-sm); color: var(--text-secondary); padding: var(--space-2) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); transition: background var(--transition-fast); white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 6px; line-height: 1; }
+/* Tamaño fijo del emoji para que QR y PDF queden visualmente iguales
+   (emojis con tipografías distintas vienen de tamaños distintos). */
+.btnIcon { font-size: 1rem; display: inline-flex; align-items: center; }
+.btnLabel { font-weight: 500; }
 .btnPDF:hover:not(:disabled) { background: var(--color-surface-alt); color: var(--text-primary); }
 .btnPDF:disabled { opacity: 0.35; cursor: not-allowed; }
 
@@ -48,9 +55,18 @@
 .cardCount { background: var(--color-surface-alt); border: 1px solid var(--color-border); border-radius: var(--radius-full); font-size: 11px; padding: 1px 7px; color: var(--text-secondary); font-weight: 500; }
 .cardDesc { font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.6; }
 .campos { display: flex; flex-direction: column; gap: var(--space-3); }
-.campo { display: flex; flex-direction: column; gap: 2px; }
+.campo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .campoLabel { font-size: var(--text-xs); color: var(--text-muted); }
-.campoValue { font-size: var(--text-sm); color: var(--text-primary); }
+/* overflow-wrap: anywhere garantiza que cualquier string larga (ej. una
+   observación de varias líneas o un código sin espacios) wrappee dentro
+   del contenedor en vez de empujarlo y romper el layout del sidebar. */
+.campoValue {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
 
 .buscador { background: var(--color-surface-alt); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
 .buscadorHeader { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); gap: var(--space-3); }
@@ -467,6 +483,18 @@
     text-align: center;
     word-break: keep-all;
   }
+  /* QR y PDF deben quedar visualmente iguales: icono a la izquierda,
+     texto a la derecha, mismo width. flex-basis 0 + flex-grow 1 (heredado)
+     los iguala. Forzamos nowrap para que no se apilen icono/texto en
+     dos líneas cuando el ancho se achica. */
+  .headerActions .btnPDF {
+    flex: 1 1 0;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    padding: var(--space-2);
+  }
+  .headerActions .btnIcon { font-size: 0.95rem; }
   .stepper { gap: 0; }
   .pasoLabel { display: none; }
   .pasoCirculo { width: 20px; height: 20px; font-size: 10px; }

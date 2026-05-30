@@ -463,17 +463,25 @@ export default function RemitosDetailPage() {
   const [retornosLocales,    setRetornosLocales]    = useState({})  // { itemId: estado_retorno }
   const [cantidadesLocales,  setCantidadesLocales]  = useState({})  // { matItemId: cantidad_retorno }
 
-  // Cerrar el modal QR automáticamente cuando el remito avanza más allá
-  // de CONFIRMADO/EN_TRANSITO. El QR solo sirve para esos dos estados
-  // (escanear para salir y para llegar). Cuando alguien escanea desde el
-  // celular y avanza el estado, el polling del useRemito refresca el
-  // remito → este efecto detecta el cambio y cierra el modal para que
-  // el operador en la PC no vea un QR desactualizado ni tenga que
-  // cerrarlo a mano.
+  // Cerrar el modal QR automáticamente cuando el estado del remito
+  // CAMBIA mientras el modal está abierto. La primera implementación
+  // cerraba el modal si el estado no era CONFIRMADO/EN_TRANSITO, pero
+  // eso impedía abrirlo en estados posteriores (caso reportado: querías
+  // abrirlo en EN_OBRA para el retorno y se cerraba al toque).
+  //
+  // Captura el estado al abrir; si cambia después (por escaneo desde
+  // mobile que dispara el polling del useRemito), cierra el modal.
+  const estadoAlAbrirRef = useRef(null)
   useEffect(() => {
-    if (!showQR) return
-    const estado = remito?.estado
-    if (estado && !['CONFIRMADO', 'EN_TRANSITO'].includes(estado)) {
+    if (!showQR) {
+      estadoAlAbrirRef.current = null
+      return
+    }
+    if (estadoAlAbrirRef.current === null) {
+      estadoAlAbrirRef.current = remito?.estado
+      return
+    }
+    if (remito?.estado && remito.estado !== estadoAlAbrirRef.current) {
       setShowQR(false)
     }
   }, [remito?.estado, showQR])
@@ -612,11 +620,13 @@ export default function RemitosDetailPage() {
             {esConfirmado && <button className={styles.btnVolver} onClick={() => setConfirmVolver(true)}>↩ Volver a borrador</button>}
             <button className={styles.btnPDF} onClick={() => setShowQR(true)}
               disabled={esBorrador} title={esBorrador ? 'Disponible desde Confirmado' : 'Imprimir QR para escanear en obra'}>
-              📱 QR
+              <span className={styles.btnIcon}>📱</span>
+              <span className={styles.btnLabel}>QR</span>
             </button>
             <button className={styles.btnPDF} onClick={() => imprimirRemito(remito)}
               disabled={esBorrador} title={esBorrador ? 'Disponible desde Confirmado' : 'Exportar PDF'}>
-              📄 PDF
+              <span className={styles.btnIcon}>📄</span>
+              <span className={styles.btnLabel}>PDF</span>
             </button>
           </div>
         </div>
