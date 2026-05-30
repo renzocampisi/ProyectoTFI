@@ -12,8 +12,19 @@ function formatFecha(iso) {
 }
 
 const ESTADO_LABEL = {
-  CONFIRMADO:  { texto: 'Listo para salir',    color: '#2dd4a0' },
-  EN_TRANSITO: { texto: 'En camino a la obra', color: '#f5a623' },
+  CONFIRMADO:          { texto: 'Listo para salir',     color: '#2dd4a0' },
+  EN_TRANSITO:         { texto: 'En camino a la obra',  color: '#f5a623' },
+  EN_RETORNO:          { texto: 'Listo para volver',    color: '#2dd4a0' },
+  EN_TRANSITO_RETORNO: { texto: 'Volviendo al galpón',  color: '#f5a623' },
+}
+
+// Mapa estado del remito → acción del responsable al escanear.
+// Espejo del backend (ESTADOS_QR_ACCION en remitos.service.js).
+const ESTADO_ACCION = {
+  CONFIRMADO:          'SALIDA',
+  EN_TRANSITO:         'LLEGADA',
+  EN_RETORNO:          'SALIDA_OBRA',
+  EN_TRANSITO_RETORNO: 'LLEGADA_GALPON',
 }
 
 export default function RemitoQRPage() {
@@ -47,9 +58,11 @@ export default function RemitoQRPage() {
     api.get(`/remitos/${id}`)
       .then(data => {
         setRemito(data)
-        // Determinar qué acción corresponde según el estado
-        if (data.estado === 'CONFIRMADO')  setAccion('SALIDA')
-        if (data.estado === 'EN_TRANSITO') setAccion('LLEGADA')
+        // Determinar qué acción corresponde según el estado.
+        // Cualquier estado no presente en el mapa → no se puede confirmar
+        // por QR (el render de abajo muestra mensaje "no requiere
+        // confirmación por QR en este momento").
+        setAccion(ESTADO_ACCION[data.estado] || null)
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
@@ -181,7 +194,9 @@ export default function RemitoQRPage() {
   )
 
   // ── Estado no válido para escaneo ────────────────────────────
-  if (!['CONFIRMADO', 'EN_TRANSITO'].includes(remito.estado)) return (
+  // Solo CONFIRMADO, EN_TRANSITO y EN_TRANSITO_RETORNO se pueden
+  // confirmar por QR. El resto se ignora con mensaje informativo.
+  if (!ESTADO_ACCION[remito.estado]) return (
     <div className={styles.fullPage}>
       <span className={styles.icon}>ℹ</span>
       <p className={styles.infoTitle}>{remito.numero}</p>
@@ -195,23 +210,25 @@ export default function RemitoQRPage() {
   )
 
   // ── Confirmado exitosamente ───────────────────────────────────
-  if (confirmado) return (
-    <div className={styles.fullPage}>
-      <div className={styles.successCircle}>✓</div>
-      <p className={styles.successTitle}>
-        {accion === 'SALIDA' ? '¡Salida confirmada!' : '¡Llegada confirmada!'}
-      </p>
-      <p className={styles.successSub}>
-        {accion === 'SALIDA'
-          ? `El remito ${remito.numero} salió del depósito.`
-          : `El remito ${remito.numero} llegó a la obra.`
-        }
-      </p>
-      <button className={styles.btnSecondary} onClick={() => navigate(`/remitos/${id}`)}>
-        Ver remito
-      </button>
-    </div>
-  )
+  if (confirmado) {
+    const okMsg = {
+      SALIDA:         { titulo: '¡Salida confirmada!',     sub: `El remito ${remito.numero} salió del depósito.` },
+      LLEGADA:        { titulo: '¡Llegada confirmada!',    sub: `El remito ${remito.numero} llegó a la obra.` },
+      SALIDA_OBRA:    { titulo: '¡Salida de obra registrada!', sub: `El remito ${remito.numero} arrancó el viaje de vuelta al galpón.` },
+      LLEGADA_GALPON: { titulo: '¡Remito cerrado!',        sub: `El remito ${remito.numero} volvió al galpón y se cerró.` },
+    }[accion] || { titulo: '¡Confirmado!', sub: '' }
+
+    return (
+      <div className={styles.fullPage}>
+        <div className={styles.successCircle}>✓</div>
+        <p className={styles.successTitle}>{okMsg.titulo}</p>
+        <p className={styles.successSub}>{okMsg.sub}</p>
+        <button className={styles.btnSecondary} onClick={() => navigate(`/remitos/${id}`)}>
+          Ver remito
+        </button>
+      </div>
+    )
+  }
 
   // ── Pantalla de problema (Word C: por ítem) ──────────────────
   if (showProblema) return (
@@ -364,9 +381,11 @@ export default function RemitoQRPage() {
   )
 
   // ── Pantalla principal ────────────────────────────────────────
-  const esSalida  = accion === 'SALIDA'
-  const esLlegada = accion === 'LLEGADA'
-  const estadoInfo = ESTADO_LABEL[remito.estado]
+  const esSalida        = accion === 'SALIDA'
+  const esLlegada       = accion === 'LLEGADA'
+  const esSalidaObra    = accion === 'SALIDA_OBRA'
+  const esLlegadaGalpon = accion === 'LLEGADA_GALPON'
+  const estadoInfo = ESTADO_LABEL[remito.estado] || { texto: remito.estado, color: '#888' }
 
   return (
     <div className={styles.page}>
@@ -502,6 +521,26 @@ export default function RemitoQRPage() {
               ⚠ Reportar problema
             </button>
           </>
+        )}
+
+        {/* SALIDA_OBRA: el responsable escanea para confirmar que arranca
+            el viaje de vuelta al galpón. Asume que el retorno ya está
+            cargado (cada item tiene su estado_retorno definido desde la
+            web por el dueño/encargado). Si faltan datos, el backend
+            rechaza con error claro. */}
+        {esSalidaObra && (
+          <button className={styles.btnPrimary} onClick={handleConfirmar} disabled={procesando}>
+            {procesando ? 'Procesando...' : '✓ Confirmar salida de obra'}
+          </button>
+        )}
+
+        {/* LLEGADA_GALPON: escaneo de retorno al depósito. El remito se
+            cierra al confirmar — no hay opción de reportar problema acá
+            porque los problemas se reportaron en la LLEGADA a obra. */}
+        {esLlegadaGalpon && (
+          <button className={styles.btnPrimary} onClick={handleConfirmar} disabled={procesando}>
+            {procesando ? 'Procesando...' : '✓ Confirmar llegada al galpón'}
+          </button>
         )}
       </div>
 

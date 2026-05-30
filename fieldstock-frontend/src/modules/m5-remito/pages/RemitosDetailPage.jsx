@@ -5,6 +5,8 @@ import { useRemito } from '../hooks/useRemitos'
 import { RemitosService } from '../services/remitos.service'
 import { InventarioService } from '@modules/m2-inventario/services/inventario.service'
 import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
+import { useAuth } from '@shared/hooks/useAuth'
+import { ROLES } from '@shared/constants/roles'
 import EstadoRemitoBadge from '../components/EstadoRemitoBadge'
 import RemitoQRModal from '../components/RemitoQRModal'
 import RemitoEditModal from './RemitoEditModal'
@@ -446,6 +448,12 @@ export default function RemitosDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { remito, loading, error, refetch } = useRemito(id)
+  // Solo el DUEÑO puede avanzar/volver-a-borrador desde la web. Encargado y
+  // Operario tienen que usar el QR mobile. El backend también lo enforce
+  // con requireRole — esto es solo para que la UI no muestre botones que
+  // van a fallar y para mostrar un mensaje aclaratorio.
+  const { role } = useAuth()
+  const esDueño = role === ROLES.DUEÑO
 
   const [loadingAction, setLoadingAction] = useState(false)
   const [errAction,     setErrAction]     = useState(null)
@@ -544,8 +552,16 @@ export default function RemitosDetailPage() {
   const pasoActual   = PASOS.findIndex(p => p.key === remito.estado)
   const esBorrador   = remito.estado === 'BORRADOR'
   const esConfirmado = remito.estado === 'CONFIRMADO'
+  const esEnObra     = remito.estado === 'EN_OBRA'
   const esRetorno    = remito.estado === 'EN_RETORNO'
-  const puedeAvanzar = remito.estado !== 'CERRADO'
+  // Estados donde cualquier rol autorizado puede avanzar desde la web
+  // (espejo de ESTADOS_AVANCE_LIBRE del backend):
+  //   - BORRADOR: encargado confirma su propio remito
+  //   - EN_OBRA: el responsable inicia el retorno (decisión operativa)
+  // Las transiciones de tránsito (CONFIRMADO/EN_TRANSITO/EN_TRANSITO_RETORNO)
+  // son solo DUEÑO por web — los demás roles van por QR.
+  const avanceLibre   = esBorrador || esEnObra
+  const puedeAvanzar  = remito.estado !== 'CERRADO' && (avanceLibre || esDueño)
 
   const idsHerrYa = remito.items?.map(i => i.herramienta_id) ?? []
   const idsMatsYa = remito.materiales?.map(m => m.material_id).filter(Boolean) ?? []
@@ -617,7 +633,7 @@ export default function RemitosDetailPage() {
           </div>
           <div className={styles.headerActions}>
             {esBorrador   && <button className={styles.btnEdit}   onClick={() => setShowEdit(true)}>✎ Editar datos</button>}
-            {esConfirmado && <button className={styles.btnVolver} onClick={() => setConfirmVolver(true)}>↩ Volver a borrador</button>}
+            {esConfirmado && esDueño && <button className={styles.btnVolver} onClick={() => setConfirmVolver(true)}>↩ Volver a borrador</button>}
             <button className={styles.btnPDF} onClick={() => setShowQR(true)}
               disabled={esBorrador} title={esBorrador ? 'Disponible desde Confirmado' : 'Imprimir QR para escanear en obra'}>
               <span className={styles.btnIcon}>📱</span>
@@ -937,6 +953,20 @@ export default function RemitosDetailPage() {
               <button className={styles.btnPrimary} onClick={handleAvanzar} disabled={loadingAction}>
                 {loadingAction ? 'Procesando...' : LABEL_AVANZAR[remito.estado]}
               </button>
+            </div>
+          )}
+
+          {/* Mensaje aclaratorio cuando el avance no está disponible para
+              roles no-DUEÑO. Las transiciones de tránsito van por QR
+              (CONFIRMADO/EN_TRANSITO/EN_TRANSITO_RETORNO). BORRADOR y
+              EN_OBRA están en avanceLibre — no llegan acá. */}
+          {!puedeAvanzar && !esDueño && remito.estado !== 'CERRADO' && (
+            <div className={styles.card}>
+              <h2 className={styles.cardTitle}>Acción</h2>
+              <p className={styles.cardDesc}>
+                📱 Esta confirmación se hace escaneando el QR del remito desde el celular.
+                Solo el dueño puede avanzarlo desde la web.
+              </p>
             </div>
           )}
         </div>
