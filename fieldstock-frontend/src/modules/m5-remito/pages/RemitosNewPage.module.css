@@ -17,6 +17,15 @@
 .input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-dim); }
 .input::placeholder { color: var(--text-muted); }
 .inputError { border-color: var(--color-danger) !important; }
+/* Variante read-only para campos que vienen del perfil/contexto y no
+   se editan (ej. Responsable cargado del user logueado). */
+.inputReadonly {
+  background: var(--color-bg);
+  color: var(--text-muted);
+  cursor: default;
+  user-select: none;
+}
+.hint { font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
 .error { font-size: var(--text-xs); color: var(--color-danger); }
 .errorBanner { background: rgba(242,95,92,0.1); border: 1px solid rgba(242,95,92,0.3); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); font-size: var(--text-sm); color: var(--color-danger); }
 .actions { display: flex; justify-content: flex-end; gap: var(--space-3); padding-top: var(--space-2); }

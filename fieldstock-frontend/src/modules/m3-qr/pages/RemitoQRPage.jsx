@@ -26,12 +26,14 @@ export default function RemitoQRPage() {
   const [accion,       setAccion]       = useState(null) // 'SALIDA' | 'LLEGADA'
   const [procesando,   setProcesando]   = useState(false)
   const [showProblema, setShowProblema] = useState(false)
-  // Word C: reporte de problema ahora granular por ítem.
+  // Word C + C2: reporte de problema granular por ítem.
   //   - descGeneral: descripción general del incidente (opcional)
-  //   - itemsProblema:     { [remitoItemId]:     descripcion }
-  //   - materialesProblema:{ [remitoMaterialId]: descripcion }
-  // La presencia de una key en el objeto = "este ítem tuvo problema",
-  // su value = descripción puntual (puede ser '').
+  //   - itemsProblema:     { [remitoItemId]:     { descripcion, extraviado } }
+  //   - materialesProblema:{ [remitoMaterialId]: { descripcion, extraviado } }
+  // La presencia de una key en el objeto = "este ítem tuvo problema".
+  // El sub-flag `extraviado` distingue "llegó con problema" (false) vs
+  // "no llegó / se perdió" (true). Si TODOS los ítems quedan extraviados,
+  // el backend cierra el remito directo en vez de avanzar a EN_OBRA.
   const [descGeneral,         setDescGeneral]         = useState('')
   const [itemsProblema,       setItemsProblema]       = useState({})
   const [materialesProblema,  setMaterialesProblema]  = useState({})
@@ -72,32 +74,68 @@ export default function RemitoQRPage() {
     finally { setProcesando(false) }
   }
 
-  // Helpers para marcar/desmarcar ítems y editar su descripción
+  // Helpers para marcar/desmarcar ítems y editar su descripción/extravío
   const toggleItem = (itemId) => {
     setItemsProblema(prev => {
       const next = { ...prev }
       if (itemId in next) delete next[itemId]
-      else                next[itemId] = ''
+      else                next[itemId] = { descripcion: '', extraviado: false }
       return next
     })
   }
   const setItemDesc = (itemId, desc) =>
-    setItemsProblema(prev => ({ ...prev, [itemId]: desc }))
+    setItemsProblema(prev => ({
+      ...prev,
+      [itemId]: { ...(prev[itemId] || { extraviado: false }), descripcion: desc },
+    }))
+  const setItemExtraviado = (itemId, ext) =>
+    setItemsProblema(prev => ({
+      ...prev,
+      [itemId]: { ...(prev[itemId] || { descripcion: '' }), extraviado: ext },
+    }))
 
   const toggleMaterial = (matId) => {
     setMaterialesProblema(prev => {
       const next = { ...prev }
       if (matId in next) delete next[matId]
-      else               next[matId] = ''
+      else               next[matId] = { descripcion: '', extraviado: false }
       return next
     })
   }
   const setMaterialDesc = (matId, desc) =>
-    setMaterialesProblema(prev => ({ ...prev, [matId]: desc }))
+    setMaterialesProblema(prev => ({
+      ...prev,
+      [matId]: { ...(prev[matId] || { extraviado: false }), descripcion: desc },
+    }))
+  const setMaterialExtraviado = (matId, ext) =>
+    setMaterialesProblema(prev => ({
+      ...prev,
+      [matId]: { ...(prev[matId] || { descripcion: '' }), extraviado: ext },
+    }))
+
+  // Atajo "Todo se perdió" — marca todos los ítems como extraviados con
+  // una descripción genérica común. Útil para el caso extremo donde el
+  // remito completo no llegó a destino y no tiene sentido tildar uno a uno.
+  const marcarTodoExtraviado = () => {
+    const todoItems = {}
+    remito.items?.forEach(it => {
+      todoItems[it.id] = { descripcion: 'Extravío total del remito', extraviado: true }
+    })
+    const todoMats = {}
+    remito.materiales?.forEach(m => {
+      todoMats[m.id] = { descripcion: 'Extravío total del remito', extraviado: true }
+    })
+    setItemsProblema(todoItems)
+    setMaterialesProblema(todoMats)
+  }
 
   // Para el botón submit y mensajes informativos
   const totalAfectados = Object.keys(itemsProblema).length +
                          Object.keys(materialesProblema).length
+  const totalExtraviados = Object.values(itemsProblema).filter(v => v?.extraviado).length +
+                           Object.values(materialesProblema).filter(v => v?.extraviado).length
+  const totalRemito = (remito?.items?.length || 0) + (remito?.materiales?.length || 0)
+  const seraCerrado = totalRemito > 0 && totalExtraviados === totalRemito && totalAfectados === totalRemito
   const puedeReportar = totalAfectados > 0 || descGeneral.trim().length > 0
 
   const handleReportarProblema = async () => {
@@ -107,11 +145,15 @@ export default function RemitoQRPage() {
     try {
       await api.post(`/remitos/${id}/reportar-problema`, {
         descripcion: descGeneral.trim() || null,
-        items: Object.entries(itemsProblema).map(([remitoItemId, descripcion]) => ({
-          remitoItemId, descripcion: descripcion?.trim() || null,
+        items: Object.entries(itemsProblema).map(([remitoItemId, val]) => ({
+          remitoItemId,
+          descripcion: val?.descripcion?.trim() || null,
+          extraviado:  !!val?.extraviado,
         })),
-        materiales: Object.entries(materialesProblema).map(([remitoMaterialId, descripcion]) => ({
-          remitoMaterialId, descripcion: descripcion?.trim() || null,
+        materiales: Object.entries(materialesProblema).map(([remitoMaterialId, val]) => ({
+          remitoMaterialId,
+          descripcion: val?.descripcion?.trim() || null,
+          extraviado:  !!val?.extraviado,
         })),
       })
       setConfirmado(true)
@@ -183,8 +225,28 @@ export default function RemitoQRPage() {
         <h2 className={styles.problemaTitle}>Reportar problema</h2>
         <p className={styles.problemaDesc}>
           Marcá los ítems con problema y/o agregá una descripción general.
-          El sistema avisa al encargado y al dueño automáticamente.
+          Si un ítem no llegó, tildá <strong>"Se extravió"</strong>. El sistema
+          avisa al encargado y al dueño automáticamente.
         </p>
+
+        {/* Atajo para el caso extremo: TODO se perdió. Marca todos los
+            ítems como extraviados con descripción genérica. Útil para
+            evitar tener que tildar uno por uno cuando el remito completo
+            no llegó. */}
+        {totalRemito > 0 && (
+          <button type="button" className={styles.btnExtravioTotal}
+            onClick={marcarTodoExtraviado}>
+            ✕ Todo se perdió (extravío total)
+          </button>
+        )}
+
+        {/* Aviso especial cuando va a cerrar directo el remito */}
+        {seraCerrado && (
+          <div className={styles.avisoCierre}>
+            ⚠ Al confirmar, el remito se cerrará directamente (no pasa por
+            "En obra" porque no hay nada para retornar).
+          </div>
+        )}
 
         {/* Herramientas */}
         {remito.items?.length > 0 && (
@@ -192,8 +254,9 @@ export default function RemitoQRPage() {
             <p className={styles.checkSectionTitle}>🔧 Herramientas</p>
             {remito.items.map(item => {
               const marcada = item.id in itemsProblema
+              const valor = itemsProblema[item.id] || { descripcion: '', extraviado: false }
               return (
-                <div key={item.id} className={`${styles.checkRow} ${marcada ? styles.checkRowActive : ''}`}>
+                <div key={item.id} className={`${styles.checkRow} ${marcada ? styles.checkRowActive : ''} ${valor.extraviado ? styles.checkRowExtraviado : ''}`}>
                   <label className={styles.checkLabel}>
                     <input type="checkbox" checked={marcada}
                       onChange={() => toggleItem(item.id)} />
@@ -203,13 +266,20 @@ export default function RemitoQRPage() {
                     </div>
                   </label>
                   {marcada && (
-                    <textarea
-                      className={styles.checkDescripcion}
-                      placeholder="¿Qué le pasó? (opcional — ej. rota, faltante, devuelta dañada)"
-                      value={itemsProblema[item.id]}
-                      onChange={e => setItemDesc(item.id, e.target.value)}
-                      rows={2}
-                    />
+                    <>
+                      <textarea
+                        className={styles.checkDescripcion}
+                        placeholder="¿Qué le pasó? (opcional)"
+                        value={valor.descripcion}
+                        onChange={e => setItemDesc(item.id, e.target.value)}
+                        rows={2}
+                      />
+                      <label className={styles.subToggle}>
+                        <input type="checkbox" checked={valor.extraviado}
+                          onChange={e => setItemExtraviado(item.id, e.target.checked)} />
+                        <span>Se extravió (no llegó)</span>
+                      </label>
+                    </>
                   )}
                 </div>
               )
@@ -223,8 +293,9 @@ export default function RemitoQRPage() {
             <p className={styles.checkSectionTitle}>📦 Materiales / insumos</p>
             {remito.materiales.map(m => {
               const marcado = m.id in materialesProblema
+              const valor = materialesProblema[m.id] || { descripcion: '', extraviado: false }
               return (
-                <div key={m.id} className={`${styles.checkRow} ${marcado ? styles.checkRowActive : ''}`}>
+                <div key={m.id} className={`${styles.checkRow} ${marcado ? styles.checkRowActive : ''} ${valor.extraviado ? styles.checkRowExtraviado : ''}`}>
                   <label className={styles.checkLabel}>
                     <input type="checkbox" checked={marcado}
                       onChange={() => toggleMaterial(m.id)} />
@@ -234,13 +305,20 @@ export default function RemitoQRPage() {
                     </div>
                   </label>
                   {marcado && (
-                    <textarea
-                      className={styles.checkDescripcion}
-                      placeholder="¿Qué le pasó? (opcional — ej. faltante, vino menos cantidad)"
-                      value={materialesProblema[m.id]}
-                      onChange={e => setMaterialDesc(m.id, e.target.value)}
-                      rows={2}
-                    />
+                    <>
+                      <textarea
+                        className={styles.checkDescripcion}
+                        placeholder="¿Qué le pasó? (opcional)"
+                        value={valor.descripcion}
+                        onChange={e => setMaterialDesc(m.id, e.target.value)}
+                        rows={2}
+                      />
+                      <label className={styles.subToggle}>
+                        <input type="checkbox" checked={valor.extraviado}
+                          onChange={e => setMaterialExtraviado(m.id, e.target.checked)} />
+                        <span>Se extravió (no llegó)</span>
+                      </label>
+                    </>
                   )}
                 </div>
               )

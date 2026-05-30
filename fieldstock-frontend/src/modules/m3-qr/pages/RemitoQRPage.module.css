@@ -333,6 +333,57 @@
   color: var(--color-danger);
   text-align: left;
 }
+
+/* Word C2: atajo "Todo se perdió" — botón destructivo en outline para
+   distinguirlo de las acciones principales (Confirmar/Reportar). */
+.btnExtravioTotal {
+  background: transparent;
+  color: var(--color-danger);
+  border: 1px dashed var(--color-danger);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  padding: var(--space-2) var(--space-3);
+  transition: background var(--transition-fast);
+}
+.btnExtravioTotal:hover { background: rgba(242,95,92,0.08); }
+
+/* Aviso fuerte cuando va a cerrar el remito directo */
+.avisoCierre {
+  background: rgba(242,95,92,0.12);
+  border: 1px solid rgba(242,95,92,0.35);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: left;
+}
+
+/* Sub-toggle "Se extravió" debajo del textarea cuando un ítem está marcado */
+.subToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: var(--space-1) 0;
+}
+.subToggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-danger);
+  flex-shrink: 0;
+}
+.checkRowExtraviado {
+  /* Visual más intenso cuando el ítem está marcado como extraviado:
+     no es solo "problema" sino "no llegó". */
+  border-color: var(--color-danger);
+  background: rgba(242,95,92,0.08);
+}
+.checkRowExtraviado .subToggle { color: var(--color-danger); font-weight: 500; }
 .problemaTextarea {
   width: 100%;
   background: var(--color-surface);

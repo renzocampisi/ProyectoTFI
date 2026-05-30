@@ -108,14 +108,10 @@ export default function RemitosNewPage() {
     try {
       const remito = await RemitosService.create({
         obra:              form.obraNombre,
-        responsable:       form.responsable,
-        // Solo enviamos responsableUserId si el texto del responsable no
-        // fue cambiado a otro nombre — si el user lo editó, asumimos que
-        // está delegando a alguien que NO es el del login, así que no
-        // queremos asociar el teléfono equivocado.
-        responsableUserId: form.responsable.trim() === (profile?.nombre || '').trim()
-                            ? profile?.id
-                            : null,
+        // Responsable y user_id vienen siempre del profile del logueado
+        // — el campo es read-only en la UI, no hay edición manual.
+        responsable:       profile?.nombre || form.responsable,
+        responsableUserId: profile?.id || null,
         empresaTransporte: transporte?.nombre || null,
         transporteId:      form.transporteId  || null,
         clienteId,
@@ -176,14 +172,19 @@ export default function RemitosNewPage() {
               {errores.obraId && <span className={styles.error}>{errores.obraId}</span>}
             </div>
 
-            {/* Responsable */}
+            {/* Responsable — viene del usuario logueado, no editable.
+                Antes era input libre porque no había sistema de login;
+                ahora que profile.nombre es la fuente de verdad y queremos
+                que también provea responsable_user_id (para tel del PDF y
+                trazabilidad), bloqueamos la edición. */}
             <div className={styles.field}>
-              <label className={styles.label} htmlFor="responsable">Responsable <span className={styles.req}>*</span></label>
+              <label className={styles.label} htmlFor="responsable">Responsable</label>
               <input id="responsable" type="text"
-                className={`${styles.input} ${errores.responsable ? styles.inputError : ''}`}
-                placeholder="Quien verifica y firma el remito"
-                value={form.responsable} onChange={e => set('responsable', e.target.value)} />
-              {errores.responsable && <span className={styles.error}>{errores.responsable}</span>}
+                className={`${styles.input} ${styles.inputReadonly}`}
+                value={form.responsable}
+                readOnly
+                tabIndex={-1} />
+              <span className={styles.hint}>Se toma de tu sesión iniciada.</span>
             </div>
 
             {/* Transporte */}
