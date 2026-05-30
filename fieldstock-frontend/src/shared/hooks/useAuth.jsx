@@ -22,7 +22,7 @@
  * pero no tenga fila en usuarios (típico: olvidaste el INSERT del seed).
  */
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { supabase } from '@shared/utils/supabaseClient'
+import { supabase, clearSupabaseStorage } from '@shared/utils/supabaseClient'
 
 const AuthContext = createContext(null)
 
@@ -77,6 +77,9 @@ async function fetchPerfil() {
     if (!res.ok) {
       // eslint-disable-next-line no-console
       console.warn(`[useAuth] fetchPerfil falló con HTTP ${res.status}`)
+      // 401 = token rechazado por el backend. Limpiar storage para que
+      // el próximo intento de login arranque limpio (bug del 29/05).
+      if (res.status === 401) clearSupabaseStorage()
       return null
     }
     const json = await res.json()
@@ -84,6 +87,10 @@ async function fetchPerfil() {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[useAuth] fetchPerfil exception:', err)
+    // Timeout o crash al leer la sesión → casi seguro storage corrupto.
+    // Lo limpiamos para que el redirect a /login sea con storage limpio
+    // y el SDK pueda hacer un fresh login sin reintentar tokens viejos.
+    clearSupabaseStorage()
     return null
   }
 }
@@ -132,6 +139,10 @@ export function AuthProvider({ children }) {
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('[AuthProvider] error en boot:', err)
+        // Si el boot falló (timeout, crash, lo que sea), la sesión que
+        // hay en localStorage está sospechosa. Limpiamos para que el
+        // próximo arranque sea desde cero.
+        clearSupabaseStorage()
       } finally {
         if (mounted) setLoading(false)
       }
@@ -155,6 +166,14 @@ export function AuthProvider({ children }) {
   }, [cargarPerfil])
 
   const signIn = async (email, password) => {
+    // Antes de intentar loguear, limpiamos cualquier sb-* viejo. Esto
+    // resuelve el bug recurrente del 29/05: cuando el user reintentaba
+    // loguearse tras una sesión expirada, el SDK reusaba tokens podridos
+    // y el signIn colgaba o devolvía credenciales mal aún con datos
+    // correctos. Empezar siempre desde storage limpio → el SDK guarda
+    // los tokens nuevos limpio.
+    clearSupabaseStorage()
+
     // Timeout defensivo igual que en getSession/fetchPerfil. Si Supabase
     // no responde en 10s, devolvemos un "error" simulado para que la
     // LoginPage muestre algo accionable en vez de "Ingresando..." infinito.
