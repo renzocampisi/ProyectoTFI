@@ -463,6 +463,21 @@ export default function RemitosDetailPage() {
   const [retornosLocales,    setRetornosLocales]    = useState({})  // { itemId: estado_retorno }
   const [cantidadesLocales,  setCantidadesLocales]  = useState({})  // { matItemId: cantidad_retorno }
 
+  // Cerrar el modal QR automáticamente cuando el remito avanza más allá
+  // de CONFIRMADO/EN_TRANSITO. El QR solo sirve para esos dos estados
+  // (escanear para salir y para llegar). Cuando alguien escanea desde el
+  // celular y avanza el estado, el polling del useRemito refresca el
+  // remito → este efecto detecta el cambio y cierra el modal para que
+  // el operador en la PC no vea un QR desactualizado ni tenga que
+  // cerrarlo a mano.
+  useEffect(() => {
+    if (!showQR) return
+    const estado = remito?.estado
+    if (estado && !['CONFIRMADO', 'EN_TRANSITO'].includes(estado)) {
+      setShowQR(false)
+    }
+  }, [remito?.estado, showQR])
+
   // action() se usa para operaciones que SÍ necesitan refetch
   // (avanzar estado, volver a borrador, agregar/quitar items).
   const action = async (fn) => {
