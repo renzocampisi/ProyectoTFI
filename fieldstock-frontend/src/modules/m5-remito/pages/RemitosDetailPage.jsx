@@ -5,6 +5,8 @@ import { useRemito } from '../hooks/useRemitos'
 import { RemitosService } from '../services/remitos.service'
 import { InventarioService } from '@modules/m2-inventario/services/inventario.service'
 import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
+import { useAuth } from '@shared/hooks/useAuth'
+import { ROLES } from '@shared/constants/roles'
 import EstadoRemitoBadge from '../components/EstadoRemitoBadge'
 import RemitoQRModal from '../components/RemitoQRModal'
 import RemitoEditModal from './RemitoEditModal'
@@ -446,6 +448,12 @@ export default function RemitosDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { remito, loading, error, refetch } = useRemito(id)
+  // Solo el DUEÑO puede avanzar/volver-a-borrador desde la web. Encargado y
+  // Operario tienen que usar el QR mobile. El backend también lo enforce
+  // con requireRole — esto es solo para que la UI no muestre botones que
+  // van a fallar y para mostrar un mensaje aclaratorio.
+  const { role } = useAuth()
+  const esDueño = role === ROLES.DUEÑO
 
   const [loadingAction, setLoadingAction] = useState(false)
   const [errAction,     setErrAction]     = useState(null)
@@ -545,7 +553,11 @@ export default function RemitosDetailPage() {
   const esBorrador   = remito.estado === 'BORRADOR'
   const esConfirmado = remito.estado === 'CONFIRMADO'
   const esRetorno    = remito.estado === 'EN_RETORNO'
-  const puedeAvanzar = remito.estado !== 'CERRADO'
+  // BORRADOR → CONFIRMADO siempre por web (cualquier rol con permisos
+  // de edición). Las transiciones posteriores SOLO el DUEÑO por web —
+  // las demás van por QR. Encargado/Operario en estados >BORRADOR ven
+  // un mensaje aclaratorio en vez del botón.
+  const puedeAvanzar = remito.estado !== 'CERRADO' && (esBorrador || esDueño)
 
   const idsHerrYa = remito.items?.map(i => i.herramienta_id) ?? []
   const idsMatsYa = remito.materiales?.map(m => m.material_id).filter(Boolean) ?? []
@@ -617,7 +629,7 @@ export default function RemitosDetailPage() {
           </div>
           <div className={styles.headerActions}>
             {esBorrador   && <button className={styles.btnEdit}   onClick={() => setShowEdit(true)}>✎ Editar datos</button>}
-            {esConfirmado && <button className={styles.btnVolver} onClick={() => setConfirmVolver(true)}>↩ Volver a borrador</button>}
+            {esConfirmado && esDueño && <button className={styles.btnVolver} onClick={() => setConfirmVolver(true)}>↩ Volver a borrador</button>}
             <button className={styles.btnPDF} onClick={() => setShowQR(true)}
               disabled={esBorrador} title={esBorrador ? 'Disponible desde Confirmado' : 'Imprimir QR para escanear en obra'}>
               <span className={styles.btnIcon}>📱</span>
@@ -937,6 +949,19 @@ export default function RemitosDetailPage() {
               <button className={styles.btnPrimary} onClick={handleAvanzar} disabled={loadingAction}>
                 {loadingAction ? 'Procesando...' : LABEL_AVANZAR[remito.estado]}
               </button>
+            </div>
+          )}
+
+          {/* Mensaje aclaratorio cuando NO se puede avanzar desde la web
+              porque el rol no es DUEÑO. Las transiciones por QR mobile
+              siguen disponibles para encargado/operario. */}
+          {!puedeAvanzar && !esDueño && remito.estado !== 'CERRADO' && remito.estado !== 'BORRADOR' && (
+            <div className={styles.card}>
+              <h2 className={styles.cardTitle}>Acción</h2>
+              <p className={styles.cardDesc}>
+                📱 Esta confirmación se hace escaneando el QR del remito desde el celular.
+                Solo el dueño puede avanzarlo desde la web.
+              </p>
             </div>
           )}
         </div>

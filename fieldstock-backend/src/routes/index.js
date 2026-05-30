@@ -100,8 +100,12 @@ router.post  ('/remitos',                                    RemitosCtrl.create)
 router.get   ('/remitos/numero/:numero',                     RemitosCtrl.getByNumero)
 router.get   ('/remitos/:id',                                RemitosCtrl.getById)
 router.patch ('/remitos/:id',                                RemitosCtrl.update)
-router.post  ('/remitos/:id/avanzar',                        RemitosCtrl.avanzarEstado)
-router.post  ('/remitos/:id/volver-borrador',                RemitosCtrl.volverABorrador)
+// Word: avance manual de estado y volver-a-borrador SOLO el DUEÑO desde la
+// web. Encargado/Operario deben usar el QR mobile (que va por
+// confirmar-escaneo, sin guard de rol específico). Defensa en profundidad:
+// el frontend oculta los botones, pero igual restringimos en el backend.
+router.post  ('/remitos/:id/avanzar',           requireRole([ROLES.DUEÑO]), RemitosCtrl.avanzarEstado)
+router.post  ('/remitos/:id/volver-borrador',   requireRole([ROLES.DUEÑO]), RemitosCtrl.volverABorrador)
 router.post  ('/remitos/:id/confirmar-escaneo',              RemitosCtrl.confirmarEscaneo)
 router.post  ('/remitos/:id/reportar-problema',              RemitosCtrl.reportarProblema)
 router.delete('/remitos/:id',                                RemitosCtrl.eliminar)
