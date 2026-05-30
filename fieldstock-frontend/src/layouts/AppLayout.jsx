@@ -56,7 +56,12 @@ function NavGroup({ label, items, collapsed }) {
       {items.map(item => (
         <NavLink key={item.to} to={item.to}
           end={item.end}
-          title={collapsed ? item.label : undefined}
+          /* title siempre presente: aparece como tooltip nativo cuando el
+             sidebar está colapsado manualmente (state `collapsed`) o por
+             el responsive a media pantalla (<1024px) que oculta las
+             labels via CSS sin cambiar el state. En desktop full el label
+             ya está visible, el tooltip extra no molesta. */
+          title={item.label}
           onClick={e => !item.activo && e.preventDefault()}
           className={({ isActive }) =>
             [styles.navItem, isActive && styles.active, !item.activo && styles.disabled]
@@ -176,7 +181,7 @@ export default function AppLayout() {
           {/* Panel IA — suelto, siempre visible */}
           {!collapsed && <div className={styles.navSeparator} />}
           <NavLink to="/panel"
-            title={collapsed ? 'Panel IA' : undefined}
+            title="Panel IA"
             onClick={e => e.preventDefault()}
             className={({ isActive }) =>
               [styles.navItem, styles.panelIA, isActive && styles.active, styles.disabled]

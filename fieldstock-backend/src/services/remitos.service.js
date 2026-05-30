@@ -743,19 +743,24 @@ export async function eliminar(id) {
 }
 
 // ── Confirmar escaneo desde el QR mobile ──────────────────────
-// Maneja 3 transiciones que el responsable puede confirmar desde el QR:
+// Maneja las 4 transiciones que el responsable confirma desde el QR a
+// lo largo del ciclo de vida del remito:
 //
-//   - CONFIRMADO          → EN_TRANSITO       (SALIDA, conductor obligatorio)
-//   - EN_TRANSITO         → EN_OBRA           (LLEGADA a obra)
-//   - EN_TRANSITO_RETORNO → CERRADO           (LLEGADA_GALPON: retorno completado)
+//   1. CONFIRMADO          → EN_TRANSITO          (SALIDA: sale del galpón, conductor obligatorio)
+//   2. EN_TRANSITO         → EN_OBRA              (LLEGADA: llegó a la obra)
+//   3. EN_RETORNO          → EN_TRANSITO_RETORNO  (SALIDA_OBRA: arranca el viaje de vuelta)
+//   4. EN_TRANSITO_RETORNO → CERRADO              (LLEGADA_GALPON: llegó al galpón, se cierra)
 //
-// Cualquier otro estado devuelve 400.
+// El paso intermedio EN_OBRA → EN_RETORNO sigue siendo manual (el dueño
+// inicia el retorno desde la web cuando el responsable ya definió qué
+// vuelve y qué no de cada item).
 //
 // Devuelve { data: remito, accion } para que la UI mobile sepa qué
 // mensaje mostrar tras la confirmación.
 const ESTADOS_QR_ACCION = {
   CONFIRMADO:          'SALIDA',
   EN_TRANSITO:         'LLEGADA',
+  EN_RETORNO:          'SALIDA_OBRA',
   EN_TRANSITO_RETORNO: 'LLEGADA_GALPON',
 }
 

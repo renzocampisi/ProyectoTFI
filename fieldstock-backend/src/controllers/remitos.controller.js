@@ -15,6 +15,7 @@
  * controller→service y arreglar un bug de validación en el camino.)
  */
 import * as RemitosService from '../services/remitos.service.js'
+import { ROLES } from '../constants/roles.js'
 
 export async function getAll(req, res, next) {
   try {
@@ -157,6 +158,24 @@ export async function updateMaterialRetorno(req, res, next) {
 
 export async function avanzarEstado(req, res, next) {
   try {
+    // Permisos granulares por estado actual:
+    //   - BORRADOR → CONFIRMADO: cualquier rol autenticado (encargado puede
+    //     confirmar un remito que él mismo cargó).
+    //   - resto de transiciones manuales: solo DUEÑO desde la web; los
+    //     demás roles usan el QR mobile que va por /confirmar-escaneo.
+    //
+    // Lookup del estado actual ANTES de avanzar, así el rechazo es claro
+    // y no llegamos al service para que tire un error genérico.
+    const actual = await RemitosService.getById(req.params.id)
+    if (!actual) return res.status(404).json({ ok: false, error: 'Remito no encontrado' })
+
+    if (actual.estado !== 'BORRADOR' && req.user.role !== ROLES.DUEÑO) {
+      return res.status(403).json({
+        ok: false,
+        error: 'Solo el dueño puede avanzar este estado desde la web. Usá el QR del celular.'
+      })
+    }
+
     const data = await RemitosService.avanzarEstado(req.params.id, req.body)
     res.json({ ok: true, data })
   } catch (err) { next(err) }
