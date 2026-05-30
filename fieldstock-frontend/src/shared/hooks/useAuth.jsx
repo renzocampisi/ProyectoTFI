@@ -22,7 +22,7 @@
  * pero no tenga fila en usuarios (típico: olvidaste el INSERT del seed).
  */
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { supabase } from '@shared/utils/supabaseClient'
+import { supabase, clearSupabaseStorage } from '@shared/utils/supabaseClient'
 
 const AuthContext = createContext(null)
 
@@ -77,6 +77,10 @@ async function fetchPerfil() {
     if (!res.ok) {
       // eslint-disable-next-line no-console
       console.warn(`[useAuth] fetchPerfil falló con HTTP ${res.status}`)
+      // NOTA: NO limpiamos storage acá. Un 401 puede ser "perfil
+      // faltante / cuenta desactivada" — el token de Auth es válido,
+      // el problema es de datos. Si limpiamos, borramos tokens
+      // recién emitidos por un signIn exitoso (bug del 30/05).
       return null
     }
     const json = await res.json()
@@ -84,6 +88,11 @@ async function fetchPerfil() {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[useAuth] fetchPerfil exception:', err)
+    // Timeout/crash de red al cargar el perfil. Acá tampoco limpiamos
+    // storage para no romper sesiones recién creadas si el backend
+    // tardó por una razón pasajera. El boot timeout sí limpia (es la
+    // señal clara de storage corrupto) y el botón "Limpiar sesión"
+    // queda como escape hatch.
     return null
   }
 }
@@ -132,6 +141,10 @@ export function AuthProvider({ children }) {
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('[AuthProvider] error en boot:', err)
+        // Si el boot falló (timeout, crash, lo que sea), la sesión que
+        // hay en localStorage está sospechosa. Limpiamos para que el
+        // próximo arranque sea desde cero.
+        clearSupabaseStorage()
       } finally {
         if (mounted) setLoading(false)
       }
@@ -155,6 +168,15 @@ export function AuthProvider({ children }) {
   }, [cargarPerfil])
 
   const signIn = async (email, password) => {
+    // NOTA: la primera versión del fix llamaba clearSupabaseStorage() acá
+    // ANTES del signInWithPassword. Eso disparaba race condition: el
+    // storage event hacía que el SDK procesara SIGNED_OUT en paralelo
+    // con el signIn en curso, y el flow terminaba rompiéndose (el user
+    // veía aparecer y desaparecer el sb-* en localStorage seguido de
+    // "credenciales incorrectas" aunque eran correctas). Confiamos en
+    // que el SDK maneje los tokens viejos al loguearse — sino, el
+    // botón "Limpiar sesión" del LoginPage queda como escape hatch.
+
     // Timeout defensivo igual que en getSession/fetchPerfil. Si Supabase
     // no responde en 10s, devolvemos un "error" simulado para que la
     // LoginPage muestre algo accionable en vez de "Ingresando..." infinito.

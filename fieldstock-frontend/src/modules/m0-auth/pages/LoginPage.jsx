@@ -13,6 +13,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useAuth } from '@shared/hooks/useAuth'
+import { clearSupabaseStorage } from '@shared/utils/supabaseClient'
 import styles from './LoginPage.module.css'
 
 export default function LoginPage() {
@@ -101,6 +102,19 @@ export default function LoginPage() {
         <p className={styles.hint}>
           Si no tenés cuenta, pedile al dueño que te cree una.
         </p>
+
+        {/* Auto-servicio para el bug del 29/05: si por algún motivo edge
+            la sesión cacheada queda corrupta y los limpieza automática
+            no dispara, el user puede forzarla con este botón y reintentar.
+            Discreto al pie para no llamar la atención en el flow normal. */}
+        <button type="button"
+          className={styles.btnReset}
+          onClick={() => {
+            clearSupabaseStorage()
+            window.location.reload()
+          }}>
+          ¿Problemas para entrar? Limpiar sesión y reintentar
+        </button>
       </form>
     </div>
   )

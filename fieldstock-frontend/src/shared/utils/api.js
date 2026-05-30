@@ -23,7 +23,7 @@
 // frontend se sirve sobre HTTPS (issue #12) — todas las requests son
 // same-origin desde el browser y el proxy hace el hop a HTTP plano
 // server-to-server, donde la regla no aplica.
-import { supabase } from './supabaseClient.js'
+import { supabase, clearSupabaseStorage } from './supabaseClient.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 const BASE_URL = `${API_BASE}/api`
@@ -52,6 +52,11 @@ let yaRedirigiendo = false
 function on401() {
   if (yaRedirigiendo) return
   yaRedirigiendo = true
+  // Limpiar localStorage ANTES del signOut/redirect. signOut() también
+  // limpia internamente pero puede colgarse si el cliente está en estado
+  // raro — el clearSupabaseStorage es sincrónico y garantiza que el
+  // próximo login arranque limpio. Bug del 29/05.
+  clearSupabaseStorage()
   supabase.auth.signOut().catch(() => {})
   if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
     window.location.href = '/login'
