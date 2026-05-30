@@ -552,12 +552,16 @@ export default function RemitosDetailPage() {
   const pasoActual   = PASOS.findIndex(p => p.key === remito.estado)
   const esBorrador   = remito.estado === 'BORRADOR'
   const esConfirmado = remito.estado === 'CONFIRMADO'
+  const esEnObra     = remito.estado === 'EN_OBRA'
   const esRetorno    = remito.estado === 'EN_RETORNO'
-  // BORRADOR → CONFIRMADO siempre por web (cualquier rol con permisos
-  // de edición). Las transiciones posteriores SOLO el DUEÑO por web —
-  // las demás van por QR. Encargado/Operario en estados >BORRADOR ven
-  // un mensaje aclaratorio en vez del botón.
-  const puedeAvanzar = remito.estado !== 'CERRADO' && (esBorrador || esDueño)
+  // Estados donde cualquier rol autorizado puede avanzar desde la web
+  // (espejo de ESTADOS_AVANCE_LIBRE del backend):
+  //   - BORRADOR: encargado confirma su propio remito
+  //   - EN_OBRA: el responsable inicia el retorno (decisión operativa)
+  // Las transiciones de tránsito (CONFIRMADO/EN_TRANSITO/EN_TRANSITO_RETORNO)
+  // son solo DUEÑO por web — los demás roles van por QR.
+  const avanceLibre   = esBorrador || esEnObra
+  const puedeAvanzar  = remito.estado !== 'CERRADO' && (avanceLibre || esDueño)
 
   const idsHerrYa = remito.items?.map(i => i.herramienta_id) ?? []
   const idsMatsYa = remito.materiales?.map(m => m.material_id).filter(Boolean) ?? []
@@ -952,10 +956,11 @@ export default function RemitosDetailPage() {
             </div>
           )}
 
-          {/* Mensaje aclaratorio cuando NO se puede avanzar desde la web
-              porque el rol no es DUEÑO. Las transiciones por QR mobile
-              siguen disponibles para encargado/operario. */}
-          {!puedeAvanzar && !esDueño && remito.estado !== 'CERRADO' && remito.estado !== 'BORRADOR' && (
+          {/* Mensaje aclaratorio cuando el avance no está disponible para
+              roles no-DUEÑO. Las transiciones de tránsito van por QR
+              (CONFIRMADO/EN_TRANSITO/EN_TRANSITO_RETORNO). BORRADOR y
+              EN_OBRA están en avanceLibre — no llegan acá. */}
+          {!puedeAvanzar && !esDueño && remito.estado !== 'CERRADO' && (
             <div className={styles.card}>
               <h2 className={styles.cardTitle}>Acción</h2>
               <p className={styles.cardDesc}>

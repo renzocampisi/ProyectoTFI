@@ -156,20 +156,25 @@ export async function updateMaterialRetorno(req, res, next) {
   } catch (err) { next(err) }
 }
 
+// Estados desde los cuales cualquier rol autenticado puede avanzar via web.
+// El resto exige rol DUEÑO. Las transiciones de tránsito siguen siendo por
+// QR para encargado/operario.
+//
+//   - BORRADOR → CONFIRMADO: encargado puede confirmar un remito que cargó.
+//   - EN_OBRA → EN_RETORNO: el responsable en obra inicia el retorno
+//     (decisión operativa, no físicamente verificable por QR — se hace
+//     cuando ya cargaron los datos de retorno por ítem).
+const ESTADOS_AVANCE_LIBRE = ['BORRADOR', 'EN_OBRA']
+
 export async function avanzarEstado(req, res, next) {
   try {
-    // Permisos granulares por estado actual:
-    //   - BORRADOR → CONFIRMADO: cualquier rol autenticado (encargado puede
-    //     confirmar un remito que él mismo cargó).
-    //   - resto de transiciones manuales: solo DUEÑO desde la web; los
-    //     demás roles usan el QR mobile que va por /confirmar-escaneo.
-    //
     // Lookup del estado actual ANTES de avanzar, así el rechazo es claro
     // y no llegamos al service para que tire un error genérico.
     const actual = await RemitosService.getById(req.params.id)
     if (!actual) return res.status(404).json({ ok: false, error: 'Remito no encontrado' })
 
-    if (actual.estado !== 'BORRADOR' && req.user.role !== ROLES.DUEÑO) {
+    const esLibre = ESTADOS_AVANCE_LIBRE.includes(actual.estado)
+    if (!esLibre && req.user.role !== ROLES.DUEÑO) {
       return res.status(403).json({
         ok: false,
         error: 'Solo el dueño puede avanzar este estado desde la web. Usá el QR del celular.'
