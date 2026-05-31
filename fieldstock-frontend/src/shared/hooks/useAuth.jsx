@@ -256,7 +256,6 @@ export function AuthProvider({ children }) {
       // onAuthStateChange dispara cargarPerfil automáticamente.
       return res
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error('[useAuth] signIn timeout/error:', err)
       return {
         data: null,
