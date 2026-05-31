@@ -75,7 +75,6 @@ async function fetchPerfil() {
     }).finally(() => clearTimeout(tid))
 
     if (!res.ok) {
-      // eslint-disable-next-line no-console
       console.warn(`[useAuth] fetchPerfil falló con HTTP ${res.status}`)
       // NOTA: NO limpiamos storage acá. Un 401 puede ser "perfil
       // faltante / cuenta desactivada" — el token de Auth es válido,
@@ -86,7 +85,6 @@ async function fetchPerfil() {
     const json = await res.json()
     return json.data
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error('[useAuth] fetchPerfil exception:', err)
     // Timeout/crash de red al cargar el perfil. Acá tampoco limpiamos
     // storage para no romper sesiones recién creadas si el backend
@@ -139,7 +137,6 @@ export function AuthProvider({ children }) {
         setUser(session?.user ?? null)
         if (session) await cargarPerfil()
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error('[AuthProvider] error en boot:', err)
         // Si el boot falló (timeout, crash, lo que sea), la sesión que
         // hay en localStorage está sospechosa. Limpiamos para que el
@@ -189,7 +186,6 @@ export function AuthProvider({ children }) {
       // onAuthStateChange dispara cargarPerfil automáticamente.
       return res
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error('[useAuth] signIn timeout/error:', err)
       return {
         data: null,

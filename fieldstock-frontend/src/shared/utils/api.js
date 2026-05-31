@@ -70,7 +70,7 @@ async function request(path, options = {}) {
   // (caso edge: tab estuvo idle y el refresh quedó pendiente), abortamos
   // tras 5s y mandamos la request SIN token — el backend va a responder
   // 401 y on401() se encarga de redirigir.
-  let session = null
+  let session
   try {
     const result = await Promise.race([
       supabase.auth.getSession(),
