@@ -33,6 +33,7 @@ import MateriasEditPage from '@modules/m6-materiales/pages/MateriasEditPage'
 
 import TransportesPage from '@modules/m7-directorio/pages/TransportesPage'
 import ClientesPage    from '@modules/m7-directorio/pages/ClientesPage'
+import ProveedoresPage from '@modules/m7-directorio/pages/ProveedoresPage'
 
 import EstanteriasPage from '@modules/m8-estanterias/pages/EstanteriasPage'
 
@@ -103,7 +104,7 @@ export default function AppRouter() {
             <Route index              element={<Navigate to="/directorio/transportes" replace />} />
             <Route path="transportes" element={<TransportesPage />} />
             <Route path="clientes"    element={<ClientesPage />} />
-            <Route path="proveedores" element={<ComingSoon modulo="Proveedores" />} />
+            <Route path="proveedores" element={<ProveedoresPage />} />
           </Route>
 
           <Route path="estanterias" element={<EstanteriasPage />} />

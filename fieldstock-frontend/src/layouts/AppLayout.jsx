@@ -25,7 +25,7 @@ const OPERATIVO_ITEMS = [
 const DIRECTORIO_ITEMS = [
   { to: '/directorio/transportes', label: 'Transportes', icon: '🚚', activo: true  },
   { to: '/directorio/clientes',    label: 'Clientes',    icon: '🏢', activo: true  },
-  { to: '/directorio/proveedores', label: 'Proveedores', icon: '🏭', activo: false },
+  { to: '/directorio/proveedores', label: 'Proveedores', icon: '🏭', activo: true  },
 ]
 
 const SISTEMA_ITEMS = [

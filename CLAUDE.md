@@ -143,9 +143,8 @@ DISPONIBLE | EN_OBRA | EN_MANTENIMIENTO | RESERVADA | BAJA
 | M4 Obras | `/obras` | Implementado |
 | M5 Remitos | `/remitos` | Implementado |
 | M6 Materiales | `/materiales` | Implementado |
-| M7 Directorio | `/directorio/transportes`, `/directorio/clientes` | Implementado |
+| M7 Directorio | `/directorio/transportes`, `/directorio/clientes`, `/directorio/proveedores` | Implementado |
 | M8 Estanterías | `/estanterias` | Implementado |
-| M6 Proveedores | `/directorio/proveedores` | Coming soon |
 | Compras | `/compras` | Coming soon |
 | Facturación | `/facturacion` | Coming soon |
 | M1 Panel IA | `/panel` | Coming soon |
@@ -208,6 +207,10 @@ GET    /clientes
 POST   /clientes
 PUT    /clientes/:id
 DELETE /clientes/:id
+GET    /proveedores
+POST   /proveedores
+PUT    /proveedores/:id
+DELETE /proveedores/:id
 
 GET    /estanterias
 POST   /estanterias

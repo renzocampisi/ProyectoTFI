@@ -1,10 +1,10 @@
 // src/controllers/directorio.controller.js
 /**
- * Controllers del M7 — Directorio (transportes + clientes).
+ * Controllers del M6/M7 — Directorio (transportes + clientes + proveedores).
  *
- * Dos CRUDs espejados (uno para transportes, otro para clientes). Si
- * aparece una tercera entidad similar (proveedores), conviene extraer
- * un helper genérico o un controller factory en lugar de seguir copiando.
+ * TRES CRUDs espejados. Si aparece una cuarta entidad similar, conviene
+ * extraer un helper genérico o un controller factory en lugar de seguir
+ * copiando este patrón.
  *
  * `delete*` aplica borrado SOFT (activo=false) — los datos quedan para
  * mantener integridad referencial con remitos antiguos.
@@ -73,6 +73,39 @@ export async function updateCliente(req, res, next) {
 export async function deleteCliente(req, res, next) {
   try {
     await DirectorioService.deleteCliente(req.params.id)
+    res.json({ ok: true })
+  } catch (err) { next(err) }
+}
+
+// ── PROVEEDORES ───────────────────────────────────────────────
+export async function getProveedores(req, res, next) {
+  try {
+    const data = await DirectorioService.getAllProveedores({ q: req.query.q })
+    res.json({ ok: true, data })
+  } catch (err) { next(err) }
+}
+
+export async function createProveedor(req, res, next) {
+  try {
+    if (!req.body.nombre)
+      return res.status(400).json({ ok: false, error: 'nombre es obligatorio' })
+    const data = await DirectorioService.createProveedor(req.body)
+    res.status(201).json({ ok: true, data })
+  } catch (err) { next(err) }
+}
+
+export async function updateProveedor(req, res, next) {
+  try {
+    if (!req.body.nombre)
+      return res.status(400).json({ ok: false, error: 'nombre es obligatorio' })
+    const data = await DirectorioService.updateProveedor(req.params.id, req.body)
+    res.json({ ok: true, data })
+  } catch (err) { next(err) }
+}
+
+export async function deleteProveedor(req, res, next) {
+  try {
+    await DirectorioService.deleteProveedor(req.params.id)
     res.json({ ok: true })
   } catch (err) { next(err) }
 }
