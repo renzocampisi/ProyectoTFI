@@ -48,6 +48,15 @@ export default function RemitoQRPage() {
   const [descGeneral,         setDescGeneral]         = useState('')
   const [itemsProblema,       setItemsProblema]       = useState({})
   const [materialesProblema,  setMaterialesProblema]  = useState({})
+
+  // Word REMITOS: en SALIDA_OBRA (3er escaneo, EN_RETORNO → EN_TRANSITO_RETORNO)
+  // el encargado define qué herramientas vuelven y qué cantidad de cada material.
+  // Inicializamos con defaults razonables al cargar el remito:
+  //   - Herramientas: VUELVE (lo más común)
+  //   - Materiales: cantidad_egreso completa (asumimos "todo vuelve" como default)
+  const [retornoItems,      setRetornoItems]      = useState({})  // { [id]: 'VUELVE'|'ROTA'|'PERDIDA'|'QUEDA_EN_OBRA' }
+  const [retornoMateriales, setRetornoMateriales] = useState({})  // { [id]: number }
+
   const [confirmado,   setConfirmado]   = useState(false)
   // Conductor / persona que realiza el traslado. Se pide únicamente en
   // SALIDA (1er escaneo) y queda guardado en el remito para mostrarse
@@ -63,6 +72,27 @@ export default function RemitoQRPage() {
         // por QR (el render de abajo muestra mensaje "no requiere
         // confirmación por QR en este momento").
         setAccion(ESTADO_ACCION[data.estado] || null)
+
+        // Pre-cargar defaults para la pantalla de SALIDA_OBRA. Los items
+        // extraviados se omiten — no entran al flow de retorno.
+        if (data.estado === 'EN_RETORNO') {
+          const itDef = {}
+          for (const it of (data.items || [])) {
+            if (it.extraviado) continue
+            // Si el dueño ya cargó algo desde la web, lo respetamos.
+            itDef[it.id] = it.estado_retorno || 'VUELVE'
+          }
+          setRetornoItems(itDef)
+
+          const matDef = {}
+          for (const m of (data.materiales || [])) {
+            if (m.extraviado) continue
+            matDef[m.id] = m.cantidad_retorno != null
+              ? Number(m.cantidad_retorno)
+              : Number(m.cantidad_egreso ?? 0)
+          }
+          setRetornoMateriales(matDef)
+        }
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
@@ -76,12 +106,27 @@ export default function RemitoQRPage() {
       setError('Ingresá el nombre del conductor o persona a cargo del traslado.')
       return
     }
+
+    // Armar body según la acción. SALIDA_OBRA lleva los retornos definidos
+    // arriba; el resto de acciones van vacías o solo con conductor.
+    let body = {}
+    if (accion === 'SALIDA') {
+      body = { conductor: conductor.trim() }
+    } else if (accion === 'SALIDA_OBRA') {
+      body = {
+        items: Object.entries(retornoItems).map(([remitoItemId, estadoRetorno]) => ({
+          remitoItemId, estadoRetorno,
+        })),
+        materiales: Object.entries(retornoMateriales).map(([remitoMaterialId, cantidadRetorno]) => ({
+          remitoMaterialId, cantidadRetorno,
+        })),
+      }
+    }
+
     setProcesando(true)
     setError(null)
     try {
-      await api.post(`/remitos/${id}/confirmar-escaneo`,
-        accion === 'SALIDA' ? { conductor: conductor.trim() } : {}
-      )
+      await api.post(`/remitos/${id}/confirmar-escaneo`, body)
       setConfirmado(true)
     } catch (err) { setError(err.message) }
     finally { setProcesando(false) }
@@ -501,6 +546,72 @@ export default function RemitoQRPage() {
             Queda registrado en el remito y se muestra en el PDF.
           </p>
         </div>
+      )}
+
+      {/* Word REMITOS: en SALIDA_OBRA el encargado define qué vuelve antes
+          de arrancar el viaje de regreso. Items extraviados ya quedaron
+          marcados desde la LLEGADA — no aparecen acá. */}
+      {esSalidaObra && (
+        <>
+          {(remito.items?.filter(i => !i.extraviado).length > 0) && (
+            <div className={styles.retornoSeccion}>
+              <p className={styles.retornoTitulo}>🔧 ¿Qué pasa con cada herramienta?</p>
+              {remito.items.filter(i => !i.extraviado).map(item => (
+                <div key={item.id} className={styles.retornoRow}>
+                  <div className={styles.retornoInfo}>
+                    <span className={styles.retornoNombre}>{item.herramienta_nombre}</span>
+                    <span className={styles.retornoSub}>{item.herramienta_qr}</span>
+                  </div>
+                  <div className={styles.retornoPills}>
+                    {[
+                      { v: 'VUELVE',        label: 'Vuelve',   cls: styles.pillOk },
+                      { v: 'ROTA',          label: 'Rota',     cls: styles.pillWarn },
+                      { v: 'PERDIDA',       label: 'Perdida',  cls: styles.pillDanger },
+                      { v: 'QUEDA_EN_OBRA', label: 'Queda',    cls: styles.pillInfo },
+                    ].map(opt => (
+                      <button key={opt.v} type="button"
+                        className={`${styles.retornoPill} ${retornoItems[item.id] === opt.v ? opt.cls : ''}`}
+                        onClick={() => setRetornoItems(prev => ({ ...prev, [item.id]: opt.v }))}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {(remito.materiales?.filter(m => !m.extraviado).length > 0) && (
+            <div className={styles.retornoSeccion}>
+              <p className={styles.retornoTitulo}>📦 ¿Cuánto vuelve de cada material?</p>
+              {remito.materiales.filter(m => !m.extraviado).map(m => (
+                <div key={m.id} className={styles.retornoRow}>
+                  <div className={styles.retornoInfo}>
+                    <span className={styles.retornoNombre}>{m.material_nombre || m.descripcion_libre}</span>
+                    <span className={styles.retornoSub}>Salida: {m.cantidad_egreso} {m.unidad}</span>
+                  </div>
+                  <div className={styles.retornoCant}>
+                    <input type="number" min="0" max={m.cantidad_egreso} step="any"
+                      className={styles.retornoCantInput}
+                      value={retornoMateriales[m.id] ?? 0}
+                      onChange={e => {
+                        const val = e.target.value === '' ? 0 : Number(e.target.value)
+                        setRetornoMateriales(prev => ({ ...prev, [m.id]: val }))
+                      }} />
+                    <span className={styles.retornoUnidad}>{m.unidad}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Aviso si hay items extraviados — ya no entran al retorno */}
+          {((remito.items?.some(i => i.extraviado)) || (remito.materiales?.some(m => m.extraviado))) && (
+            <p className={styles.retornoHint}>
+              ⚠ Los items marcados como extraviados en la llegada no se incluyen acá.
+            </p>
+          )}
+        </>
       )}
 
       {/* Acciones */}
