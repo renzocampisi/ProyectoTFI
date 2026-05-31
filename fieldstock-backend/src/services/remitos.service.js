@@ -769,7 +769,7 @@ const ESTADOS_QR_ACCION = {
 const ESTADOS_RETORNO_VALIDOS = new Set(['VUELVE', 'ROTA', 'PERDIDA', 'QUEDA_EN_OBRA'])
 
 export async function confirmarEscaneo(id, body = {}) {
-  const { conductor, items = [], materiales = [] } = body
+  const { conductor, items = [], materiales = [], observacionRetorno } = body
 
   const { data: remito, error: errR } = await supabase
     .from('remitos').select('estado').eq('id', id).single()
@@ -840,6 +840,51 @@ export async function confirmarEscaneo(id, body = {}) {
     }
   }
 
-  const data = await avanzarEstado(id)
+  // En la LLEGADA_GALPON (EN_TRANSITO_RETORNO → CERRADO) el encargado puede
+  // OVERRIDEAR el estado_retorno y la cantidad_retorno que se definieron en
+  // SALIDA_OBRA si encuentra discrepancias al descargar en el galpón:
+  //   - Una herramienta que salió como VUELVE pero llegó rota → ROTA
+  //   - Una herramienta que se perdió en el viaje de vuelta → PERDIDA
+  //   - Material que volvió con cantidad distinta a la declarada → ajustar
+  // Si el body llega vacío (botón "Todo OK"), no se toca nada y se cierra
+  // con los datos que ya estaban. La observación general del retorno se
+  // guarda en `observacion_retorno` (handled por avanzarEstado vía body).
+  if (accion === 'LLEGADA_GALPON') {
+    for (const it of items) {
+      if (!it?.remitoItemId) continue
+      if (!ESTADOS_RETORNO_VALIDOS.has(it.estadoRetorno)) {
+        const err = new Error(`estado_retorno inválido para item ${it.remitoItemId}: ${it.estadoRetorno}`)
+        err.status = 400; throw err
+      }
+      const { error: e } = await supabase.from('remito_items')
+        .update({
+          estado_retorno: it.estadoRetorno,
+          observacion:    it.observacion?.trim() || null,
+        })
+        .eq('id', it.remitoItemId)
+        .eq('remito_id', id)
+      if (e) throw e
+    }
+    for (const m of materiales) {
+      if (!m?.remitoMaterialId) continue
+      const cant = Number(m.cantidadRetorno)
+      if (!Number.isFinite(cant) || cant < 0) {
+        const err = new Error(`cantidad_retorno inválida para material ${m.remitoMaterialId}: ${m.cantidadRetorno}`)
+        err.status = 400; throw err
+      }
+      const { error: e } = await supabase.from('remito_materiales')
+        .update({
+          cantidad_retorno: cant,
+          observacion:      m.observacion?.trim() || null,
+        })
+        .eq('id', m.remitoMaterialId)
+        .eq('remito_id', id)
+      if (e) throw e
+    }
+  }
+
+  // avanzarEstado acepta `observacionRetorno` y lo persiste en la cabecera
+  // del remito durante la transición EN_TRANSITO_RETORNO → CERRADO.
+  const data = await avanzarEstado(id, { observacionRetorno })
   return { data, accion }
 }
