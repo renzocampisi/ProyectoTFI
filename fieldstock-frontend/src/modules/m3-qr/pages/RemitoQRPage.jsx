@@ -1,6 +1,6 @@
 // src/modules/m3-qr/pages/RemitoQRPage.jsx
 // Página mobile-first para escaneo del QR de remitos
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '@shared/utils/api'
 import styles from './RemitoQRPage.module.css'
@@ -71,6 +71,14 @@ export default function RemitoQRPage() {
   const [showProblemaGalpon, setShowProblemaGalpon] = useState(false)
   const [obsRetornoGeneral,  setObsRetornoGeneral]  = useState('')
 
+  // Snapshot de los defaults de retorno calculados al cargar el remito.
+  // Sirve para revertir cambios cuando el encargado abre "Ajustar / reportar
+  // problema" en LLEGADA_GALPON y luego toca "Volver" — sin esto, las pills
+  // que tocó quedarían marcadas en memoria y al confirmar "Todo OK" desde la
+  // pantalla principal el backend recibiría body={} pero las modificaciones
+  // visuales se descartarían silenciosamente (fix #3 del code-review).
+  const defaultsRef = useRef({ items: {}, materiales: {} })
+
   useEffect(() => {
     api.get(`/remitos/${id}`)
       .then(data => {
@@ -105,6 +113,10 @@ export default function RemitoQRPage() {
               : Number(m.cantidad_egreso ?? 0)
           }
           setRetornoMateriales(matDef)
+
+          // Guardamos los defaults para poder revertir desde "Volver" en
+          // la pantalla de ajustes del galpón (fix #3 del code-review).
+          defaultsRef.current = { items: itDef, materiales: matDef }
         }
       })
       .catch(err => setError(err.message))
@@ -460,10 +472,20 @@ export default function RemitoQRPage() {
   if (showProblemaGalpon) {
     const itemsRetorno = remito.items?.filter(i => !i.extraviado) || []
     const matsRetorno  = remito.materiales?.filter(m => !m.extraviado) || []
+    // Volver descarta cambios: restaura los valores que tenía el remito al
+    // cargar. Sin esto, el usuario podría modificar pills, tocar "Volver"
+    // y luego "Todo OK" → el backend recibe body={} pero los cambios
+    // visuales quedaron en memoria y se perdían silenciosamente.
+    const cancelarAjustes = () => {
+      setRetornoItems({ ...defaultsRef.current.items })
+      setRetornoMateriales({ ...defaultsRef.current.materiales })
+      setObsRetornoGeneral('')
+      setShowProblemaGalpon(false)
+    }
     return (
       <div className={styles.page}>
         <div className={styles.header}>
-          <button className={styles.btnBack} onClick={() => setShowProblemaGalpon(false)}>← Volver</button>
+          <button className={styles.btnBack} onClick={cancelarAjustes}>← Volver</button>
           <span className={styles.headerNumero}>{remito.numero}</span>
         </div>
         <div className={styles.problemaSection}>

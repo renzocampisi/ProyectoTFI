@@ -806,6 +806,24 @@ export async function confirmarEscaneo(id, body = {}) {
   // "todos los items tienen estado_retorno" del avanzarEstado pase OK.
   // Los items extraviados se omiten — siguen sin estado_retorno por diseño
   // (avanzarEstado los excluye de la validación).
+  // Helper local: construye el objeto de update para un item/material del
+  // retorno SIN pisar `observacion` cuando el body no la trae. Esto es
+  // importante porque el flow del QR mobile (SALIDA_OBRA y LLEGADA_GALPON)
+  // manda solo estado/cantidad — sin la columna observacion. Si la
+  // incluyéramos con `it.observacion?.trim() || null`, pisaríamos cualquier
+  // observación cargada previamente desde la web por el dueño.
+  // Solo se actualiza la observación si vino explícitamente en el payload.
+  const buildItemUpdate = (it) => {
+    const u = { estado_retorno: it.estadoRetorno }
+    if (it.observacion !== undefined) u.observacion = it.observacion?.trim() || null
+    return u
+  }
+  const buildMatUpdate = (m, cant) => {
+    const u = { cantidad_retorno: cant }
+    if (m.observacion !== undefined) u.observacion = m.observacion?.trim() || null
+    return u
+  }
+
   if (accion === 'SALIDA_OBRA') {
     for (const it of items) {
       if (!it?.remitoItemId) continue
@@ -814,10 +832,7 @@ export async function confirmarEscaneo(id, body = {}) {
         err.status = 400; throw err
       }
       const { error: e } = await supabase.from('remito_items')
-        .update({
-          estado_retorno: it.estadoRetorno,
-          observacion:    it.observacion?.trim() || null,
-        })
+        .update(buildItemUpdate(it))
         .eq('id', it.remitoItemId)
         .eq('remito_id', id)
       if (e) throw e
@@ -830,10 +845,7 @@ export async function confirmarEscaneo(id, body = {}) {
         err.status = 400; throw err
       }
       const { error: e } = await supabase.from('remito_materiales')
-        .update({
-          cantidad_retorno: cant,
-          observacion:      m.observacion?.trim() || null,
-        })
+        .update(buildMatUpdate(m, cant))
         .eq('id', m.remitoMaterialId)
         .eq('remito_id', id)
       if (e) throw e
@@ -857,10 +869,7 @@ export async function confirmarEscaneo(id, body = {}) {
         err.status = 400; throw err
       }
       const { error: e } = await supabase.from('remito_items')
-        .update({
-          estado_retorno: it.estadoRetorno,
-          observacion:    it.observacion?.trim() || null,
-        })
+        .update(buildItemUpdate(it))
         .eq('id', it.remitoItemId)
         .eq('remito_id', id)
       if (e) throw e
@@ -873,10 +882,7 @@ export async function confirmarEscaneo(id, body = {}) {
         err.status = 400; throw err
       }
       const { error: e } = await supabase.from('remito_materiales')
-        .update({
-          cantidad_retorno: cant,
-          observacion:      m.observacion?.trim() || null,
-        })
+        .update(buildMatUpdate(m, cant))
         .eq('id', m.remitoMaterialId)
         .eq('remito_id', id)
       if (e) throw e
