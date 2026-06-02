@@ -19,7 +19,22 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl  = import.meta.env.VITE_SUPABASE_URL  || 'http://localhost'
 const supabaseAnon = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder'
 
-export const supabase = createClient(supabaseUrl, supabaseAnon)
+// Opciones explícitas para hacer evidente cómo manejamos sesiones:
+//   - persistSession:    true → el token vive en localStorage entre recargas.
+//   - autoRefreshToken:  true → el SDK refresca el access_token automáticamente
+//                                antes de que expire (~1h). Si el refresh falla
+//                                (red, refresh token vencido), dispara SIGNED_OUT.
+//   - detectSessionInUrl:true → procesa #access_token=... de magic links.
+// Cuando SIGNED_OUT viene de un refresh fallido tras inactividad larga, el
+// listener de useAuth limpia el localStorage explícitamente — sino el sb-*
+// quedaba en estado intermedio y rompía el próximo signIn (bug del 01/06).
+export const supabase = createClient(supabaseUrl, supabaseAnon, {
+  auth: {
+    persistSession:     true,
+    autoRefreshToken:   true,
+    detectSessionInUrl: true,
+  },
+})
 
 /**
  * Limpia TODAS las entradas de localStorage que pertenecen a Supabase
