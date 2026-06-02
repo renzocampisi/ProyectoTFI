@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@shared/hooks/useAuth'
-import { ROLES, ROLE_LABELS } from '@shared/constants/roles'
+import { ROLE_LABELS, esDueño } from '@shared/constants/roles'
 import styles from './AppLayout.module.css'
 
 // Word #16: "Inicio" suelto arriba del todo, como dashboard general
@@ -170,8 +170,8 @@ export default function AppLayout() {
           {/* Directorio */}
           <NavGroup label="Directorio" items={DIRECTORIO_ITEMS} collapsed={collapsed} />
 
-          {/* Administración — solo si el user es DUEÑO */}
-          {role === ROLES.DUEÑO && (
+          {/* Administración — solo DUEÑO o ADMIN */}
+          {esDueño(role) && (
             <NavGroup label="Administración" items={ADMIN_ITEMS} collapsed={collapsed} />
           )}
 

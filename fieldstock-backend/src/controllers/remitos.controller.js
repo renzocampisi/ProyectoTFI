@@ -15,7 +15,7 @@
  * controller→service y arreglar un bug de validación en el camino.)
  */
 import * as RemitosService from '../services/remitos.service.js'
-import { ROLES } from '../constants/roles.js'
+import { ROLES_ADMIN_LEVEL } from '../constants/roles.js'
 
 export async function getAll(req, res, next) {
   try {
@@ -174,7 +174,7 @@ export async function avanzarEstado(req, res, next) {
     if (!actual) return res.status(404).json({ ok: false, error: 'Remito no encontrado' })
 
     const esLibre = ESTADOS_AVANCE_LIBRE.includes(actual.estado)
-    if (!esLibre && req.user.role !== ROLES.DUEÑO) {
+    if (!esLibre && !ROLES_ADMIN_LEVEL.includes(req.user.role)) {
       return res.status(403).json({
         ok: false,
         error: 'Solo el dueño puede avanzar este estado desde la web. Usá el QR del celular.'
