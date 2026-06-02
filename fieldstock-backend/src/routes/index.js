@@ -18,7 +18,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middlewares/requireAuth.js'
 import { requireRole } from '../middlewares/requireRole.js'
-import { ROLES }       from '../constants/roles.js'
+import { ROLES, ROLES_ADMIN_LEVEL } from '../constants/roles.js'
 import * as CategoriasCtrl      from '../controllers/categorias.controller.js'
 import * as MarcasCtrl          from '../controllers/marcas.controller.js'
 import * as HerramientasCtrl    from '../controllers/herramientas.controller.js'
@@ -53,11 +53,11 @@ router.get('/dashboard', DashboardCtrl.getResumen)
 // Express no las capture como id.
 router.get  ('/usuarios/me', UsuariosCtrl.getMe)
 router.patch('/usuarios/me', UsuariosCtrl.updateMe)
-router.get   ('/usuarios',     requireRole([ROLES.DUEÑO]), UsuariosCtrl.getAll)
-router.post  ('/usuarios',     requireRole([ROLES.DUEÑO]), UsuariosCtrl.create)
-router.get   ('/usuarios/:id', requireRole([ROLES.DUEÑO]), UsuariosCtrl.getById)
-router.patch ('/usuarios/:id', requireRole([ROLES.DUEÑO]), UsuariosCtrl.update)
-router.delete('/usuarios/:id', requireRole([ROLES.DUEÑO]), UsuariosCtrl.desactivar)
+router.get   ('/usuarios',     requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.getAll)
+router.post  ('/usuarios',     requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.create)
+router.get   ('/usuarios/:id', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.getById)
+router.patch ('/usuarios/:id', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.update)
+router.delete('/usuarios/:id', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.desactivar)
 
 // ── Categorías ────────────────────────────────────────────────
 router.get ('/categorias', CategoriasCtrl.getAll)
@@ -108,7 +108,7 @@ router.patch ('/remitos/:id',                                RemitosCtrl.update)
 // "Volver a borrador" sí es solo DUEÑO — deshacer una confirmación es
 // decisión gerencial.
 router.post  ('/remitos/:id/avanzar',                        RemitosCtrl.avanzarEstado)
-router.post  ('/remitos/:id/volver-borrador',   requireRole([ROLES.DUEÑO]), RemitosCtrl.volverABorrador)
+router.post  ('/remitos/:id/volver-borrador',   requireRole(ROLES_ADMIN_LEVEL), RemitosCtrl.volverABorrador)
 router.post  ('/remitos/:id/confirmar-escaneo',              RemitosCtrl.confirmarEscaneo)
 router.post  ('/remitos/:id/reportar-problema',              RemitosCtrl.reportarProblema)
 router.delete('/remitos/:id',                                RemitosCtrl.eliminar)

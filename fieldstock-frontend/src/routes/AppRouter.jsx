@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import AppLayout from '@layouts/AppLayout'
 import RequireAuth from '@shared/components/RequireAuth'
 import RequireRole from '@shared/components/RequireRole'
-import { ROLES } from '@shared/constants/roles'
+import { ROLES_ADMIN_LEVEL } from '@shared/constants/roles'
 
 import LoginPage  from '@modules/m0-auth/pages/LoginPage'
 import PerfilPage from '@modules/m0-auth/pages/PerfilPage'
@@ -63,9 +63,9 @@ export default function AppRouter() {
           {/* Mi perfil — accesible para los 3 roles */}
           <Route path="perfil" element={<PerfilPage />} />
 
-          {/* Gestión de usuarios — solo DUEÑO */}
+          {/* Gestión de usuarios — DUEÑO o ADMIN */}
           <Route path="usuarios" element={
-            <RequireRole roles={[ROLES.DUEÑO]}>
+            <RequireRole roles={ROLES_ADMIN_LEVEL}>
               <UsuariosListPage />
             </RequireRole>
           } />

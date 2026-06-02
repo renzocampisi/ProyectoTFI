@@ -13,6 +13,7 @@ import { UsuariosService } from '../services/usuarios.service'
 import styles from './UsuarioFormModal.module.css'
 
 const ROLES_OPTIONS = [
+  { value: ROLES.ADMIN,     label: ROLE_LABELS.ADMIN },
   { value: ROLES.DUEÑO,     label: ROLE_LABELS.DUEÑO },
   { value: ROLES.ENCARGADO, label: ROLE_LABELS.ENCARGADO },
   { value: ROLES.OPERARIO,  label: ROLE_LABELS.OPERARIO },

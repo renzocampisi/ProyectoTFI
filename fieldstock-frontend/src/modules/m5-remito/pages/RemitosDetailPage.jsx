@@ -6,7 +6,7 @@ import { RemitosService } from '../services/remitos.service'
 import { InventarioService } from '@modules/m2-inventario/services/inventario.service'
 import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
 import { useAuth } from '@shared/hooks/useAuth'
-import { ROLES } from '@shared/constants/roles'
+import { esDueño as esDueñoOAdmin } from '@shared/constants/roles'
 import EstadoRemitoBadge from '../components/EstadoRemitoBadge'
 import RemitoQRModal from '../components/RemitoQRModal'
 import RemitoEditModal from './RemitoEditModal'
@@ -448,12 +448,12 @@ export default function RemitosDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { remito, loading, error, refetch } = useRemito(id)
-  // Solo el DUEÑO puede avanzar/volver-a-borrador desde la web. Encargado y
-  // Operario tienen que usar el QR mobile. El backend también lo enforce
-  // con requireRole — esto es solo para que la UI no muestre botones que
-  // van a fallar y para mostrar un mensaje aclaratorio.
+  // Solo el DUEÑO (o ADMIN) puede avanzar/volver-a-borrador desde la web.
+  // Encargado y Operario tienen que usar el QR mobile. El backend también
+  // lo enforce con requireRole — esto es solo para que la UI no muestre
+  // botones que van a fallar y para mostrar un mensaje aclaratorio.
   const { role } = useAuth()
-  const esDueño = role === ROLES.DUEÑO
+  const esDueño = esDueñoOAdmin(role)
 
   const [loadingAction, setLoadingAction] = useState(false)
   const [errAction,     setErrAction]     = useState(null)
