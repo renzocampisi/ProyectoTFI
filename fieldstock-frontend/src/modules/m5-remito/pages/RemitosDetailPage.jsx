@@ -7,7 +7,7 @@ import { RemitosService } from '../services/remitos.service'
 import { InventarioService } from '@modules/m2-inventario/services/inventario.service'
 import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
 import { useAuth } from '@shared/hooks/useAuth'
-import { esDueño as esDueñoOAdmin } from '@shared/constants/roles'
+import { ROLES, esDueño as esDueñoOAdmin } from '@shared/constants/roles'
 import EstadoRemitoBadge from '../components/EstadoRemitoBadge'
 import RemitoEditModal from './RemitoEditModal'
 import RemitoPrint from './RemitoPrint'
@@ -557,14 +557,13 @@ export default function RemitosDetailPage() {
   const esConfirmado = remito.estado === 'CONFIRMADO'
   const esEnObra     = remito.estado === 'EN_OBRA'
   const esRetorno    = remito.estado === 'EN_RETORNO'
-  // Estados donde cualquier rol autorizado puede avanzar desde la web
-  // (espejo de ESTADOS_AVANCE_LIBRE del backend):
-  //   - BORRADOR: encargado confirma su propio remito
-  //   - EN_OBRA: el responsable inicia el retorno (decisión operativa)
-  // Las transiciones de tránsito (CONFIRMADO/EN_TRANSITO/EN_TRANSITO_RETORNO)
-  // son solo DUEÑO por web — los demás roles van por QR.
-  const avanceLibre   = esBorrador || esEnObra
-  const puedeAvanzar  = remito.estado !== 'CERRADO' && (avanceLibre || esDueño)
+  // Matriz de permisos por estado (espejo de ROLES_POR_ESTADO_AVANCE del backend):
+  //   - BORRADOR: cualquier rol autorizado puede confirmar el remito que cargó.
+  //   - EN_OBRA: ENCARGADO de obra o DUEÑO/ADMIN inicia el retorno
+  //     (OPERARIO NO — asiste pero no decide).
+  //   - Resto de estados: solo DUEÑO/ADMIN por web (los demás van por QR).
+  const puedeEnObra   = esEnObra && (esDueño || role === ROLES.ENCARGADO)
+  const puedeAvanzar  = remito.estado !== 'CERRADO' && (esBorrador || puedeEnObra || esDueño)
 
   const idsHerrYa = remito.items?.map(i => i.herramienta_id) ?? []
   const idsMatsYa = remito.materiales?.map(m => m.material_id).filter(Boolean) ?? []
