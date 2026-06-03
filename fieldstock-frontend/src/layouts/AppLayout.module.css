@@ -543,4 +543,36 @@
   .userCaret { display: none; }
   /* Mostrar el logo en el topbar (en desktop lo trae el sidebar) */
   .topbarLogo { display: inline-block; }
+
+  /* FAB Escanear QR: visible y centrado sobre la barra inferior.
+     Solo en mobile — en desktop está oculto vía la regla `.fabQr` global
+     fuera del @media. Bottom 32px = sobresale 32px de los 64px de la barra
+     (la mitad del FAB queda sobre la barra, la otra mitad por encima). */
+  .fabQr {
+    display: flex;
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 32px;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--color-primary, #2dd4a0);
+    color: #ffffff;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+    z-index: 101;
+    text-decoration: none;
+    border: 3px solid var(--color-surface);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .fabQr:active {
+    transform: translateX(-50%) scale(0.95);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  }
+  .fabQrIcon { font-size: 28px; line-height: 1; }
 }
+
+/* Default desktop: el FAB no se muestra — el sidebar tiene el item normal. */
+.fabQr { display: none; }
