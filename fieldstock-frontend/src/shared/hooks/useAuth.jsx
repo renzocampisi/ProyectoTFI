@@ -29,7 +29,13 @@ const AuthContext = createContext(null)
 // Timeouts defensivos para evitar que la UI quede en pantalla negra cuando
 // Supabase tarda en responder o la red se cae a mitad de un refresh de
 // token. Ver issue del 28/05 ("pantalla en negro tras inactividad").
-const SESSION_TIMEOUT_MS = 5_000
+//
+// SESSION_TIMEOUT_MS subido de 5s → 10s (02/06): el SDK puede tardar más
+// que 5s en boot tras un reload (lock interno + refresh automático del
+// token). El timeout corto disparaba el catch del boot que limpiaba
+// storage y echaba al user al login en navegaciones cotidianas. Ahora
+// el catch es no-destructivo en caso de timeout (ver más abajo).
+const SESSION_TIMEOUT_MS = 10_000
 const FETCH_TIMEOUT_MS   = 10_000
 
 // Race contra una promesa que rechaza tras N ms. Útil para envolver llamadas
@@ -145,12 +151,20 @@ export function AuthProvider({ children }) {
         setUser(session?.user ?? null)
         if (session) await cargarPerfil()
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error('[AuthProvider] error en boot:', err)
-        // Si el boot falló (timeout, crash, lo que sea), la sesión que
-        // hay en localStorage está sospechosa. Limpiamos para que el
-        // próximo arranque sea desde cero.
-        clearSupabaseStorage()
+        // Discriminación de errores:
+        //  - TIMEOUT: probablemente transitorio (SDK lento tras reload,
+        //    refresh en curso, dev server warm-up). NO limpiamos storage —
+        //    sería penalizar al user con re-login por algo pasajero. Si
+        //    el token está realmente roto, el primer fetch al backend va
+        //    a devolver 401 y on401() limpia + redirige correctamente.
+        //  - CRASH/OTRO ERROR: storage probablemente corrupto, limpiamos
+        //    como antes (comportamiento defensivo del 28/05).
+        if (/Timeout/i.test(err?.message || '')) {
+          console.warn('[AuthProvider] boot timeout — dejando storage intacto, fallback al próximo fetch')
+        } else {
+          clearSupabaseStorage()
+        }
       } finally {
         if (mounted) setLoading(false)
       }
