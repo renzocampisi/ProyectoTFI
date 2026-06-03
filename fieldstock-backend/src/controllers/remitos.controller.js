@@ -80,9 +80,20 @@ export async function confirmarEscaneo(req, res, next) {
     // El service ahora encapsula la validación (estado, conductor obligatorio
     // en SALIDA) y la persistencia del conductor. Mantenemos la respuesta con
     // `accion` arriba del objeto para no romper a la app mobile.
+    // Pasamos los campos relevantes del body al service: conductor para SALIDA;
+    // items + materiales para SALIDA_OBRA / LLEGADA_GALPON; observacionRetorno
+    // para LLEGADA_GALPON. Hasta el PR #33 solo se pasaba `conductor`, lo que
+    // hacía que los items del retorno cargados desde el QR nunca llegaran al
+    // service (los descartaba silenciosamente).
+    const b = req.body || {}
     const { data, accion } = await RemitosService.confirmarEscaneo(
       req.params.id,
-      { conductor: req.body?.conductor }
+      {
+        conductor:          b.conductor,
+        items:              b.items,
+        materiales:         b.materiales,
+        observacionRetorno: b.observacionRetorno,
+      }
     )
     res.json({ ok: true, data, accion })
   } catch (err) { next(err) }

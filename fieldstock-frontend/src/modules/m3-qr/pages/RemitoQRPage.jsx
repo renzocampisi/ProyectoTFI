@@ -1,6 +1,6 @@
 // src/modules/m3-qr/pages/RemitoQRPage.jsx
 // Página mobile-first para escaneo del QR de remitos
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '@shared/utils/api'
 import styles from './RemitoQRPage.module.css'
@@ -48,11 +48,36 @@ export default function RemitoQRPage() {
   const [descGeneral,         setDescGeneral]         = useState('')
   const [itemsProblema,       setItemsProblema]       = useState({})
   const [materialesProblema,  setMaterialesProblema]  = useState({})
+
+  // Word REMITOS: en SALIDA_OBRA (3er escaneo, EN_RETORNO → EN_TRANSITO_RETORNO)
+  // el encargado define qué herramientas vuelven y qué cantidad de cada material.
+  // Inicializamos con defaults razonables al cargar el remito:
+  //   - Herramientas: VUELVE (lo más común)
+  //   - Materiales: cantidad_egreso completa (asumimos "todo vuelve" como default)
+  const [retornoItems,      setRetornoItems]      = useState({})  // { [id]: 'VUELVE'|'ROTA'|'PERDIDA'|'QUEDA_EN_OBRA' }
+  const [retornoMateriales, setRetornoMateriales] = useState({})  // { [id]: number }
+
   const [confirmado,   setConfirmado]   = useState(false)
   // Conductor / persona que realiza el traslado. Se pide únicamente en
   // SALIDA (1er escaneo) y queda guardado en el remito para mostrarse
   // después en el PDF y en la llegada.
   const [conductor,    setConductor]    = useState('')
+
+  // Word REMITOS — LLEGADA_GALPON (4to escaneo): el encargado verifica que
+  // todo llegó al galpón como se declaró en SALIDA_OBRA. Si hay
+  // discrepancias (volvió rota, se perdió en el viaje, cantidad distinta),
+  // entra a la pantalla de "reportar problema del galpón" que reusa la
+  // misma UI de pills/cantidades, pero pre-cargada con lo declarado.
+  const [showProblemaGalpon, setShowProblemaGalpon] = useState(false)
+  const [obsRetornoGeneral,  setObsRetornoGeneral]  = useState('')
+
+  // Snapshot de los defaults de retorno calculados al cargar el remito.
+  // Sirve para revertir cambios cuando el encargado abre "Ajustar / reportar
+  // problema" en LLEGADA_GALPON y luego toca "Volver" — sin esto, las pills
+  // que tocó quedarían marcadas en memoria y al confirmar "Todo OK" desde la
+  // pantalla principal el backend recibiría body={} pero las modificaciones
+  // visuales se descartarían silenciosamente (fix #3 del code-review).
+  const defaultsRef = useRef({ items: {}, materiales: {} })
 
   useEffect(() => {
     api.get(`/remitos/${id}`)
@@ -63,6 +88,36 @@ export default function RemitoQRPage() {
         // por QR (el render de abajo muestra mensaje "no requiere
         // confirmación por QR en este momento").
         setAccion(ESTADO_ACCION[data.estado] || null)
+
+        // Pre-cargar defaults para SALIDA_OBRA y también para LLEGADA_GALPON.
+        // En SALIDA_OBRA el encargado decide qué vuelve. En LLEGADA_GALPON
+        // el encargado verifica/ajusta lo que se declaró antes (si hay
+        // discrepancias al descargar). Los items extraviados se omiten en
+        // ambos casos — quedaron marcados desde la LLEGADA y no participan
+        // del flow de retorno.
+        if (data.estado === 'EN_RETORNO' || data.estado === 'EN_TRANSITO_RETORNO') {
+          const itDef = {}
+          for (const it of (data.items || [])) {
+            if (it.extraviado) continue
+            // Si el dueño ya cargó algo desde la web (o se cargó en SALIDA_OBRA),
+            // lo respetamos como valor por defecto.
+            itDef[it.id] = it.estado_retorno || 'VUELVE'
+          }
+          setRetornoItems(itDef)
+
+          const matDef = {}
+          for (const m of (data.materiales || [])) {
+            if (m.extraviado) continue
+            matDef[m.id] = m.cantidad_retorno != null
+              ? Number(m.cantidad_retorno)
+              : Number(m.cantidad_egreso ?? 0)
+          }
+          setRetornoMateriales(matDef)
+
+          // Guardamos los defaults para poder revertir desde "Volver" en
+          // la pantalla de ajustes del galpón (fix #3 del code-review).
+          defaultsRef.current = { items: itDef, materiales: matDef }
+        }
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
@@ -76,12 +131,40 @@ export default function RemitoQRPage() {
       setError('Ingresá el nombre del conductor o persona a cargo del traslado.')
       return
     }
+
+    // Armar body según la acción. SALIDA_OBRA lleva los retornos definidos
+    // arriba; el resto de acciones van vacías o solo con conductor.
+    // LLEGADA_GALPON solo manda body cuando viene desde la pantalla de
+    // "reportar problema" (showProblemaGalpon) — el botón "Todo OK" cierra
+    // con lo que ya estaba sin tocar nada.
+    let body = {}
+    if (accion === 'SALIDA') {
+      body = { conductor: conductor.trim() }
+    } else if (accion === 'SALIDA_OBRA') {
+      body = {
+        items: Object.entries(retornoItems).map(([remitoItemId, estadoRetorno]) => ({
+          remitoItemId, estadoRetorno,
+        })),
+        materiales: Object.entries(retornoMateriales).map(([remitoMaterialId, cantidadRetorno]) => ({
+          remitoMaterialId, cantidadRetorno,
+        })),
+      }
+    } else if (accion === 'LLEGADA_GALPON' && showProblemaGalpon) {
+      body = {
+        items: Object.entries(retornoItems).map(([remitoItemId, estadoRetorno]) => ({
+          remitoItemId, estadoRetorno,
+        })),
+        materiales: Object.entries(retornoMateriales).map(([remitoMaterialId, cantidadRetorno]) => ({
+          remitoMaterialId, cantidadRetorno,
+        })),
+        observacionRetorno: obsRetornoGeneral.trim() || null,
+      }
+    }
+
     setProcesando(true)
     setError(null)
     try {
-      await api.post(`/remitos/${id}/confirmar-escaneo`,
-        accion === 'SALIDA' ? { conductor: conductor.trim() } : {}
-      )
+      await api.post(`/remitos/${id}/confirmar-escaneo`, body)
       setConfirmado(true)
     } catch (err) { setError(err.message) }
     finally { setProcesando(false) }
@@ -380,6 +463,115 @@ export default function RemitoQRPage() {
     </div>
   )
 
+  // ── Pantalla de problema en LLEGADA_GALPON (4to escaneo) ────────
+  // El encargado descubrió que algo no coincide con lo declarado en
+  // SALIDA_OBRA (volvió rota, no llegó al galpón, cantidad distinta).
+  // Reutilizamos la UI de pills/cantidades de SALIDA_OBRA pero
+  // pre-poblada con los valores ya cargados. El encargado solo modifica
+  // lo que cambió y agrega una observación general opcional.
+  if (showProblemaGalpon) {
+    const itemsRetorno = remito.items?.filter(i => !i.extraviado) || []
+    const matsRetorno  = remito.materiales?.filter(m => !m.extraviado) || []
+    // Volver descarta cambios: restaura los valores que tenía el remito al
+    // cargar. Sin esto, el usuario podría modificar pills, tocar "Volver"
+    // y luego "Todo OK" → el backend recibe body={} pero los cambios
+    // visuales quedaron en memoria y se perdían silenciosamente.
+    const cancelarAjustes = () => {
+      setRetornoItems({ ...defaultsRef.current.items })
+      setRetornoMateriales({ ...defaultsRef.current.materiales })
+      setObsRetornoGeneral('')
+      setShowProblemaGalpon(false)
+    }
+    return (
+      <div className={styles.page}>
+        <div className={styles.header}>
+          <button className={styles.btnBack} onClick={cancelarAjustes}>← Volver</button>
+          <span className={styles.headerNumero}>{remito.numero}</span>
+        </div>
+        <div className={styles.problemaSection}>
+          <span className={styles.problemaIcon}>⚠</span>
+          <h2 className={styles.problemaTitle}>Ajustar retorno al galpón</h2>
+          <p className={styles.problemaDesc}>
+            Modificá lo que no coincida con lo declarado al salir de obra.
+            Por ejemplo: una herramienta volvió rota, otra no llegó, o un
+            material volvió en cantidad distinta.
+          </p>
+
+          {itemsRetorno.length > 0 && (
+            <div className={styles.retornoSeccion}>
+              <p className={styles.retornoTitulo}>🔧 Herramientas</p>
+              {itemsRetorno.map(item => (
+                <div key={item.id} className={styles.retornoRow}>
+                  <div className={styles.retornoInfo}>
+                    <span className={styles.retornoNombre}>{item.herramienta_nombre}</span>
+                    <span className={styles.retornoSub}>{item.herramienta_qr}</span>
+                  </div>
+                  <div className={styles.retornoPills}>
+                    {[
+                      { v: 'VUELVE',        label: 'Vuelve',   cls: styles.pillOk },
+                      { v: 'ROTA',          label: 'Rota',     cls: styles.pillWarn },
+                      { v: 'PERDIDA',       label: 'No llegó', cls: styles.pillDanger },
+                      { v: 'QUEDA_EN_OBRA', label: 'Queda',    cls: styles.pillInfo },
+                    ].map(opt => (
+                      <button key={opt.v} type="button"
+                        className={`${styles.retornoPill} ${retornoItems[item.id] === opt.v ? opt.cls : ''}`}
+                        onClick={() => setRetornoItems(prev => ({ ...prev, [item.id]: opt.v }))}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {matsRetorno.length > 0 && (
+            <div className={styles.retornoSeccion}>
+              <p className={styles.retornoTitulo}>📦 Materiales</p>
+              {matsRetorno.map(m => (
+                <div key={m.id} className={styles.retornoRow}>
+                  <div className={styles.retornoInfo}>
+                    <span className={styles.retornoNombre}>{m.material_nombre || m.descripcion_libre}</span>
+                    <span className={styles.retornoSub}>Salida: {m.cantidad_egreso} {m.unidad}</span>
+                  </div>
+                  <div className={styles.retornoCant}>
+                    <input type="number" min="0" max={m.cantidad_egreso} step="any"
+                      className={styles.retornoCantInput}
+                      value={retornoMateriales[m.id] ?? 0}
+                      onChange={e => {
+                        const val = e.target.value === '' ? 0 : Number(e.target.value)
+                        setRetornoMateriales(prev => ({ ...prev, [m.id]: val }))
+                      }} />
+                    <span className={styles.retornoUnidad}>{m.unidad}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className={styles.checkSection}>
+            <label className={styles.checkSectionTitle} htmlFor="obsRetornoGeneral">
+              Observación del retorno <span className={styles.opt}>(opcional)</span>
+            </label>
+            <textarea id="obsRetornoGeneral"
+              className={styles.problemaTextarea}
+              placeholder="Contexto general: qué pasó, qué se ajustó, etc."
+              value={obsRetornoGeneral}
+              onChange={e => setObsRetornoGeneral(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          {error && <div className={styles.errorBox}>⚠ {error}</div>}
+
+          <button className={styles.btnDanger} onClick={handleConfirmar} disabled={procesando}>
+            {procesando ? 'Cerrando remito...' : '✓ Confirmar cierre con ajustes'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // ── Pantalla principal ────────────────────────────────────────
   const esSalida        = accion === 'SALIDA'
   const esLlegada       = accion === 'LLEGADA'
@@ -445,7 +637,10 @@ export default function RemitoQRPage() {
         </div>
       </div>
 
-      {/* Lista de herramientas — solo en llegada */}
+      {/* Lista de herramientas — en LLEGADA verificás lo que salió;
+          en LLEGADA_GALPON verificás lo que vuelve (excluye extraviados
+          que nunca llegaron, y muestra el estado_retorno declarado para
+          contexto). */}
       {esLlegada && remito.items?.length > 0 && (
         <div className={styles.lista}>
           <p className={styles.listaTitle}>🔧 Herramientas a verificar</p>
@@ -461,7 +656,37 @@ export default function RemitoQRPage() {
         </div>
       )}
 
-      {/* Lista de materiales — solo en llegada */}
+      {esLlegadaGalpon && (remito.items?.filter(i => !i.extraviado).length > 0) && (
+        <div className={styles.lista}>
+          <p className={styles.listaTitle}>🔧 Herramientas que deberían volver</p>
+          {remito.items.filter(i => !i.extraviado).map((item, idx) => {
+            const er = item.estado_retorno
+            const erLabel =
+              er === 'VUELVE'        ? { txt: 'Vuelve',   cls: styles.pillOk } :
+              er === 'ROTA'          ? { txt: 'Rota',     cls: styles.pillWarn } :
+              er === 'PERDIDA'       ? { txt: 'Perdida',  cls: styles.pillDanger } :
+              er === 'QUEDA_EN_OBRA' ? { txt: 'Queda',    cls: styles.pillInfo } :
+                                       null
+            return (
+              <div key={item.id} className={styles.listaRow}>
+                <span className={styles.listaIdx}>{idx + 1}</span>
+                <div className={styles.listaInfo}>
+                  <span className={styles.listaNombre}>{item.herramienta_nombre}</span>
+                  <span className={styles.listaCodigo}>{item.herramienta_qr}</span>
+                </div>
+                {erLabel && (
+                  <span className={`${styles.retornoPill} ${erLabel.cls}`} style={{ pointerEvents: 'none' }}>
+                    {erLabel.txt}
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Lista de materiales — en LLEGADA verificás los enviados,
+          en LLEGADA_GALPON verificás cantidades que vuelven. */}
       {esLlegada && remito.materiales?.length > 0 && (
         <div className={styles.lista}>
           <p className={styles.listaTitle}>📦 Materiales a verificar</p>
@@ -471,6 +696,23 @@ export default function RemitoQRPage() {
               <div className={styles.listaInfo}>
                 <span className={styles.listaNombre}>{m.material_nombre || m.descripcion_libre}</span>
                 <span className={styles.listaCodigo}>{m.cantidad_egreso} {m.unidad}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {esLlegadaGalpon && (remito.materiales?.filter(m => !m.extraviado).length > 0) && (
+        <div className={styles.lista}>
+          <p className={styles.listaTitle}>📦 Materiales que deberían volver</p>
+          {remito.materiales.filter(m => !m.extraviado).map((m, idx) => (
+            <div key={m.id} className={styles.listaRow}>
+              <span className={styles.listaIdx}>{idx + 1}</span>
+              <div className={styles.listaInfo}>
+                <span className={styles.listaNombre}>{m.material_nombre || m.descripcion_libre}</span>
+                <span className={styles.listaCodigo}>
+                  Vuelven: {m.cantidad_retorno ?? m.cantidad_egreso} {m.unidad}
+                </span>
               </div>
             </div>
           ))}
@@ -501,6 +743,72 @@ export default function RemitoQRPage() {
             Queda registrado en el remito y se muestra en el PDF.
           </p>
         </div>
+      )}
+
+      {/* Word REMITOS: en SALIDA_OBRA el encargado define qué vuelve antes
+          de arrancar el viaje de regreso. Items extraviados ya quedaron
+          marcados desde la LLEGADA — no aparecen acá. */}
+      {esSalidaObra && (
+        <>
+          {(remito.items?.filter(i => !i.extraviado).length > 0) && (
+            <div className={styles.retornoSeccion}>
+              <p className={styles.retornoTitulo}>🔧 ¿Qué pasa con cada herramienta?</p>
+              {remito.items.filter(i => !i.extraviado).map(item => (
+                <div key={item.id} className={styles.retornoRow}>
+                  <div className={styles.retornoInfo}>
+                    <span className={styles.retornoNombre}>{item.herramienta_nombre}</span>
+                    <span className={styles.retornoSub}>{item.herramienta_qr}</span>
+                  </div>
+                  <div className={styles.retornoPills}>
+                    {[
+                      { v: 'VUELVE',        label: 'Vuelve',   cls: styles.pillOk },
+                      { v: 'ROTA',          label: 'Rota',     cls: styles.pillWarn },
+                      { v: 'PERDIDA',       label: 'Perdida',  cls: styles.pillDanger },
+                      { v: 'QUEDA_EN_OBRA', label: 'Queda',    cls: styles.pillInfo },
+                    ].map(opt => (
+                      <button key={opt.v} type="button"
+                        className={`${styles.retornoPill} ${retornoItems[item.id] === opt.v ? opt.cls : ''}`}
+                        onClick={() => setRetornoItems(prev => ({ ...prev, [item.id]: opt.v }))}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {(remito.materiales?.filter(m => !m.extraviado).length > 0) && (
+            <div className={styles.retornoSeccion}>
+              <p className={styles.retornoTitulo}>📦 ¿Cuánto vuelve de cada material?</p>
+              {remito.materiales.filter(m => !m.extraviado).map(m => (
+                <div key={m.id} className={styles.retornoRow}>
+                  <div className={styles.retornoInfo}>
+                    <span className={styles.retornoNombre}>{m.material_nombre || m.descripcion_libre}</span>
+                    <span className={styles.retornoSub}>Salida: {m.cantidad_egreso} {m.unidad}</span>
+                  </div>
+                  <div className={styles.retornoCant}>
+                    <input type="number" min="0" max={m.cantidad_egreso} step="any"
+                      className={styles.retornoCantInput}
+                      value={retornoMateriales[m.id] ?? 0}
+                      onChange={e => {
+                        const val = e.target.value === '' ? 0 : Number(e.target.value)
+                        setRetornoMateriales(prev => ({ ...prev, [m.id]: val }))
+                      }} />
+                    <span className={styles.retornoUnidad}>{m.unidad}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Aviso si hay items extraviados — ya no entran al retorno */}
+          {((remito.items?.some(i => i.extraviado)) || (remito.materiales?.some(m => m.extraviado))) && (
+            <p className={styles.retornoHint}>
+              ⚠ Los items marcados como extraviados en la llegada no se incluyen acá.
+            </p>
+          )}
+        </>
       )}
 
       {/* Acciones */}
@@ -534,13 +842,20 @@ export default function RemitoQRPage() {
           </button>
         )}
 
-        {/* LLEGADA_GALPON: escaneo de retorno al depósito. El remito se
-            cierra al confirmar — no hay opción de reportar problema acá
-            porque los problemas se reportaron en la LLEGADA a obra. */}
+        {/* LLEGADA_GALPON: escaneo de retorno al depósito (4to escaneo).
+            Verificación item-por-item de lo que efectivamente llegó.
+            - "Todo OK" → cierra el remito con lo declarado en SALIDA_OBRA
+            - "Ajustar/Reportar problema" → permite cambiar estado_retorno
+              o cantidades antes de cerrar (volvió rota, no llegó, etc.) */}
         {esLlegadaGalpon && (
-          <button className={styles.btnPrimary} onClick={handleConfirmar} disabled={procesando}>
-            {procesando ? 'Procesando...' : '✓ Confirmar llegada al galpón'}
-          </button>
+          <>
+            <button className={styles.btnPrimary} onClick={handleConfirmar} disabled={procesando}>
+              {procesando ? 'Procesando...' : '✓ Todo llegó correctamente'}
+            </button>
+            <button className={styles.btnDangerOutline} onClick={() => setShowProblemaGalpon(true)} disabled={procesando}>
+              ⚠ Ajustar / reportar problema
+            </button>
+          </>
         )}
       </div>
 

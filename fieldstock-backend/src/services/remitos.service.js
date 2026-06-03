@@ -764,7 +764,13 @@ const ESTADOS_QR_ACCION = {
   EN_TRANSITO_RETORNO: 'LLEGADA_GALPON',
 }
 
-export async function confirmarEscaneo(id, { conductor } = {}) {
+// Estados válidos de retorno por herramienta (espejo del frontend).
+// Cualquier valor fuera de este conjunto se rechaza en SALIDA_OBRA.
+const ESTADOS_RETORNO_VALIDOS = new Set(['VUELVE', 'ROTA', 'PERDIDA', 'QUEDA_EN_OBRA'])
+
+export async function confirmarEscaneo(id, body = {}) {
+  const { conductor, items = [], materiales = [], observacionRetorno } = body
+
   const { data: remito, error: errR } = await supabase
     .from('remitos').select('estado').eq('id', id).single()
   if (errR) throw errR
@@ -794,6 +800,97 @@ export async function confirmarEscaneo(id, { conductor } = {}) {
     if (errU) throw errU
   }
 
-  const data = await avanzarEstado(id)
+  // En la SALIDA_OBRA (EN_RETORNO → EN_TRANSITO_RETORNO) el encargado define
+  // desde el QR mobile qué herramientas vuelven y cuánto de cada material.
+  // Persistimos los datos antes de avanzar para que la validación de
+  // "todos los items tienen estado_retorno" del avanzarEstado pase OK.
+  // Los items extraviados se omiten — siguen sin estado_retorno por diseño
+  // (avanzarEstado los excluye de la validación).
+  // Helper local: construye el objeto de update para un item/material del
+  // retorno SIN pisar `observacion` cuando el body no la trae. Esto es
+  // importante porque el flow del QR mobile (SALIDA_OBRA y LLEGADA_GALPON)
+  // manda solo estado/cantidad — sin la columna observacion. Si la
+  // incluyéramos con `it.observacion?.trim() || null`, pisaríamos cualquier
+  // observación cargada previamente desde la web por el dueño.
+  // Solo se actualiza la observación si vino explícitamente en el payload.
+  const buildItemUpdate = (it) => {
+    const u = { estado_retorno: it.estadoRetorno }
+    if (it.observacion !== undefined) u.observacion = it.observacion?.trim() || null
+    return u
+  }
+  const buildMatUpdate = (m, cant) => {
+    const u = { cantidad_retorno: cant }
+    if (m.observacion !== undefined) u.observacion = m.observacion?.trim() || null
+    return u
+  }
+
+  if (accion === 'SALIDA_OBRA') {
+    for (const it of items) {
+      if (!it?.remitoItemId) continue
+      if (!ESTADOS_RETORNO_VALIDOS.has(it.estadoRetorno)) {
+        const err = new Error(`estado_retorno inválido para item ${it.remitoItemId}: ${it.estadoRetorno}`)
+        err.status = 400; throw err
+      }
+      const { error: e } = await supabase.from('remito_items')
+        .update(buildItemUpdate(it))
+        .eq('id', it.remitoItemId)
+        .eq('remito_id', id)
+      if (e) throw e
+    }
+    for (const m of materiales) {
+      if (!m?.remitoMaterialId) continue
+      const cant = Number(m.cantidadRetorno)
+      if (!Number.isFinite(cant) || cant < 0) {
+        const err = new Error(`cantidad_retorno inválida para material ${m.remitoMaterialId}: ${m.cantidadRetorno}`)
+        err.status = 400; throw err
+      }
+      const { error: e } = await supabase.from('remito_materiales')
+        .update(buildMatUpdate(m, cant))
+        .eq('id', m.remitoMaterialId)
+        .eq('remito_id', id)
+      if (e) throw e
+    }
+  }
+
+  // En la LLEGADA_GALPON (EN_TRANSITO_RETORNO → CERRADO) el encargado puede
+  // OVERRIDEAR el estado_retorno y la cantidad_retorno que se definieron en
+  // SALIDA_OBRA si encuentra discrepancias al descargar en el galpón:
+  //   - Una herramienta que salió como VUELVE pero llegó rota → ROTA
+  //   - Una herramienta que se perdió en el viaje de vuelta → PERDIDA
+  //   - Material que volvió con cantidad distinta a la declarada → ajustar
+  // Si el body llega vacío (botón "Todo OK"), no se toca nada y se cierra
+  // con los datos que ya estaban. La observación general del retorno se
+  // guarda en `observacion_retorno` (handled por avanzarEstado vía body).
+  if (accion === 'LLEGADA_GALPON') {
+    for (const it of items) {
+      if (!it?.remitoItemId) continue
+      if (!ESTADOS_RETORNO_VALIDOS.has(it.estadoRetorno)) {
+        const err = new Error(`estado_retorno inválido para item ${it.remitoItemId}: ${it.estadoRetorno}`)
+        err.status = 400; throw err
+      }
+      const { error: e } = await supabase.from('remito_items')
+        .update(buildItemUpdate(it))
+        .eq('id', it.remitoItemId)
+        .eq('remito_id', id)
+      if (e) throw e
+    }
+    for (const m of materiales) {
+      if (!m?.remitoMaterialId) continue
+      const cant = Number(m.cantidadRetorno)
+      if (!Number.isFinite(cant) || cant < 0) {
+        const err = new Error(`cantidad_retorno inválida para material ${m.remitoMaterialId}: ${m.cantidadRetorno}`)
+        err.status = 400; throw err
+      }
+      const { error: e } = await supabase.from('remito_materiales')
+        .update(buildMatUpdate(m, cant))
+        .eq('id', m.remitoMaterialId)
+        .eq('remito_id', id)
+      if (e) throw e
+    }
+  }
+
+  // avanzarEstado acepta `observacionRetorno` y lo persiste en la cabecera
+  // del remito durante la transición EN_TRANSITO_RETORNO → CERRADO.
+  const data = await avanzarEstado(id, { observacionRetorno })
   return { data, accion }
 }
