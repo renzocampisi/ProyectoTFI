@@ -1002,20 +1002,25 @@ export default function RemitosDetailPage() {
               ) : (
                 <>
                   <p className={styles.cardDesc}>
-                    Escaneá este QR con la cámara del celular del responsable
-                    para confirmar:
+                    Escaneá este QR con la app FieldStock desde el celular del
+                    responsable para confirmar.
                   </p>
                   <div className={styles.qrInlineWrap}>
+                    {/* Codeamos el número del remito (FS-NNNNN), no una URL.
+                        Coincide con el regex RE_REMITO del scanner — el mismo
+                        QR que imprime RemitoQRModal. Se escanea desde
+                        QRScannerPage de la app y resuelve via
+                        GET /remitos/numero/:numero al detalle/flow correcto. */}
                     <QRCodeSVG
-                      value={`${window.location.origin}/remitos/${remito.id}/qr`}
+                      value={remito.numero}
                       size={200}
-                      level="M"
+                      level="H"
                       includeMargin
                     />
                     <p className={styles.qrInlineHint}>
-                      O abrí esta URL en el celular:
+                      Código: <strong>{remito.numero}</strong>
                       <br />
-                      <code>{window.location.origin}/remitos/{remito.id}/qr</code>
+                      Si no escanea, el responsable puede tipearlo manual en la app.
                     </p>
                   </div>
                 </>
