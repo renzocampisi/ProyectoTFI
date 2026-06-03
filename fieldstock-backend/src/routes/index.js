@@ -138,6 +138,11 @@ router.post  ('/clientes',     DirectorioCtrl.createCliente)
 router.put   ('/clientes/:id', DirectorioCtrl.updateCliente)
 router.delete('/clientes/:id', DirectorioCtrl.deleteCliente)
 
+router.get   ('/proveedores',     DirectorioCtrl.getProveedores)
+router.post  ('/proveedores',     DirectorioCtrl.createProveedor)
+router.put   ('/proveedores/:id', DirectorioCtrl.updateProveedor)
+router.delete('/proveedores/:id', DirectorioCtrl.deleteProveedor)
+
 // ── Estanterías ───────────────────────────────────────────────
 router.get   ('/estanterias',                         EstanteriasCtrl.getAll)
 router.post  ('/estanterias',                         EstanteriasCtrl.create)
