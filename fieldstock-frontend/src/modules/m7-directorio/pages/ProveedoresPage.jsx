@@ -90,7 +90,7 @@ function DireccionCell({ item }) {
 const CAMPOS = [
   { key: 'nombre',    label: 'Nombre de la empresa',  placeholder: 'Ej: Distribuidora Sur S.A.',     req: true  },
   { key: 'rubro',     label: 'Rubro / qué provee',    placeholder: 'Ej: Herramientas eléctricas',     req: true  },
-  { key: 'telefono',  label: 'Teléfono',              placeholder: '3410000000',                       req: true,  tipo: 'tel'      },
+  { key: 'telefono',  label: 'Teléfono',              placeholder: '3410000000',                       req: false, tipo: 'tel'      },
   { key: 'direccion', label: 'Calle y número',        placeholder: 'Ej: Av. Mitre 500',                req: false },
   { key: 'localidad', label: 'Localidad',             placeholder: 'Ej: Rosario',                      req: false },
   { key: 'provincia', label: 'Provincia',             placeholder: '',                                  req: false, tipo: 'provincia'},

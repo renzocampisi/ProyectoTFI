@@ -15,7 +15,7 @@
  * controller→service y arreglar un bug de validación en el camino.)
  */
 import * as RemitosService from '../services/remitos.service.js'
-import { ROLES_ADMIN_LEVEL } from '../constants/roles.js'
+import { ROLES, ROLES_ADMIN_LEVEL } from '../constants/roles.js'
 
 export async function getAll(req, res, next) {
   try {
@@ -167,15 +167,19 @@ export async function updateMaterialRetorno(req, res, next) {
   } catch (err) { next(err) }
 }
 
-// Estados desde los cuales cualquier rol autenticado puede avanzar via web.
-// El resto exige rol DUEÑO. Las transiciones de tránsito siguen siendo por
-// QR para encargado/operario.
+// Matriz de permisos para avanzar el estado de un remito desde la web.
+// Cada estado tiene una lista de roles autorizados. Las transiciones que
+// no están acá (CONFIRMADO, EN_TRANSITO, EN_TRANSITO_RETORNO) van por
+// QR mobile siempre — el web no las muestra.
 //
-//   - BORRADOR → CONFIRMADO: encargado puede confirmar un remito que cargó.
-//   - EN_OBRA → EN_RETORNO: el responsable en obra inicia el retorno
-//     (decisión operativa, no físicamente verificable por QR — se hace
-//     cuando ya cargaron los datos de retorno por ítem).
-const ESTADOS_AVANCE_LIBRE = ['BORRADOR', 'EN_OBRA']
+//   - BORRADOR → CONFIRMADO: cualquier rol que cargó el remito puede confirmarlo.
+//   - EN_OBRA → EN_RETORNO: ENCARGADO de obra puede iniciar el retorno
+//     (decisión operativa cuando ya cargaron los datos por ítem). OPERARIO
+//     NO puede — solo asiste, no decide. DUEÑO/ADMIN también pueden.
+const ROLES_POR_ESTADO_AVANCE = {
+  BORRADOR: null, // null = cualquier rol autenticado
+  EN_OBRA:  [...ROLES_ADMIN_LEVEL, ROLES.ENCARGADO],
+}
 
 export async function avanzarEstado(req, res, next) {
   try {
@@ -184,13 +188,26 @@ export async function avanzarEstado(req, res, next) {
     const actual = await RemitosService.getById(req.params.id)
     if (!actual) return res.status(404).json({ ok: false, error: 'Remito no encontrado' })
 
-    const esLibre = ESTADOS_AVANCE_LIBRE.includes(actual.estado)
-    if (!esLibre && !ROLES_ADMIN_LEVEL.includes(req.user.role)) {
-      return res.status(403).json({
-        ok: false,
-        error: 'Solo el dueño puede avanzar este estado desde la web. Usá el QR del celular.'
-      })
+    const rolesPermitidos = ROLES_POR_ESTADO_AVANCE[actual.estado]
+    if (rolesPermitidos !== null && rolesPermitidos !== undefined) {
+      // Estado tiene lista específica → chequear que el rol esté incluido.
+      if (!rolesPermitidos.includes(req.user.role)) {
+        return res.status(403).json({
+          ok: false,
+          error: 'Tu rol no tiene permiso para avanzar este estado desde la web.'
+        })
+      }
+    } else if (rolesPermitidos === undefined) {
+      // Estado NO está en la matriz → solo ADMIN_LEVEL (default restrictivo
+      // para estados que no se avanzan por web normalmente).
+      if (!ROLES_ADMIN_LEVEL.includes(req.user.role)) {
+        return res.status(403).json({
+          ok: false,
+          error: 'Solo el dueño puede avanzar este estado desde la web. Usá el QR del celular.'
+        })
+      }
     }
+    // rolesPermitidos === null → cualquier rol autenticado.
 
     const data = await RemitosService.avanzarEstado(req.params.id, req.body)
     res.json({ ok: true, data })
