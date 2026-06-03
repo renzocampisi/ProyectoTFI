@@ -9,7 +9,6 @@ import { MaterialesService } from '@modules/m6-materiales/services/materiales.se
 import { useAuth } from '@shared/hooks/useAuth'
 import { esDueño as esDueñoOAdmin } from '@shared/constants/roles'
 import EstadoRemitoBadge from '../components/EstadoRemitoBadge'
-import RemitoQRModal from '../components/RemitoQRModal'
 import RemitoEditModal from './RemitoEditModal'
 import RemitoPrint from './RemitoPrint'
 import { nombreRemito } from '../utils/remito-format'
@@ -481,7 +480,6 @@ export default function RemitosDetailPage() {
   const [loadingAction, setLoadingAction] = useState(false)
   const [errAction,     setErrAction]     = useState(null)
   const [showEdit,      setShowEdit]      = useState(false)
-  const [showQR,        setShowQR]        = useState(false)
   const [confirmVolver, setConfirmVolver] = useState(false)
   const [showHerrModal, setShowHerrModal] = useState(false)
   const [showMatModal,  setShowMatModal]  = useState(false)
@@ -494,28 +492,10 @@ export default function RemitosDetailPage() {
   const [retornosLocales,    setRetornosLocales]    = useState({})  // { itemId: estado_retorno }
   const [cantidadesLocales,  setCantidadesLocales]  = useState({})  // { matItemId: cantidad_retorno }
 
-  // Cerrar el modal QR automáticamente cuando el estado del remito
-  // CAMBIA mientras el modal está abierto. La primera implementación
-  // cerraba el modal si el estado no era CONFIRMADO/EN_TRANSITO, pero
-  // eso impedía abrirlo en estados posteriores (caso reportado: querías
-  // abrirlo en EN_OBRA para el retorno y se cerraba al toque).
-  //
-  // Captura el estado al abrir; si cambia después (por escaneo desde
-  // mobile que dispara el polling del useRemito), cierra el modal.
-  const estadoAlAbrirRef = useRef(null)
-  useEffect(() => {
-    if (!showQR) {
-      estadoAlAbrirRef.current = null
-      return
-    }
-    if (estadoAlAbrirRef.current === null) {
-      estadoAlAbrirRef.current = remito?.estado
-      return
-    }
-    if (remito?.estado && remito.estado !== estadoAlAbrirRef.current) {
-      setShowQR(false)
-    }
-  }, [remito?.estado, showQR])
+  // (El useEffect del auto-close del modal QR se removió junto con el
+  // botón QR del header. Ahora el QR vive inline en la card "Acción"
+  // del sidebar y se re-renderiza naturalmente con cada refetch del
+  // remito — no hace falta lógica de cierre.)
 
   // action() se usa para operaciones que SÍ necesitan refetch
   // (avanzar estado, volver a borrador, agregar/quitar items).
@@ -600,10 +580,6 @@ export default function RemitosDetailPage() {
           onSaved={async () => { setShowEdit(false); await refetch() }} />
       )}
 
-      {showQR && (
-        <RemitoQRModal remito={remito} onClose={() => setShowQR(false)} />
-      )}
-
       {showHerrModal && (
         <HerrBuscadorModal
           remitoId={id}
@@ -657,11 +633,8 @@ export default function RemitosDetailPage() {
           <div className={styles.headerActions}>
             {esBorrador   && <button className={styles.btnEdit}   onClick={() => setShowEdit(true)}>✎ Editar datos</button>}
             {esConfirmado && esDueño && <button className={styles.btnVolver} onClick={() => setConfirmVolver(true)}>↩ Volver a borrador</button>}
-            <button className={styles.btnPDF} onClick={() => setShowQR(true)}
-              disabled={esBorrador} title={esBorrador ? 'Disponible desde Confirmado' : 'Imprimir QR para escanear en obra'}>
-              <span className={styles.btnIcon}>📱</span>
-              <span className={styles.btnLabel}>QR</span>
-            </button>
+            {/* Botón QR removido: el QR ahora está inline en la card "Acción"
+                del sidebar (visible sin scroll) y también en el PDF impreso. */}
             <button className={styles.btnPDF} onClick={() => imprimirRemito(remito)}
               disabled={esBorrador} title={esBorrador ? 'Disponible desde Confirmado' : 'Exportar PDF'}>
               <span className={styles.btnIcon}>📄</span>
@@ -876,6 +849,67 @@ export default function RemitosDetailPage() {
 
         {/* Sidebar */}
         <div className={styles.sidebar}>
+
+          {/* Acción — PRIMERA en el sidebar para que el QR/botón sea visible
+              sin scroll en PC (es el CTA principal del flujo del remito). */}
+          {puedeAvanzar && (
+            <div className={styles.card}>
+              <h2 className={styles.cardTitle}>Acción</h2>
+              {esRetorno && (
+                <p className={styles.cardDesc}>
+                  Definí el estado de retorno de cada herramienta y la cantidad que vuelve de cada material.
+                </p>
+              )}
+              <button className={styles.btnPrimary} onClick={handleAvanzar} disabled={loadingAction}>
+                {loadingAction ? 'Procesando...' : LABEL_AVANZAR[remito.estado]}
+              </button>
+            </div>
+          )}
+
+          {/* Confirmación que requiere QR (no-DUEÑO en transiciones de
+              tránsito: CONFIRMADO/EN_TRANSITO/EN_TRANSITO_RETORNO).
+              BORRADOR y EN_OBRA están en avanceLibre — no llegan acá.
+              En PC: QR inline para escanear con el celular del responsable.
+              En mobile: botón que navega a la página dedicada del QR mobile
+              (RemitoQRPage tiene toda la lógica del flow según estado). */}
+          {!puedeAvanzar && !esDueño && remito.estado !== 'CERRADO' && (
+            <div className={styles.card}>
+              <h2 className={styles.cardTitle}>Acción</h2>
+              {isMobile ? (
+                <>
+                  <p className={styles.cardDesc}>
+                    Ya estás en el celular — confirmá este remito directamente:
+                  </p>
+                  <Link to={`/remitos/${id}/qr`} className={styles.btnAvanzar}>
+                    📱 Confirmar este remito
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p className={styles.cardDesc}>
+                    Escaneá este QR con la app FieldStock desde el celular del
+                    responsable para confirmar.
+                  </p>
+                  <div className={styles.qrInlineWrap}>
+                    {/* Codeamos el número del remito (FS-NNNNN), no una URL.
+                        Coincide con el regex RE_REMITO del scanner. */}
+                    <QRCodeSVG
+                      value={remito.numero}
+                      size={200}
+                      level="H"
+                      includeMargin
+                    />
+                    <p className={styles.qrInlineHint}>
+                      Código: <strong>{remito.numero}</strong>
+                      <br />
+                      Si no escanea, el responsable puede tipearlo manual en la app.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           <div className={styles.card}>
           <h2 className={styles.cardTitle}>Datos del remito</h2>
           <div className={styles.campos}>
@@ -965,68 +999,6 @@ export default function RemitosDetailPage() {
           </div>
         )}
 
-          {puedeAvanzar && (
-            <div className={styles.card}>
-              <h2 className={styles.cardTitle}>Acción</h2>
-              {esRetorno && (
-                <p className={styles.cardDesc}>
-                  Definí el estado de retorno de cada herramienta y la cantidad que vuelve de cada material.
-                </p>
-              )}
-              <button className={styles.btnPrimary} onClick={handleAvanzar} disabled={loadingAction}>
-                {loadingAction ? 'Procesando...' : LABEL_AVANZAR[remito.estado]}
-              </button>
-            </div>
-          )}
-
-          {/* Confirmación que requiere QR (no-DUEÑO en transiciones de
-              tránsito: CONFIRMADO/EN_TRANSITO/EN_TRANSITO_RETORNO).
-              BORRADOR y EN_OBRA están en avanceLibre — no llegan acá.
-              UX: en PC mostramos el QR inline para escanear con el celular
-              del responsable (en lugar de un texto explicativo). En mobile
-              el usuario ya está en el celular — le ofrecemos un botón que
-              navega a la página dedicada del QR mobile (RemitoQRPage), que
-              tiene toda la lógica del flow correspondiente al estado. */}
-          {!puedeAvanzar && !esDueño && remito.estado !== 'CERRADO' && (
-            <div className={styles.card}>
-              <h2 className={styles.cardTitle}>Acción</h2>
-              {isMobile ? (
-                <>
-                  <p className={styles.cardDesc}>
-                    Ya estás en el celular — confirmá este remito directamente:
-                  </p>
-                  <Link to={`/remitos/${id}/qr`} className={styles.btnAvanzar}>
-                    📱 Confirmar este remito
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <p className={styles.cardDesc}>
-                    Escaneá este QR con la app FieldStock desde el celular del
-                    responsable para confirmar.
-                  </p>
-                  <div className={styles.qrInlineWrap}>
-                    {/* Codeamos el número del remito (FS-NNNNN), no una URL.
-                        Coincide con el regex RE_REMITO del scanner — el mismo
-                        QR que imprime RemitoQRModal. Se escanea desde
-                        QRScannerPage de la app y resuelve via
-                        GET /remitos/numero/:numero al detalle/flow correcto. */}
-                    <QRCodeSVG
-                      value={remito.numero}
-                      size={200}
-                      level="H"
-                      includeMargin
-                    />
-                    <p className={styles.qrInlineHint}>
-                      Código: <strong>{remito.numero}</strong>
-                      <br />
-                      Si no escanea, el responsable puede tipearlo manual en la app.
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </div>
