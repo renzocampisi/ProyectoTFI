@@ -56,7 +56,14 @@ function withTimeout(promise, ms, label) {
 //
 // CRÍTICO: esta función NUNCA debe lanzar. Si lo hace, el await en el boot
 // del AuthProvider rompe el flujo y `loading` se queda en true → pantalla
-// en negro. Atrapamos todo error de red/CORS internamente y devolvemos null.
+// en negro. Atrapamos todo error internamente y devolvemos un objeto:
+//   - { data: <perfil> }            → perfil cargado OK
+//   - { data: null }                → perfil realmente faltante (HTTP 404 o data null)
+//   - { data: null, timeout: true } → falla transitoria (getSession colgado,
+//                                     fetch abort, network down). El caller
+//                                     NO debe signOut en este caso — sería
+//                                     desloguear al user por un problema
+//                                     pasajero.
 async function fetchPerfil() {
   try {
     // getSession con timeout — si Supabase queda colgada refrescando el token
@@ -67,7 +74,7 @@ async function fetchPerfil() {
       'getSession'
     )
     const session = sessionResult?.data?.session
-    if (!session?.access_token) return null
+    if (!session?.access_token) return { data: null }
 
     // fetch con AbortController + timeout — si el backend no responde
     // (proxy roto, backend caído, red intermitente), abortamos.
@@ -81,25 +88,19 @@ async function fetchPerfil() {
     }).finally(() => clearTimeout(tid))
 
     if (!res.ok) {
-      // eslint-disable-next-line no-console
       console.warn(`[useAuth] fetchPerfil falló con HTTP ${res.status}`)
-      // NOTA: NO limpiamos storage acá. Un 401 puede ser "perfil
-      // faltante / cuenta desactivada" — el token de Auth es válido,
-      // el problema es de datos. Si limpiamos, borramos tokens
-      // recién emitidos por un signIn exitoso (bug del 30/05).
-      return null
+      // 401 es "token inválido" — pero NO limpiamos storage acá. Un 401
+      // puede ser perfil faltante / cuenta desactivada. Lo marcamos como
+      // perfil-faltante real (caller decide signOut).
+      return { data: null }
     }
     const json = await res.json()
-    return json.data
+    return { data: json.data }
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error('[useAuth] fetchPerfil exception:', err)
-    // Timeout/crash de red al cargar el perfil. Acá tampoco limpiamos
-    // storage para no romper sesiones recién creadas si el backend
-    // tardó por una razón pasajera. El boot timeout sí limpia (es la
-    // señal clara de storage corrupto) y el botón "Limpiar sesión"
-    // queda como escape hatch.
-    return null
+    // Timeout / fetch abort / network down: NO es problema del perfil, es
+    // transitorio. El caller usa el flag `timeout` para no signOut.
+    return { data: null, timeout: true }
   }
 }
 
@@ -110,12 +111,15 @@ export function AuthProvider({ children }) {
 
   // Carga del perfil — se llama desde varios lados (mount, signIn, refresh).
   const cargarPerfil = useCallback(async () => {
-    const p = await fetchPerfil()
-    setProfile(p)
-    // Si tenemos sesión pero no perfil, deslogueamos para evitar estado
-    // inconsistente. El user va a tener que pedirle al dueño que le cree
-    // el perfil correctamente.
-    if (!p) {
+    const result = await fetchPerfil()
+    setProfile(result.data)
+    // CRÍTICO: distinguir "perfil faltante real" vs "timeout/network error":
+    //  - Si result.timeout: fue una falla transitoria (SDK colgado, fetch
+    //    abortado). NO signOut — el user mantiene su sesión, el perfil se
+    //    cargará en el próximo refetch (cuando el SDK se desbloquee).
+    //  - Si !data y NO timeout: el perfil realmente no existe (HTTP 404 o
+    //    cuenta desactivada). Deslogueamos.
+    if (!result.data && !result.timeout) {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
         await supabase.auth.signOut()
@@ -170,7 +174,17 @@ export function AuthProvider({ children }) {
               if (session?.user && session?.access_token) {
                 console.warn('[AuthProvider] boot timeout — fallback a token de localStorage')
                 if (mounted) setUser(session.user)
-                await cargarPerfil()
+                // NO awaiteamos cargarPerfil — el SDK Supabase está colgado
+                // y cargarPerfil → fetchPerfil → getSession() volvería a
+                // colgarse, manteniendo setLoading(true) indefinidamente
+                // (body vacío, app sin renderear). Lo disparamos en background;
+                // cuando el SDK se desbloquee (o el próximo reload), el perfil
+                // termina cargando. Mientras tanto el user está "logueado"
+                // (RequireAuth pasa por user!=null) y los fetch del backend
+                // funcionan porque api.js lee el token del mismo localStorage.
+                cargarPerfil().catch(perfErr => {
+                  console.warn('[AuthProvider] cargarPerfil background failed:', perfErr?.message)
+                })
               } else {
                 console.warn('[AuthProvider] boot timeout — storage sin user válido')
               }
