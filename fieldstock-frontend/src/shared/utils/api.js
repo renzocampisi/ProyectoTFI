@@ -63,29 +63,51 @@ function on401() {
   }
 }
 
+// Lee el access_token directamente del localStorage cuando getSession() se
+// cuelga (SDK Supabase en lock interno tras un reload). Usa el mismo formato
+// estable del SDK v2: la key empieza con `sb-` y termina con `-auth-token`,
+// el valor es JSON con { access_token, refresh_token, user, expires_at, ... }.
+// Mismo patrón que el fallback del boot del AuthProvider — el storage es
+// la fuente de verdad cuando el SDK no responde.
+function leerTokenDeStorage() {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return null
+    const key = Object.keys(localStorage).find(k =>
+      k.startsWith('sb-') && k.endsWith('-auth-token')
+    )
+    if (!key) return null
+    const stored = JSON.parse(localStorage.getItem(key))
+    return stored?.access_token || stored?.currentSession?.access_token || null
+  } catch {
+    return null
+  }
+}
+
 async function request(path, options = {}) {
   // Inyectar el JWT actual de Supabase Auth en cada request. Hacemos un
   // getSession() por request porque Supabase maneja el refresh automático
   // internamente y devuelve el token vigente. Si la llamada se cuelga
   // (caso edge: tab estuvo idle y el refresh quedó pendiente), abortamos
-  // tras 5s y mandamos la request SIN token — el backend va a responder
-  // 401 y on401() se encarga de redirigir.
-  let session = null
+  // y caemos al fallback de leer storage directo.
+  let token = null
   try {
     const result = await Promise.race([
       supabase.auth.getSession(),
       timeout(SESSION_TIMEOUT_MS, 'getSession'),
     ])
-    session = result?.data?.session ?? null
+    token = result?.data?.session?.access_token ?? null
   } catch {
-    // Timeout o error al leer la sesión → tratamos como "sin sesión".
-    // Igual seguimos con la request; el backend la rechazará si hace falta.
-    session = null
+    // getSession timeout: el SDK Supabase está colgado en su lock interno.
+    // Antes mandábamos la request sin Authorization → backend 401 → on401()
+    // limpiaba storage y echaba al user al login (bug del 03/06 con CRUD
+    // de Proveedores). Ahora intentamos leer el token directo del storage,
+    // que es donde el SDK lo persiste de forma estable.
+    token = leerTokenDeStorage()
   }
 
   const headers = {
     'Content-Type': 'application/json',
-    ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   }
 
