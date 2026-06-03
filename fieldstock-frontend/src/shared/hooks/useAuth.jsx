@@ -152,17 +152,37 @@ export function AuthProvider({ children }) {
         if (session) await cargarPerfil()
       } catch (err) {
         console.error('[AuthProvider] error en boot:', err)
-        // Discriminación de errores:
-        //  - TIMEOUT: probablemente transitorio (SDK lento tras reload,
-        //    refresh en curso, dev server warm-up). NO limpiamos storage —
-        //    sería penalizar al user con re-login por algo pasajero. Si
-        //    el token está realmente roto, el primer fetch al backend va
-        //    a devolver 401 y on401() limpia + redirige correctamente.
-        //  - CRASH/OTRO ERROR: storage probablemente corrupto, limpiamos
-        //    como antes (comportamiento defensivo del 28/05).
         if (/Timeout/i.test(err?.message || '')) {
-          console.warn('[AuthProvider] boot timeout — dejando storage intacto, fallback al próximo fetch')
+          // FALLBACK: el SDK de Supabase se colgó (lock interno tras un
+          // full reload). En lugar de echar al user al login, leemos el
+          // token directo del localStorage — el formato del SDK v2 es
+          // estable: { access_token, refresh_token, user, expires_at, ... }
+          // Si encontramos un user válido, lo seteamos y cargamos perfil
+          // (fetchPerfil tiene su propio timeout independiente). Si más
+          // tarde el token resulta inválido, on401() del api.js limpia.
+          try {
+            const key = Object.keys(localStorage).find(k =>
+              k.startsWith('sb-') && k.endsWith('-auth-token')
+            )
+            if (key) {
+              const stored = JSON.parse(localStorage.getItem(key))
+              const session = stored?.currentSession || stored
+              if (session?.user && session?.access_token) {
+                console.warn('[AuthProvider] boot timeout — fallback a token de localStorage')
+                if (mounted) setUser(session.user)
+                await cargarPerfil()
+              } else {
+                console.warn('[AuthProvider] boot timeout — storage sin user válido')
+              }
+            } else {
+              console.warn('[AuthProvider] boot timeout — sin sb-* en storage')
+            }
+          } catch (fallbackErr) {
+            console.warn('[AuthProvider] boot timeout — fallback storage failed:', fallbackErr)
+          }
         } else {
+          // CRASH/OTRO ERROR: storage probablemente corrupto, limpiamos
+          // como antes (comportamiento defensivo del 28/05).
           clearSupabaseStorage()
         }
       } finally {
