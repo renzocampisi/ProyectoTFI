@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@shared/hooks/useAuth'
 import { ROLE_LABELS, esDueño } from '@shared/constants/roles'
+import NotificacionesBell from '@shared/components/NotificacionesBell'
 import styles from './AppLayout.module.css'
 
 // Word #16: "Inicio" suelto arriba del todo, como dashboard general
@@ -211,6 +212,7 @@ export default function AppLayout() {
             En desktop está oculto vía CSS para no duplicar con el del sidebar. */}
         <span className={styles.topbarLogo}>FieldStock <span className={styles.topbarLogoTag}>AI</span></span>
         <div className={styles.topbarRight}>
+          <NotificacionesBell />
           <button className={styles.temaBtn} onClick={toggle}
             title={tema === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
             {tema === 'dark' ? '☀️' : '🌙'}
