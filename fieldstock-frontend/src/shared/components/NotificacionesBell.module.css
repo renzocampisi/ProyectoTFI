@@ -11,7 +11,7 @@
   border: none;
   cursor: pointer;
   padding: 6px 10px;
-  font-size: 18px;
+  font-size: 22px;
   border-radius: var(--radius-md, 6px);
   display: inline-flex;
   align-items: center;
@@ -24,16 +24,20 @@
 }
 .bellIcon { line-height: 1; }
 
+/* Badge posicionado en la esquina superior derecha del botón, sobresaliendo
+   levemente (top/right negativos) para no taparse con el emoji de la
+   campanita. Tamaño compacto (16px) con borde del color del topbar para
+   que se "pegue" visualmente al ícono sin solaparse. */
 .badge {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
+  top: -2px;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
   background: #e74c3c;
   color: #ffffff;
-  border-radius: 9px;
+  border-radius: 8px;
   font-size: 10px;
   font-weight: 700;
   display: flex;
@@ -42,6 +46,7 @@
   border: 2px solid var(--color-surface, #1a1a1a);
   box-sizing: content-box;
   line-height: 1;
+  pointer-events: none;
 }
 
 .dropdown {
