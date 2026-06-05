@@ -22,6 +22,7 @@ import styles from './NotificacionesBell.module.css'
 
 const ICONO_POR_TIPO = {
   PROBLEMA_LLEGADA: '⚠',
+  STOCK_BAJO:       '📦',
   INFO:             'ℹ',
 }
 
@@ -76,7 +77,7 @@ export default function NotificacionesBell() {
         type="button"
         className={styles.bellBtn}
         onClick={() => setOpen(o => !o)}
-        title={noLeidas > 0 ? `${noLeidas} notificación${noLeidas !== 1 ? 'es' : ''} sin leer` : 'Notificaciones'}
+        title={noLeidas > 0 ? `${noLeidas} ${noLeidas === 1 ? 'notificación' : 'notificaciones'} sin leer` : 'Notificaciones'}
         aria-label="Notificaciones"
       >
         <span className={styles.bellIcon}>🔔</span>
