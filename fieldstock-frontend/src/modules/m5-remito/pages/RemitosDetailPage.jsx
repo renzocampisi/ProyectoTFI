@@ -40,6 +40,17 @@ const ESTADOS_RETORNO_HERR = [
   { value: 'PERDIDA',       label: '✕ Perdida',        cls: 'perdida'   },
 ]
 
+// Mapeo estado_retorno (DB) → clase CSS para el pill de visualización.
+// Se usa en remitos cerrados/en_transito_retorno para que el badge tenga
+// el color del estado (verde=vuelve, violeta=queda_en_obra, naranja=rota,
+// rojo=perdida).
+const ESTADO_RETORNO_CLS = {
+  VUELVE:        'vuelve',
+  QUEDA_EN_OBRA: 'quedaObra',
+  ROTA:          'rota',
+  PERDIDA:       'perdida',
+}
+
 const UNIDADES = ['unidad','kg','metro','litro','caja','rollo','juego','par']
 
 function formatFecha(iso) {
@@ -746,7 +757,20 @@ export default function RemitosDetailPage() {
                             <td>
                               {item.extraviado
                                 ? <span className={styles.extraviadoNote}>—</span>
-                                : <span className={styles.estadoItem}>{item.estado_retorno?.replace(/_/g,' ') ?? '—'}</span>
+                                : item.estado_retorno
+                                    ? (
+                                      // Pill coloreado según el estado de
+                                      // retorno (VUELVE/ROTA/etc). Usamos
+                                      // .estadoRetorno (no .estadoItem) para
+                                      // que en mobile no se reduzca a un
+                                      // punto sin label — el dueño necesita
+                                      // ver explícitamente si volvió rota,
+                                      // perdida, etc.
+                                      <span className={`${styles.estadoRetorno} ${styles[ESTADO_RETORNO_CLS[item.estado_retorno] || '']}`}>
+                                        {item.estado_retorno.replace(/_/g, ' ')}
+                                      </span>
+                                    )
+                                    : <span className={styles.estadoItem}>—</span>
                               }
                             </td>
                           )}
