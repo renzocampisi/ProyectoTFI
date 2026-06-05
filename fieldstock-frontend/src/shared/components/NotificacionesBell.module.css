@@ -11,7 +11,7 @@
   border: none;
   cursor: pointer;
   padding: 6px 10px;
-  font-size: 18px;
+  font-size: 22px;
   border-radius: var(--radius-md, 6px);
   display: inline-flex;
   align-items: center;
@@ -24,16 +24,20 @@
 }
 .bellIcon { line-height: 1; }
 
+/* Badge posicionado en la esquina superior derecha del botón, sobresaliendo
+   levemente (top/right negativos) para no taparse con el emoji de la
+   campanita. Tamaño compacto (16px) con borde del color del topbar para
+   que se "pegue" visualmente al ícono sin solaparse. */
 .badge {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
+  top: -2px;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
   background: #e74c3c;
   color: #ffffff;
-  border-radius: 9px;
+  border-radius: 8px;
   font-size: 10px;
   font-weight: 700;
   display: flex;
@@ -42,6 +46,7 @@
   border: 2px solid var(--color-surface, #1a1a1a);
   box-sizing: content-box;
   line-height: 1;
+  pointer-events: none;
 }
 
 .dropdown {
@@ -160,11 +165,19 @@
 .itemFecha { white-space: nowrap; }
 .itemRemito { font-family: Consolas, monospace; }
 
-/* Mobile: dropdown más ancho relativo al viewport */
+/* Mobile: el dropdown salia del viewport cuando habia varias notifs
+   (el topbar es fixed pero el dropdown se anclaba via position:absolute
+   bajo el boton). Lo cambiamos a position:fixed anclado al topbar (60px)
+   asi siempre arranca debajo del header y puede usar todo el alto
+   disponible. La lista interna ya tiene overflow-y:auto, asi que el
+   scroll funciona dentro del dropdown. */
 @media (max-width: 480px) {
   .dropdown {
-    width: calc(100vw - 24px);
-    right: -8px;
-    max-height: 70vh;
+    position: fixed;
+    top: calc(var(--topbar-height, 60px) + 4px);
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: calc(100vh - var(--topbar-height, 60px) - 24px);
   }
 }

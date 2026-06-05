@@ -6,8 +6,10 @@
  * desde el backend (típicamente cuando avanza un remito) o desde el
  * scheduler de vencimientos de mantenimiento.
  *
- * `getAll` retorna las últimas 50 con el remito asociado (si existe)
- * precargado vía el join `remitos(numero, obra)`.
+ * `getAll` retorna las últimas 15 con el remito asociado (si existe)
+ * precargado vía el join `remitos(numero, obra)`. El límite se eligió
+ * para que la campanita muestre solo las notifs recientes (decisión del
+ * dueño: 10-15 para no abrumar con historial viejo).
  */
 import { supabase } from '../config/supabase.js'
 
@@ -16,7 +18,7 @@ export async function getAll({ soloNoLeidas = false } = {}) {
     .from('notificaciones')
     .select('*, remitos(numero, obra)')
     .order('created_at', { ascending: false })
-    .limit(50)
+    .limit(15)
 
   if (soloNoLeidas) query = query.eq('leida', false)
 

@@ -9,7 +9,7 @@
  * Devuelve: { notifs, noLeidas, loading, error, refetch,
  *             marcarLeida, marcarTodasLeidas }
  *
- *   - `notifs`: array completo (últimas 50, ordenadas DESC por created_at)
+ *   - `notifs`: array completo (últimas 15, ordenadas DESC por created_at)
  *   - `noLeidas`: count de notifs con leida=false (para el badge)
  *   - `marcarLeida(id)`: optimistic update + PATCH al backend
  *   - `marcarTodasLeidas()`: optimistic + PATCH al backend
