@@ -216,7 +216,11 @@
 .retornoBtn:hover { border-color: var(--color-border-light); color: var(--text-primary); }
 .vuelve    { background: rgba(45,212,160,0.15);  color: var(--estado-disponible);     border-color: rgba(45,212,160,0.4) !important; }
 .quedaObra { background: rgba(167,139,250,0.15); color: var(--estado-reservada);      border-color: rgba(167,139,250,0.4) !important; }
-.rota      { background: rgba(124,185,232,0.15); color: var(--estado-mantenimiento);  border-color: rgba(124,185,232,0.4) !important; }
+/* ROTA en naranja para que "salte a la vista" en el remito cerrado,
+   tanto en el selector de retorno como en el pill .estadoRetorno —
+   pedido explícito del dueño: "remarcar en naranja la herramienta
+   como para denotar el estado". */
+.rota      { background: rgba(245,158,11,0.18);  color: #f59e0b;                      border-color: rgba(245,158,11,0.5) !important; }
 .perdida   { background: rgba(242,95,92,0.15);   color: var(--color-danger);          border-color: rgba(242,95,92,0.4) !important; }
 
 /* Pill para mostrar el estado_retorno en remitos EN_TRANSITO_RETORNO o
