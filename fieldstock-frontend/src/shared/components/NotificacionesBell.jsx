@@ -3,7 +3,7 @@
  * Campanita de notificaciones para el topbar.
  *
  * - Badge rojo con count de no leídas (oculto si 0).
- * - Click → dropdown con lista de las 50 últimas notifs.
+ * - Click → dropdown con lista de las 15 últimas notifs.
  * - Click en item → marca como leída + navega al detalle del remito si tiene
  *   remito_id asociado.
  * - Botón "Marcar todas como leídas" en el header del dropdown.
