@@ -165,11 +165,19 @@
 .itemFecha { white-space: nowrap; }
 .itemRemito { font-family: Consolas, monospace; }
 
-/* Mobile: dropdown más ancho relativo al viewport */
+/* Mobile: el dropdown salia del viewport cuando habia varias notifs
+   (el topbar es fixed pero el dropdown se anclaba via position:absolute
+   bajo el boton). Lo cambiamos a position:fixed anclado al topbar (60px)
+   asi siempre arranca debajo del header y puede usar todo el alto
+   disponible. La lista interna ya tiene overflow-y:auto, asi que el
+   scroll funciona dentro del dropdown. */
 @media (max-width: 480px) {
   .dropdown {
-    width: calc(100vw - 24px);
-    right: -8px;
-    max-height: 70vh;
+    position: fixed;
+    top: calc(var(--topbar-height, 60px) + 4px);
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: calc(100vh - var(--topbar-height, 60px) - 24px);
   }
 }
