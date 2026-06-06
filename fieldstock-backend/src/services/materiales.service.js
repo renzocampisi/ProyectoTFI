@@ -160,12 +160,34 @@ export async function update(id, body) {
  * de la lista. Si se quiere "recuperar" un material eliminado, hoy hay
  * que hacer un UPDATE manual desde el dashboard de Supabase.
  *
- * TODO: validar que no haya movimientos/remitos no-cerrados con este
- * material antes de eliminar (similar a remitos.eliminar que chequea
- * herramientas EN_OBRA). Por ahora dejamos al usuario la decisión via
- * el confirm dialog del frontend.
+ * Pre-check (issue #49): bloquea la baja si el material está siendo usado
+ * en algún remito abierto (cualquier estado distinto de CERRADO). Sino, el
+ * `remito_materiales_completo` que lee la vista de detalle del remito
+ * mostraría datos huérfanos cuando el join contra `materiales` se rompiera
+ * por el filtro de `activo`. Mismo patrón que `remitos.eliminar()` para
+ * herramientas EN_OBRA.
  */
 export async function remove(id) {
+  // Contar referencias en remitos NO cerrados. Usamos un select con join
+  // implícito vía relación FK (`remitos!inner(estado)`) para filtrar por
+  // estado del remito padre. `count: 'exact'` + `head: true` evita traer
+  // las filas — solo necesitamos el número.
+  const { count, error: errCount } = await supabase
+    .from('remito_materiales')
+    .select('id, remitos!inner(estado)', { count: 'exact', head: true })
+    .eq('material_id', id)
+    .neq('remitos.estado', 'CERRADO')
+
+  if (errCount) throw errCount
+
+  if (count && count > 0) {
+    const err = new Error(
+      `No se puede eliminar: el material está en uso en ${count} remito(s) abierto(s). Cerralos primero.`
+    )
+    err.status = 409
+    throw err
+  }
+
   const { error } = await supabase
     .from('materiales')
     .update({ activo: false })
