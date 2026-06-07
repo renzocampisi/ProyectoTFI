@@ -133,7 +133,7 @@ export default function InventarioListPage() {
 
                   {/* data-label se usa en mobile para mostrar la etiqueta del campo */}
                   <td className={styles.categoria} data-label="Categoría">
-                    {h.categoria?.nombre || '—'}
+                    {h.categoria_nombre || '—'}
                   </td>
 
                   {/* Badge de estado — se oculta en mobile, reemplazado por el punto */}
@@ -142,7 +142,7 @@ export default function InventarioListPage() {
                   </td>
 
                   <td className={styles.qr} data-label="Código QR">
-                    {h.codigoQR}
+                    {h.codigo_qr || '—'}
                   </td>
 
                   <td className={styles.actions}>
