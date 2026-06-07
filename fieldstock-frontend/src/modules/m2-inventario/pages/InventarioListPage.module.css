@@ -41,6 +41,8 @@
 .row:hover { background: var(--color-surface-alt); }
 .row td { padding: var(--space-3) var(--space-4); vertical-align: middle; }
 .nombre   { color: var(--text-primary); font-weight: 500; display: flex; align-items: center; gap: var(--space-2); }
+/* Icono de "Importante (rastreador GPS)" al lado del nombre. Discreto pero visible. */
+.importanteIcon { color: var(--color-warning); font-size: var(--text-sm); line-height: 1; flex-shrink: 0; }
 .categoria { color: var(--text-secondary); }
 .qr       { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); letter-spacing: 0.03em; }
 .actions  { text-align: right; }

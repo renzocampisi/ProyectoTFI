@@ -124,6 +124,11 @@ export default function InventarioListPage() {
                       title={h.estado}
                     />
                     {h.nombre}
+                    {h.importante && (
+                      <span className={styles.importanteIcon} title="Importante — lleva rastreador GPS">
+                        ⭐
+                      </span>
+                    )}
                   </td>
 
                   {/* data-label se usa en mobile para mostrar la etiqueta del campo */}
