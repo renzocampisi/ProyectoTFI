@@ -11,9 +11,14 @@
  * Cierre del dropdown: click afuera o tecla Escape (handler global con
  * cleanup en el useEffect).
  *
- * Iconos por tipo: PROBLEMA_LLEGADA → ⚠, INFO → ℹ, default → 🔔.
- * Si en el futuro se agregan tipos (STOCK_BAJO, MANTENIMIENTO_VENCIDO),
- * se mapean acá sin tocar el resto.
+ * Iconos por tipo: PROBLEMA_LLEGADA → ⚠, STOCK_BAJO → 📦, INFO → ℹ, default → 🔔.
+ * Si en el futuro se agregan tipos (MANTENIMIENTO_VENCIDO), se mapean acá
+ * sin tocar el resto.
+ *
+ * Notifs "huérfanas": una notif de tipo PROBLEMA_LLEGADA siempre debería tener
+ * `remito_id` cargado. Si la FK quedó NULL es porque el remito fue eliminado
+ * (ON DELETE SET NULL). Esas se marcan visualmente como "remito eliminado"
+ * para que el usuario sepa por qué clickear no navega.
  */
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -25,6 +30,13 @@ const ICONO_POR_TIPO = {
   STOCK_BAJO:       '📦',
   INFO:             'ℹ',
 }
+
+// Tipos de notif que por diseño SIEMPRE deberían tener `remito_id`. Si no lo
+// tienen, es porque el remito fue eliminado y la FK quedó null.
+const TIPOS_REQUIEREN_REMITO = new Set(['PROBLEMA_LLEGADA'])
+
+const esRemitoHuerfano = (notif) =>
+  TIPOS_REQUIEREN_REMITO.has(notif.tipo) && !notif.remito_id
 
 function fechaRelativa(iso) {
   if (!iso) return ''
@@ -108,30 +120,37 @@ export default function NotificacionesBell() {
             </div>
           ) : (
             <ul className={styles.list}>
-              {notifs.map(notif => (
-                <li
-                  key={notif.id}
-                  className={`${styles.item} ${!notif.leida ? styles.itemUnread : ''} ${notif.remito_id ? styles.itemClickable : ''}`}
-                  onClick={() => handleItemClick(notif)}
-                >
-                  <span className={styles.itemIcon}>
-                    {ICONO_POR_TIPO[notif.tipo] || '🔔'}
-                  </span>
-                  <div className={styles.itemBody}>
-                    <div className={styles.itemTitle}>
-                      {notif.titulo}
-                      {!notif.leida && <span className={styles.unreadDot} />}
+              {notifs.map(notif => {
+                const huerfana = esRemitoHuerfano(notif)
+                return (
+                  <li
+                    key={notif.id}
+                    className={`${styles.item} ${!notif.leida ? styles.itemUnread : ''} ${notif.remito_id ? styles.itemClickable : ''} ${huerfana ? styles.itemHuerfana : ''}`}
+                    onClick={() => handleItemClick(notif)}
+                    title={huerfana ? 'El remito asociado a esta notificación fue eliminado' : undefined}
+                  >
+                    <span className={styles.itemIcon}>
+                      {ICONO_POR_TIPO[notif.tipo] || '🔔'}
+                    </span>
+                    <div className={styles.itemBody}>
+                      <div className={styles.itemTitle}>
+                        {notif.titulo}
+                        {!notif.leida && <span className={styles.unreadDot} />}
+                      </div>
+                      <div className={styles.itemMensaje}>{notif.mensaje}</div>
+                      <div className={styles.itemMeta}>
+                        <span className={styles.itemFecha}>{fechaRelativa(notif.created_at)}</span>
+                        {notif.remitos?.numero && (
+                          <span className={styles.itemRemito}>· {notif.remitos.numero}</span>
+                        )}
+                        {huerfana && (
+                          <span className={styles.itemHuerfanaTag}>· remito eliminado</span>
+                        )}
+                      </div>
                     </div>
-                    <div className={styles.itemMensaje}>{notif.mensaje}</div>
-                    <div className={styles.itemMeta}>
-                      <span className={styles.itemFecha}>{fechaRelativa(notif.created_at)}</span>
-                      {notif.remitos?.numero && (
-                        <span className={styles.itemRemito}>· {notif.remitos.numero}</span>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>

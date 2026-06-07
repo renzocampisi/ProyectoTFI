@@ -165,6 +165,22 @@
 .itemFecha { white-space: nowrap; }
 .itemRemito { font-family: Consolas, monospace; }
 
+/* Notif huerfana: el remito asociado fue eliminado (FK ON DELETE SET NULL).
+   Se muestra mas apagada y con cursor de "no se puede" para que el usuario
+   entienda por que el click no navega. La nota "remito eliminado" en el meta
+   refuerza la causa. */
+.itemHuerfana {
+  opacity: 0.55;
+}
+.itemHuerfana.itemClickable,
+.itemHuerfana {
+  cursor: not-allowed;
+}
+.itemHuerfanaTag {
+  color: #f59e0b;
+  font-style: italic;
+}
+
 /* Mobile: el dropdown salia del viewport cuando habia varias notifs
    (el topbar es fixed pero el dropdown se anclaba via position:absolute
    bajo el boton). Lo cambiamos a position:fixed anclado al topbar (60px)
