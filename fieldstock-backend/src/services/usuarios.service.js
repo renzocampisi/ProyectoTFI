@@ -110,6 +110,42 @@ export async function create({ email, nombre, telefono, role }) {
 }
 
 /**
+ * Reset administrativo de password. Genera una nueva (o usa la custom si el
+ * caller la provee) y la persiste en auth.users via admin API. Devuelve el
+ * password en plano UNA SOLA VEZ — el frontend lo muestra en un modal con
+ * botón "Copiar" para que el dueño se lo pase al user por fuera.
+ *
+ * Largo default 12 (más larga que las generadas en `create`, asumimos que un
+ * reset suele ser por compromiso/olvido y conviene un poco más de entropía).
+ * Si viene `customPassword`, validar mínimo 8 chars — mismo piso que Supabase
+ * Auth requiere por defecto.
+ *
+ * No loguear nunca el `passwordPlano` ni meterlo en URL/cookie.
+ */
+export async function resetPassword(id, customPassword) {
+  const password = customPassword?.trim() || genPassword(12)
+  if (password.length < 8) {
+    const e = new Error('La password debe tener al menos 8 caracteres')
+    e.status = 400; throw e
+  }
+
+  // Validar que el usuario existe antes de intentar el update — si no, Supabase
+  // tira un 404 con un mensaje menos claro.
+  const usuario = await getById(id)
+  if (!usuario) {
+    const e = new Error('Usuario no encontrado'); e.status = 404; throw e
+  }
+
+  const { error: errAuth } = await supabase.auth.admin.updateUserById(id, { password })
+  if (errAuth) {
+    const e = new Error(errAuth.message || 'No se pudo resetear la password')
+    e.status = errAuth.status || 500; throw e
+  }
+
+  return { passwordPlano: password }
+}
+
+/**
  * Update del perfil. El email NO se puede cambiar acá (cambiar email es flujo
  * separado en Supabase Auth que requiere confirmación por email).
  */

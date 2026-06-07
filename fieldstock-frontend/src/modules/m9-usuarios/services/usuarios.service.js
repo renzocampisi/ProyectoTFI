@@ -16,4 +16,8 @@ export const UsuariosService = {
   update:    (id, body) => api.patch(`/usuarios/${id}`, body),
   updateMe:  (body)     => api.patch('/usuarios/me', body),
   desactivar:(id)       => api.delete(`/usuarios/${id}`),
+  // Reset administrativo. Sin body → backend autogenera. Con { password } →
+  // usa esa custom (mínimo 8 chars validado en backend). Devuelve
+  // { passwordPlano } UNA SOLA VEZ — mostrar en PasswordRevealModal.
+  resetPassword: (id, password) => api.post(`/usuarios/${id}/reset-password`, password ? { password } : {}),
 }
