@@ -92,6 +92,11 @@ export default function InventarioDetailPage() {
             <div className={styles.headerMeta}>
               <span className={styles.categoria}>{herramienta.categoria_nombre}</span>
               <EstadoBadge estado={herramienta.estado} />
+              {herramienta.importante && (
+                <span className={styles.importanteBadge} title="Lleva rastreador GPS">
+                  ⭐ Importante
+                </span>
+              )}
               {esBaja && herramienta.fecha_eliminacion && (
                 <span className={styles.eliminacionWarning}>
                   ⚠ Se elimina el {formatFecha(herramienta.fecha_eliminacion)}
@@ -161,6 +166,10 @@ export default function InventarioDetailPage() {
               <Campo label="Número de serie" value={herramienta.numero_serie} />
               <Campo label="Categoría"       value={herramienta.categoria_nombre} />
               <Campo label="Código QR"       value={herramienta.codigo_qr} />
+              <Campo
+                label="Importancia"
+                value={herramienta.importante ? '⭐ Importante (lleva rastreador GPS)' : 'Normal'}
+              />
             </div>
           </section>
 

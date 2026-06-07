@@ -32,6 +32,7 @@ export default function InventarioEditPage() {
         descripcion: herr.descripcion  || '',
         añoCompra:   herr.anio_compra  || '',
         valor:       herr.valor        || '',
+        importante:  herr.importante   === true,
       })
       setCategorias(cats)
       setLoading(false)
@@ -66,6 +67,7 @@ export default function InventarioEditPage() {
         descripcion: form.descripcion.trim() || null,
         añoCompra:   form.añoCompra          || null,
         valor:       form.valor ? Number(form.valor) : null,
+        importante:  form.importante === true,
       })
       setGuardado(true)
       setTimeout(() => navigate(`/herramientas/${id}`), 1200)
@@ -126,6 +128,23 @@ export default function InventarioEditPage() {
               <label className={styles.label} htmlFor="numeroSerie">Número de serie</label>
               <input id="numeroSerie" type="text" className={styles.input}
                 value={form.numeroSerie} onChange={e => set('numeroSerie', e.target.value)} />
+            </div>
+
+            {/* Importancia — herramienta con rastreador GPS */}
+            <div className={`${styles.field} ${styles.fullWidth}`}>
+              <label className={styles.label}>Importancia</label>
+              <div className={styles.importanteRow}>
+                <button type="button"
+                  className={`${styles.importanteBtn} ${!form.importante ? styles.importanteBtnActive : ''}`}
+                  onClick={() => set('importante', false)}>
+                  Normal
+                </button>
+                <button type="button"
+                  className={`${styles.importanteBtn} ${form.importante ? styles.importanteBtnImportante : ''}`}
+                  onClick={() => set('importante', true)}>
+                  ⭐ Importante — lleva rastreador GPS
+                </button>
+              </div>
             </div>
           </div>
         </fieldset>

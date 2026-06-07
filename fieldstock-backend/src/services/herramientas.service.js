@@ -73,6 +73,7 @@ export async function create(body) {
       valor:        body.valor        || null,
       divisa:       body.divisa       || 'ARS',
       estado:       body.estadoInicial || 'DISPONIBLE',
+      importante:   body.importante === true,
       codigo_qr:    codigoQR,
     })
     .select()
@@ -93,6 +94,7 @@ export async function update(id, body) {
   if (body.anioCompra  !== undefined) campos.anio_compra  = body.anioCompra   || null
   if (body.valor       !== undefined) campos.valor        = body.valor        || null
   if (body.divisa      !== undefined) campos.divisa       = body.divisa       || 'ARS'
+  if (body.importante  !== undefined) campos.importante   = body.importante === true
 
   const { data, error } = await supabase
     .from('herramientas').update(campos).eq('id', id).select().single()

@@ -141,6 +141,32 @@ describe('herramientas.service', () => {
       expect(insertArg.numero_serie).toBe('SN-123')
       expect(insertArg.anio_compra).toBe(2024)
     })
+
+    it('persiste importante=true cuando se pasa (herramienta con rastreador GPS)', async () => {
+      mockChain.single.mockResolvedValue({ data: { id: 'h-new' }, error: null })
+      await HerramientasService.create({
+        nombre:      'Taladro',
+        categoriaId: 'c',
+        importante:  true,
+      })
+      const insertArg = mockChain.insert.mock.calls[0][0]
+      expect(insertArg.importante).toBe(true)
+    })
+
+    it('default importante=false cuando no se pasa', async () => {
+      mockChain.single.mockResolvedValue({ data: { id: 'h-new' }, error: null })
+      await HerramientasService.create({ nombre: 'Martillo', categoriaId: 'c' })
+      const insertArg = mockChain.insert.mock.calls[0][0]
+      expect(insertArg.importante).toBe(false)
+    })
+
+    it('coerce a boolean: solo true literal se persiste como true', async () => {
+      mockChain.single.mockResolvedValue({ data: { id: 'h-new' }, error: null })
+      await HerramientasService.create({ nombre: 'Sierra', categoriaId: 'c', importante: 'true' })
+      const insertArg = mockChain.insert.mock.calls[0][0]
+      // strings, números, etc. no cuentan — solo el boolean true
+      expect(insertArg.importante).toBe(false)
+    })
   })
 
   describe('update', () => {
@@ -160,6 +186,27 @@ describe('herramientas.service', () => {
       const updateArg = mockChain.update.mock.calls[0][0]
       expect(updateArg.marca).toBeNull()
       expect(updateArg.modelo).toBeNull()
+    })
+
+    it('persiste el flag importante cuando viene en el body', async () => {
+      mockChain.single.mockResolvedValue({ data: { id: 'h-1' }, error: null })
+      await HerramientasService.update('h-1', { importante: true })
+      const updateArg = mockChain.update.mock.calls[0][0]
+      expect(updateArg.importante).toBe(true)
+    })
+
+    it('permite desmarcar importante (true → false)', async () => {
+      mockChain.single.mockResolvedValue({ data: { id: 'h-1' }, error: null })
+      await HerramientasService.update('h-1', { importante: false })
+      const updateArg = mockChain.update.mock.calls[0][0]
+      expect(updateArg.importante).toBe(false)
+    })
+
+    it('no incluye importante si no viene en el body (omitido = no cambia)', async () => {
+      mockChain.single.mockResolvedValue({ data: { id: 'h-1' }, error: null })
+      await HerramientasService.update('h-1', { nombre: 'X' })
+      const updateArg = mockChain.update.mock.calls[0][0]
+      expect(updateArg).not.toHaveProperty('importante')
     })
   })
 
