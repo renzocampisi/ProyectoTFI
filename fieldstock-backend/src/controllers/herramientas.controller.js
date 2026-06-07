@@ -36,9 +36,12 @@ export async function getById(req, res, next) {
 
 export async function create(req, res, next) {
   try {
-    const { nombre, categoriaId } = req.body
+    const { nombre, categoriaId, importante } = req.body
     if (!nombre || !categoriaId) {
       return res.status(400).json({ ok: false, error: 'nombre y categoriaId son obligatorios' })
+    }
+    if (importante !== undefined && typeof importante !== 'boolean') {
+      return res.status(400).json({ ok: false, error: 'importante debe ser boolean' })
     }
     const data = await HerramientasService.create(req.body)
     res.status(201).json({ ok: true, data })
@@ -56,6 +59,9 @@ export async function updateEstado(req, res, next) {
 
 export async function update(req, res, next) {
   try {
+    if (req.body.importante !== undefined && typeof req.body.importante !== 'boolean') {
+      return res.status(400).json({ ok: false, error: 'importante debe ser boolean' })
+    }
     const data = await HerramientasService.update(req.params.id, req.body)
     res.json({ ok: true, data })
   } catch (err) { next(err) }
