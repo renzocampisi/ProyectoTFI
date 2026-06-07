@@ -1,0 +1,21 @@
+# Carpetas de trabajo del CLI de Claude — no van al repo
+.claude/
+
+# Dependencias locales (node_modules dentro de cada subproyecto)
+**/node_modules/
+
+# Variables de entorno
+**/.env
+**/.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build outputs
+**/dist/
+**/build/
+
+# OS
+.DS_Store
+Thumbs.db
