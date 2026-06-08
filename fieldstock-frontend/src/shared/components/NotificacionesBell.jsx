@@ -4,21 +4,22 @@
  *
  * - Badge rojo con count de no leídas (oculto si 0).
  * - Click → dropdown con lista de las 15 últimas notifs.
- * - Click en item → marca como leída + navega al detalle del remito si tiene
- *   remito_id asociado.
+ * - Click en item → marca como leída + navega al destino según el tipo.
  * - Botón "Marcar todas como leídas" en el header del dropdown.
  *
  * Cierre del dropdown: click afuera o tecla Escape (handler global con
  * cleanup en el useEffect).
  *
  * Iconos por tipo: PROBLEMA_LLEGADA → ⚠, STOCK_BAJO → 📦, INFO → ℹ, default → 🔔.
- * Si en el futuro se agregan tipos (MANTENIMIENTO_VENCIDO), se mapean acá
- * sin tocar el resto.
  *
- * Notifs "huérfanas": una notif de tipo PROBLEMA_LLEGADA siempre debería tener
- * `remito_id` cargado. Si la FK quedó NULL es porque el remito fue eliminado
- * (ON DELETE SET NULL). Esas se marcan visualmente como "remito eliminado"
- * para que el usuario sepa por qué clickear no navega.
+ * Destinos por tipo (issue #51 parte 2): cada tipo de notif sabe a qué entidad
+ * refiere y cuál es su URL. Si la FK queda null por ON DELETE SET NULL
+ * (entidad eliminada) la notif se marca como "huérfana" — sigue siendo
+ * leíble pero no navegable, con etiqueta visual que explica por qué.
+ *
+ * Para sumar un tipo nuevo (ej. MANTENIMIENTO_VENCIDO):
+ *   1. Sumar al ICONO_POR_TIPO.
+ *   2. Sumar al DESTINO_POR_TIPO con su campo FK + función de URL + label.
  */
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -31,12 +32,29 @@ const ICONO_POR_TIPO = {
   INFO:             'ℹ',
 }
 
-// Tipos de notif que por diseño SIEMPRE deberían tener `remito_id`. Si no lo
-// tienen, es porque el remito fue eliminado y la FK quedó null.
-const TIPOS_REQUIEREN_REMITO = new Set(['PROBLEMA_LLEGADA'])
+// Mapeo: tipo → cómo navegar y cómo marcar huérfana si falta la FK.
+// Si un tipo no aparece acá es porque no es navegable (ej. INFO genérica).
+const DESTINO_POR_TIPO = {
+  PROBLEMA_LLEGADA: {
+    campoFk:        'remito_id',
+    rutaDeId:       (id) => `/remitos/${id}`,
+    labelHuerfano:  '· remito eliminado',
+    tooltipHuerfano:'El remito asociado a esta notificación fue eliminado',
+  },
+  STOCK_BAJO: {
+    campoFk:        'material_id',
+    rutaDeId:       (id) => `/materiales/${id}`,
+    labelHuerfano:  '· material eliminado',
+    tooltipHuerfano:'El material asociado a esta notificación fue eliminado',
+  },
+}
 
-const esRemitoHuerfano = (notif) =>
-  TIPOS_REQUIEREN_REMITO.has(notif.tipo) && !notif.remito_id
+// "Huérfana": el tipo de notif debería tener una FK, pero la FK quedó null
+// (la entidad asociada fue eliminada). Sin destino → no navegable.
+const esHuerfana = (notif) => {
+  const dest = DESTINO_POR_TIPO[notif.tipo]
+  return !!dest && !notif[dest.campoFk]
+}
 
 function fechaRelativa(iso) {
   if (!iso) return ''
@@ -74,11 +92,13 @@ export default function NotificacionesBell() {
   }, [open])
 
   const handleItemClick = (notif) => {
-    // Marca como leída si no lo está y, si la notif refiere a un remito,
-    // navega al detalle. Cierra el dropdown.
+    // Marca como leída si no lo está y, si el tipo tiene destino navegable
+    // configurado y la FK existe (no es huérfana), navega ahí. Cierra siempre.
     if (!notif.leida) marcarLeida(notif.id)
-    if (notif.remito_id) {
-      navigate(`/remitos/${notif.remito_id}`)
+    const dest = DESTINO_POR_TIPO[notif.tipo]
+    if (dest) {
+      const id = notif[dest.campoFk]
+      if (id) navigate(dest.rutaDeId(id))
     }
     setOpen(false)
   }
@@ -121,13 +141,16 @@ export default function NotificacionesBell() {
           ) : (
             <ul className={styles.list}>
               {notifs.map(notif => {
-                const huerfana = esRemitoHuerfano(notif)
+                const dest      = DESTINO_POR_TIPO[notif.tipo]
+                const huerfana  = esHuerfana(notif)
+                // Clickable solo si el tipo tiene destino Y la FK no es null.
+                const clickable = !!dest && !!notif[dest.campoFk]
                 return (
                   <li
                     key={notif.id}
-                    className={`${styles.item} ${!notif.leida ? styles.itemUnread : ''} ${notif.remito_id ? styles.itemClickable : ''} ${huerfana ? styles.itemHuerfana : ''}`}
+                    className={`${styles.item} ${!notif.leida ? styles.itemUnread : ''} ${clickable ? styles.itemClickable : ''} ${huerfana ? styles.itemHuerfana : ''}`}
                     onClick={() => handleItemClick(notif)}
-                    title={huerfana ? 'El remito asociado a esta notificación fue eliminado' : undefined}
+                    title={huerfana ? dest.tooltipHuerfano : undefined}
                   >
                     <span className={styles.itemIcon}>
                       {ICONO_POR_TIPO[notif.tipo] || '🔔'}
@@ -143,8 +166,13 @@ export default function NotificacionesBell() {
                         {notif.remitos?.numero && (
                           <span className={styles.itemRemito}>· {notif.remitos.numero}</span>
                         )}
+                        {/* Nombre del material si la notif refiere a uno (STOCK_BAJO).
+                            Útil aunque el título ya lo trae — refuerza la entidad. */}
+                        {notif.material?.nombre && !notif.remitos?.numero && (
+                          <span className={styles.itemRemito}>· {notif.material.nombre}</span>
+                        )}
                         {huerfana && (
-                          <span className={styles.itemHuerfanaTag}>· remito eliminado</span>
+                          <span className={styles.itemHuerfanaTag}>{dest.labelHuerfano}</span>
                         )}
                       </div>
                     </div>
