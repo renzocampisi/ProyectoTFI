@@ -156,6 +156,16 @@ export default function MaterialDetalleModal({ material, onClose, onDeleted }) {
             </button>
             <div className={styles.actionsRight}>
               <button className={styles.btnGhost} onClick={onClose}>Cerrar</button>
+              {/* Link a la página de detalle full (issue #51 parte 1).
+                  El modal queda como preview rápido; quien quiera deep-link,
+                  historial o más espacio puede ir a la ruta dedicada. */}
+              <button
+                className={styles.btnGhost}
+                onClick={() => navigate(`/materiales/${material.id}`)}
+                title="Abrir la página de detalle completo"
+              >
+                Ver detalle completo →
+              </button>
               <button
                 className={styles.btnPrimary}
                 onClick={() => navigate(`/materiales/${material.id}/editar`)}
