@@ -1,0 +1,240 @@
+/* RecepcionModal.module.css */
+
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: grid; place-items: center;
+  z-index: 100;
+  padding: var(--space-4);
+}
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  max-width: 720px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+.subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0;
+}
+.text {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ── Atajos rápidos ──────────────────────────────────── */
+.shortcuts {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.shortcut {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill, 999px);
+  padding: 4px 12px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.shortcut:hover:not(:disabled) {
+  background: var(--color-surface-alt);
+  color: var(--text-primary);
+}
+.shortcut:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Tabla de items ──────────────────────────────────── */
+.itemsWrapper {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.itemsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.itemsTable thead th {
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-alt);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.numCol { text-align: right; }
+.itemRow td {
+  padding: var(--space-3);
+  vertical-align: middle;
+}
+.itemRow + .itemRow td { border-top: 1px solid var(--color-border); }
+
+.cellMaterial { min-width: 180px; }
+.materialNombre {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.materialMeta {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.cellNum {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.cellMuted { color: var(--text-muted); }
+/* Si ya recibió algo antes, lo resalta naranja para que se entienda
+   que es una recepción parcial en curso, no la primera. */
+.cellRecibidoPrevio { color: #f59e0b; font-weight: 500; }
+.cellInput {
+  text-align: right;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.inputNum {
+  width: 80px;
+  background: var(--color-bg, var(--color-surface));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.inputNum:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-dim);
+}
+.maxHint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── Summary footer ──────────────────────────────────── */
+.summary {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-2);
+}
+.summaryLabel {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.summaryLabel strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+.errorBanner {
+  background: rgba(242,95,92,0.1);
+  border: 1px solid rgba(242,95,92,0.3);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.btnPrimary {
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-md);
+}
+.btnPrimary:hover:not(:disabled) { background: var(--color-primary-hover); }
+.btnPrimary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btnGhost {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+}
+.btnGhost:hover:not(:disabled) { background: var(--color-surface-alt); color: var(--text-primary); }
+.btnGhost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Mobile ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .card { padding: var(--space-4); max-height: 95vh; }
+  .actions { flex-direction: column-reverse; }
+  .actions button { width: 100%; }
+
+  /* Tabla → cards apiladas */
+  .itemsTable, .itemsTable thead, .itemsTable tbody { display: block; }
+  .itemsTable thead { display: none; }
+  .itemRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+    border-top: none !important;
+  }
+  .itemRow td {
+    padding: 0;
+    text-align: left !important;
+  }
+  .cellMaterial { grid-column: 1 / -1; min-width: 0; }
+  .cellNum::before {
+    content: attr(data-label);
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+  }
+  .cellInput {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    gap: var(--space-3);
+    padding-top: var(--space-2) !important;
+    border-top: 1px solid var(--color-border);
+  }
+  .inputNum { width: 100px; }
+}
