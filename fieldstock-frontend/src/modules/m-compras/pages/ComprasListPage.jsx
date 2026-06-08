@@ -8,15 +8,68 @@
  *
  * Inspirado en RemitosListPage para mantener consistencia visual.
  */
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCompras } from '../hooks/useCompras'
+import { ProveedoresService } from '@modules/m7-directorio/services/directorio.service'
 import EstadoBadge from '../components/EstadoBadge'
-import { MEDIO_PAGO_LABEL, formatFecha, formatMoney } from '../constants'
+import { ESTADO_INFO, MEDIO_PAGO_LABEL, formatFecha, formatMoney } from '../constants'
 import styles from './ComprasListPage.module.css'
+
+// Orden de los chips de filtro. TODOS primero, después los estados activos
+// arriba (más comunes) y los terminales al final.
+const ESTADOS_FILTRO = [
+  'TODOS',
+  'BORRADOR',
+  'CONFIRMADA',
+  'RECIBIDA_PARCIAL',
+  'RECIBIDA',
+  'CANCELADA',
+]
 
 export default function ComprasListPage() {
   const navigate = useNavigate()
-  const { compras, loading, error } = useCompras()
+
+  // ── Estado de filtros ──────────────────────────────────────────
+  const [filtroEstado,    setFiltroEstado]    = useState('TODOS')
+  const [filtroProveedor, setFiltroProveedor] = useState('')
+  const [proveedores,     setProveedores]     = useState([])
+
+  // Para los chips de count traemos TODAS las compras sin filtro y
+  // los counts los calculamos client-side (mismo patrón que
+  // RemitosListPage). Evita un endpoint extra para los conteos.
+  const { compras: todasLasCompras, loading: loadingAll, error: errorAll } = useCompras({
+    proveedorId: filtroProveedor || undefined,
+  })
+
+  // La lista visible se filtra por estado en cliente (los datos ya están
+  // cargados). El backend igual soporta el filtro de estado, pero acá
+  // priorizamos no hacer round-trip cada vez que cambias de chip.
+  const compras = useMemo(() => {
+    if (filtroEstado === 'TODOS') return todasLasCompras
+    return todasLasCompras.filter(c => c.estado === filtroEstado)
+  }, [todasLasCompras, filtroEstado])
+
+  // Counts por estado, calculados del set completo (no del filtrado).
+  const conteos = useMemo(() => {
+    const acc = { TODOS: todasLasCompras.length }
+    for (const c of todasLasCompras) {
+      acc[c.estado] = (acc[c.estado] || 0) + 1
+    }
+    return acc
+  }, [todasLasCompras])
+
+  // Cargar proveedores una vez para el select del filtro.
+  useEffect(() => {
+    let cancelado = false
+    ProveedoresService.getAll()
+      .then(data => { if (!cancelado) setProveedores(Array.isArray(data) ? data : []) })
+      .catch(() => {}) // Sin proveedores el select queda vacío, no es bloqueante.
+    return () => { cancelado = true }
+  }, [])
+
+  const loading = loadingAll
+  const error   = errorAll
 
   return (
     <div className={styles.page}>
@@ -27,7 +80,7 @@ export default function ComprasListPage() {
           <p className={styles.subtitle}>
             {loading
               ? 'Cargando...'
-              : `${compras.length} orden${compras.length !== 1 ? 'es' : ''} de compra`}
+              : `${compras.length} orden${compras.length !== 1 ? 'es' : ''} de compra${filtroEstado !== 'TODOS' || filtroProveedor ? ' (filtradas)' : ''}`}
           </p>
         </div>
         {/* Botón apunta a la ruta del form, que se implementa en la parte 2.
@@ -35,6 +88,42 @@ export default function ComprasListPage() {
         <button className={styles.btnPrimary} onClick={() => navigate('/compras/nuevo')}>
           + Nueva compra
         </button>
+      </div>
+
+      {/* ── Chips de filtro por estado ─────────────────────────── */}
+      <div className={styles.estadoChips}>
+        {ESTADOS_FILTRO.map(estado => {
+          const label = estado === 'TODOS' ? 'Todas' : ESTADO_INFO[estado]?.label || estado
+          const count = conteos[estado] ?? 0
+          const active = filtroEstado === estado
+          return (
+            <button key={estado}
+              type="button"
+              className={`${styles.chip} ${active ? styles.chipActive : ''}`}
+              onClick={() => setFiltroEstado(estado)}>
+              {label}
+              <span className={styles.chipCount}>{count}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── Toolbar: select de proveedor ───────────────────────── */}
+      <div className={styles.toolbar}>
+        <select className={styles.selectProveedor}
+          value={filtroProveedor}
+          onChange={e => setFiltroProveedor(e.target.value)}>
+          <option value="">Todos los proveedores</option>
+          {proveedores.map(p => (
+            <option key={p.id} value={p.id}>{p.nombre || 'Sin nombre'}</option>
+          ))}
+        </select>
+        {(filtroEstado !== 'TODOS' || filtroProveedor) && (
+          <button type="button" className={styles.btnLimpiar}
+            onClick={() => { setFiltroEstado('TODOS'); setFiltroProveedor('') }}>
+            Limpiar filtros
+          </button>
+        )}
       </div>
 
       {error && <div className={styles.errorBanner}>⚠ {error}</div>}
