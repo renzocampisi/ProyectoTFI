@@ -14,13 +14,25 @@
  * Tolera URLs inventadas: si la compra no existe, mensaje amable + link
  * para volver al listado.
  */
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useCompra } from '../hooks/useCompras'
+import { ComprasService } from '../services/compras.service'
 import EstadoBadge from '../components/EstadoBadge'
 import {
   MEDIO_PAGO_LABEL, formatFecha, formatFechaHora, formatMoney, formatCantidad,
 } from '../constants'
 import styles from './ComprasDetailPage.module.css'
+
+// Mapping estado → qué botones se renderizan en la card de acciones.
+// Centralizado para ver de un vistazo qué transiciones hay disponibles.
+const ACCIONES_POR_ESTADO = {
+  BORRADOR:         { confirmar: true,  cancelar: true  },
+  CONFIRMADA:       { confirmar: false, cancelar: true  },
+  RECIBIDA_PARCIAL: { confirmar: false, cancelar: false }, // recibir va en parte 5
+  RECIBIDA:         { confirmar: false, cancelar: false },
+  CANCELADA:        { confirmar: false, cancelar: false },
+}
 
 function Campo({ label, value }) {
   return (
@@ -34,7 +46,40 @@ function Campo({ label, value }) {
 export default function ComprasDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { compra, loading, error } = useCompra(id)
+  const { compra, loading, error, refetch } = useCompra(id)
+
+  // ── Estado de las acciones (confirmar / cancelar) ──────────────
+  // Los dos modales son excluyentes pero usamos estados separados para
+  // claridad. `accionando` bloquea ambos botones mientras una request
+  // está en vuelo (evita doble click).
+  const [confirmAvanzar,  setConfirmAvanzar]  = useState(false)
+  const [confirmCancelar, setConfirmCancelar] = useState(false)
+  const [motivoCancel,    setMotivoCancel]    = useState('')
+  const [accionando,      setAccionando]      = useState(false)
+  const [errAccion,       setErrAccion]       = useState(null)
+
+  const handleAvanzar = async () => {
+    if (accionando) return
+    setAccionando(true); setErrAccion(null)
+    try {
+      await ComprasService.avanzar(id)
+      setConfirmAvanzar(false)
+      await refetch()
+    } catch (err) { setErrAccion(err.message) }
+    finally { setAccionando(false) }
+  }
+
+  const handleCancelar = async () => {
+    if (accionando) return
+    setAccionando(true); setErrAccion(null)
+    try {
+      await ComprasService.cancelar(id, motivoCancel.trim() || undefined)
+      setConfirmCancelar(false)
+      setMotivoCancel('')
+      await refetch()
+    } catch (err) { setErrAccion(err.message) }
+    finally { setAccionando(false) }
+  }
 
   if (loading) {
     return (
@@ -180,9 +225,102 @@ export default function ComprasDetailPage() {
         )}
       </section>
 
-      {/* Espacio reservado para los botones de acción (partes 4 y 5).
-          Por ahora no se renderiza nada — la UI queda explícitamente
-          read-only en esta entrega. */}
+      {/* ── Card de acciones ─────────────────────────────────
+          Renderizada solo si el estado actual habilita al menos una
+          acción. RECIBIDA y CANCELADA son terminales — no aparece nada.
+          Recibir va en parte 5. */}
+      {(() => {
+        const acciones = ACCIONES_POR_ESTADO[compra.estado] || {}
+        const hayAlguna = acciones.confirmar || acciones.cancelar
+        if (!hayAlguna) return null
+        return (
+          <section className={styles.acciones}>
+            {errAccion && <div className={styles.errorBanner}>⚠ {errAccion}</div>}
+            <div className={styles.accionesBotones}>
+              {acciones.cancelar && (
+                <button type="button" className={styles.btnCancelar}
+                  onClick={() => { setErrAccion(null); setConfirmCancelar(true) }}
+                  disabled={accionando}>
+                  Cancelar compra
+                </button>
+              )}
+              {acciones.confirmar && (
+                <button type="button" className={styles.btnConfirmar}
+                  onClick={() => { setErrAccion(null); setConfirmAvanzar(true) }}
+                  disabled={accionando}>
+                  Confirmar pedido
+                </button>
+              )}
+            </div>
+          </section>
+        )
+      })()}
+
+      {/* ── Modal confirmar avance ──────────────────────────── */}
+      {confirmAvanzar && (
+        <div className={styles.modalOverlay}
+          onClick={() => !accionando && setConfirmAvanzar(false)}>
+          <div className={styles.modalCard} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>¿Confirmar el pedido?</h3>
+            <p className={styles.modalText}>
+              Vas a marcar <strong>{compra.numero}</strong> como pedida al proveedor.
+              Después de confirmar <strong>no vas a poder editar los items</strong> ni
+              cambiar el proveedor.
+            </p>
+            {errAccion && <div className={styles.errorBanner}>⚠ {errAccion}</div>}
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnGhost}
+                onClick={() => setConfirmAvanzar(false)}
+                disabled={accionando}>
+                Volver
+              </button>
+              <button type="button" className={styles.btnConfirmar}
+                onClick={handleAvanzar}
+                disabled={accionando}>
+                {accionando ? 'Confirmando...' : 'Sí, confirmar pedido'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal cancelar ──────────────────────────────────── */}
+      {confirmCancelar && (
+        <div className={styles.modalOverlay}
+          onClick={() => !accionando && setConfirmCancelar(false)}>
+          <div className={styles.modalCard} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>¿Cancelar la compra?</h3>
+            <p className={styles.modalText}>
+              Vas a cancelar <strong>{compra.numero}</strong>. La compra queda
+              registrada en estado CANCELADA y no se puede deshacer.
+            </p>
+            <div className={styles.modalField}>
+              <label className={styles.modalLabel} htmlFor="motivoCancel">
+                Motivo (opcional)
+              </label>
+              <textarea id="motivoCancel" className={styles.modalTextarea}
+                rows={2}
+                placeholder="Ej: el proveedor no tiene stock, error de carga, etc."
+                value={motivoCancel}
+                onChange={e => setMotivoCancel(e.target.value)}
+                disabled={accionando} />
+            </div>
+            {errAccion && <div className={styles.errorBanner}>⚠ {errAccion}</div>}
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnGhost}
+                onClick={() => { setConfirmCancelar(false); setMotivoCancel('') }}
+                disabled={accionando}>
+                Volver
+              </button>
+              <button type="button" className={styles.btnCancelarConfirm}
+                onClick={handleCancelar}
+                disabled={accionando}>
+                {accionando ? 'Cancelando...' : 'Sí, cancelar compra'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
