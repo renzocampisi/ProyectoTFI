@@ -26,72 +26,18 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { LuBell, LuTriangleAlert, LuPackage, LuInfo, LuCircleCheck } from 'react-icons/lu'
 import { useNotificaciones } from '@shared/hooks/useNotificaciones'
 import styles from './NotificacionesBell.module.css'
 
-// ── SVG icons (inline para evitar dependencia de icon libs) ─────
-// Todos usan currentColor para heredar el color del padre — así
-// el theme controla el color desde CSS sin tener que pasar props.
-
-function IconBell({ size = 22 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-    </svg>
-  )
-}
-
-function IconAlert({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-      <line x1="12" y1="9"  x2="12" y2="13" />
-      <line x1="12" y1="17" x2="12.01" y2="17" />
-    </svg>
-  )
-}
-
-function IconPackage({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-      <line x1="12" y1="22.08" x2="12" y2="12" />
-    </svg>
-  )
-}
-
-function IconInfo({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="16" x2="12" y2="12" />
-      <line x1="12" y1="8"  x2="12.01" y2="8" />
-    </svg>
-  )
-}
-
-// Icono del empty state — un check dentro de círculo, semánticamente
-// "todo OK, no hay nada urgente que ver".
-function IconCheckCircle({ size = 32 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-      <polyline points="22 4 12 14.01 9 11.01" />
-    </svg>
-  )
-}
-
+// Iconos: react-icons/lu (Lucide). Set unificado para toda la app (Word B).
+// Antes eran SVGs inline custom — migrado a la lib para consistencia con el
+// resto de iconos del sidebar, dashboard, etc. Heredan currentColor por
+// defecto, asi que se adaptan al theme via CSS sin props.
 const ICONO_POR_TIPO = {
-  PROBLEMA_LLEGADA: IconAlert,
-  STOCK_BAJO:       IconPackage,
-  INFO:             IconInfo,
+  PROBLEMA_LLEGADA: LuTriangleAlert,
+  STOCK_BAJO:       LuPackage,
+  INFO:             LuInfo,
 }
 
 // Mapeo: tipo → cómo navegar y cómo marcar huérfana si falta la FK.
@@ -169,7 +115,7 @@ export default function NotificacionesBell() {
         title={noLeidas > 0 ? `${noLeidas} ${noLeidas === 1 ? 'notificación' : 'notificaciones'} sin leer` : 'Notificaciones'}
         aria-label="Notificaciones"
       >
-        <span className={styles.bellIcon}><IconBell /></span>
+        <span className={styles.bellIcon}><LuBell size={22} /></span>
         {noLeidas > 0 && (
           <span className={styles.badge}>{noLeidas > 99 ? '99+' : noLeidas}</span>
         )}
@@ -192,7 +138,7 @@ export default function NotificacionesBell() {
 
           {notifs.length === 0 ? (
             <div className={styles.empty}>
-              <span className={styles.emptyIcon}><IconCheckCircle /></span>
+              <span className={styles.emptyIcon}><LuCircleCheck size={32} /></span>
               <p>No hay notificaciones</p>
             </div>
           ) : (
@@ -201,7 +147,7 @@ export default function NotificacionesBell() {
                 const dest      = DESTINO_POR_TIPO[notif.tipo]
                 const huerfana  = esHuerfana(notif)
                 const clickable = !!dest && !!notif[dest.campoFk]
-                const Icono     = ICONO_POR_TIPO[notif.tipo] || IconBell
+                const Icono     = ICONO_POR_TIPO[notif.tipo] || LuBell
                 return (
                   <li
                     key={notif.id}
@@ -210,7 +156,7 @@ export default function NotificacionesBell() {
                     title={huerfana ? dest.tooltipHuerfano : undefined}
                   >
                     <span className={styles.itemIcon}>
-                      <Icono />
+                      <Icono size={18} />
                     </span>
                     <div className={styles.itemBody}>
                       <div className={styles.itemTitle}>
