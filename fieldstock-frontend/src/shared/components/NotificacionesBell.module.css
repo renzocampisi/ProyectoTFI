@@ -52,13 +52,18 @@
   pointer-events: none;
 }
 
-/* Dropdown desktop. width 380px pero CAPPEADO a max-width del viewport
-   para que nunca se salga del borde izquierdo cuando el topbar es
-   estrecho. El right:0 ancla al botón, así crece hacia la izquierda. */
+/* Dropdown desktop. La campanita vive en el sidebar IZQUIERDO del layout
+   (no en un topbar superior derecho como suele ser convencional), así
+   que el dropdown abre hacia la DERECHA (left:0 del container) para
+   crecer hacia el contenido principal y no salirse por el borde
+   izquierdo del viewport.
+   max-width: calc(100vw - 24px) como red de seguridad para que nunca
+   exceda el viewport en pantallas muy chicas (el media query mobile
+   abajo lo overridea con position:fixed). */
 .dropdown {
   position: absolute;
   top: calc(100% + 8px);
-  right: 0;
+  left: 0;
   width: 380px;
   max-width: calc(100vw - 24px);
   max-height: 480px;
