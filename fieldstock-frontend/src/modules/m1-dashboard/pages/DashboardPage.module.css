@@ -146,6 +146,60 @@
   .kpiGrid { grid-template-columns: repeat(2, 1fr); }
   .row2    { grid-template-columns: 1fr; }
 }
+
+/* Mobile: las cards de notificaciones / stock bajo / últimos remitos
+   se veían cortadas porque listTitle/listSub eran nowrap+ellipsis y el
+   listMeta a la derecha les robaba espacio. Reorganizamos cada item
+   como una columna vertical: titulo permite 2 lineas (resumen), sub
+   en 1 linea con ellipsis, meta abajo como info auxiliar. */
+@media (max-width: 640px) {
+  .cardHeader {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .listItem {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+    padding: var(--space-3);
+  }
+  .listMain {
+    width: 100%;
+  }
+  .listTitle {
+    /* Permitir hasta 2 lineas en lugar de truncar a 1 con ellipsis */
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.35;
+  }
+  .listSub {
+    /* Sub queda en 1 linea con ellipsis para no estirar la card */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .listMeta {
+    /* Meta pasa abajo, alineado a la izquierda y mas chico */
+    align-self: flex-start;
+    font-size: 10px;
+    opacity: 0.85;
+  }
+  /* Notif: el dotNueva queda sobre el titulo en lugar de a la izquierda
+     del flex (donde se vería suelto al apilar). Lo absolutizamos a la
+     esquina superior derecha del item. */
+  .listItem {
+    position: relative;
+  }
+  .dotNueva {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-3);
+  }
+}
+
 @media (max-width: 480px) {
   .kpiGrid { grid-template-columns: 1fr; }
 }
