@@ -11,7 +11,6 @@
   border: none;
   cursor: pointer;
   padding: 6px 10px;
-  font-size: 22px;
   border-radius: var(--radius-md, 6px);
   display: inline-flex;
   align-items: center;
@@ -22,12 +21,16 @@
 .bellBtn:hover {
   background: var(--color-surface-alt, rgba(255, 255, 255, 0.08));
 }
-.bellIcon { line-height: 1; }
+/* El SVG hereda el color via currentColor + el size via attr en el JSX,
+   no necesita font-size. line-height:0 para que no agregue espacio
+   vertical extra. */
+.bellIcon {
+  display: inline-flex;
+  line-height: 0;
+}
 
 /* Badge posicionado en la esquina superior derecha del botón, sobresaliendo
-   levemente (top/right negativos) para no taparse con el emoji de la
-   campanita. Tamaño compacto (16px) con borde del color del topbar para
-   que se "pegue" visualmente al ícono sin solaparse. */
+   levemente para no taparse con el ícono de la campanita. */
 .badge {
   position: absolute;
   top: -2px;
@@ -49,11 +52,15 @@
   pointer-events: none;
 }
 
+/* Dropdown desktop. width 380px pero CAPPEADO a max-width del viewport
+   para que nunca se salga del borde izquierdo cuando el topbar es
+   estrecho. El right:0 ancla al botón, así crece hacia la izquierda. */
 .dropdown {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   width: 380px;
+  max-width: calc(100vw - 24px);
   max-height: 480px;
   background: var(--color-surface, #1f1f1f);
   border: 1px solid var(--color-border, #333);
@@ -69,6 +76,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2, 8px);
   padding: var(--space-3, 12px) var(--space-4, 16px);
   border-bottom: 1px solid var(--color-border, #333);
 }
@@ -85,6 +93,7 @@
   cursor: pointer;
   padding: 4px 6px;
   border-radius: 4px;
+  white-space: nowrap;
 }
 .markAllBtn:hover { background: var(--color-surface-alt, rgba(255, 255, 255, 0.06)); }
 
@@ -93,7 +102,12 @@
   text-align: center;
   color: var(--text-muted, #888);
 }
-.emptyIcon { font-size: 32px; display: block; margin-bottom: 8px; }
+.emptyIcon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+  color: var(--color-primary, #2dd4a0);
+}
 
 .list {
   list-style: none;
@@ -116,12 +130,18 @@
 .itemUnread { background: rgba(45, 212, 160, 0.04); }
 .itemUnread.itemClickable:hover { background: rgba(45, 212, 160, 0.08); }
 
+/* Ícono del tipo de notif. width fijo para alinear todos los títulos
+   en columna aunque distintos íconos midan distinto. line-height:0 para
+   que el span no agregue altura propia (el SVG ya tiene su tamaño). */
 .itemIcon {
-  font-size: 18px;
   flex-shrink: 0;
   width: 28px;
-  text-align: center;
-  line-height: 1.4;
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  line-height: 0;
+  color: var(--text-secondary, #aaa);
+  padding-top: 2px;
 }
 
 .itemBody {
@@ -136,6 +156,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
 }
 .unreadDot {
   display: inline-block;
@@ -154,6 +175,7 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  overflow-wrap: anywhere;
 }
 .itemMeta {
   display: flex;
@@ -161,14 +183,14 @@
   margin-top: 4px;
   font-size: 11px;
   color: var(--text-muted, #888);
+  flex-wrap: wrap;
 }
 .itemFecha { white-space: nowrap; }
 .itemRemito { font-family: Consolas, monospace; }
 
-/* Notif huerfana: el remito asociado fue eliminado (FK ON DELETE SET NULL).
+/* Notif huerfana: la FK quedó NULL (entidad asociada eliminada).
    Se muestra mas apagada y con cursor de "no se puede" para que el usuario
-   entienda por que el click no navega. La nota "remito eliminado" en el meta
-   refuerza la causa. */
+   entienda por que el click no navega. */
 .itemHuerfana {
   opacity: 0.55;
 }
@@ -181,19 +203,20 @@
   font-style: italic;
 }
 
-/* Mobile: el dropdown salia del viewport cuando habia varias notifs
-   (el topbar es fixed pero el dropdown se anclaba via position:absolute
-   bajo el boton). Lo cambiamos a position:fixed anclado al topbar (60px)
-   asi siempre arranca debajo del header y puede usar todo el alto
-   disponible. La lista interna ya tiene overflow-y:auto, asi que el
-   scroll funciona dentro del dropdown. */
-@media (max-width: 480px) {
+/* Tablet y mobile (<768px): el dropdown pasa a position:fixed anclado
+   al topbar para que use todo el alto disponible y NUNCA se salga del
+   viewport, sin importar dónde esté el botón en el topbar.
+   Cubre desde mobile chico hasta tablet horizontal — antes solo
+   <480px tenía este fix y entre 481-768px el dropdown de 380px se
+   salía con topbars estrechos. */
+@media (max-width: 768px) {
   .dropdown {
     position: fixed;
     top: calc(var(--topbar-height, 60px) + 4px);
     left: 12px;
     right: 12px;
     width: auto;
+    max-width: none;
     max-height: calc(100vh - var(--topbar-height, 60px) - 24px);
   }
 }
