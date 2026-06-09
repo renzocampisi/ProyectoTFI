@@ -87,12 +87,18 @@ export default function DashboardPage() {
           <span className={styles.kpiHint}>Sin cerrar</span>
         </Link>
 
-        <Link to="/materiales" className={`${styles.kpiCard} ${styles.kpiAlerta}`}>
+        {/* KPI Alertas: verde si está en 0 (todo OK), rojo si hay al menos
+            una (necesita atención). El "buena noticia" suele perderse cuando
+            el color es siempre rojo — la pintura condicional ayuda a leer
+            el dashboard de un vistazo (mismo principio que los semaforos). */}
+        <Link to="/materiales" className={`${styles.kpiCard} ${kpis.alertasStockBajo > 0 ? styles.kpiAlerta : styles.kpiOk}`}>
           <span className={styles.kpiLabel}>
-            <span className={styles.kpiIcon}>⚠️</span> Alertas
+            <span className={styles.kpiIcon}>{kpis.alertasStockBajo > 0 ? '⚠️' : '✓'}</span> Alertas
           </span>
           <span className={styles.kpiValue}>{kpis.alertasStockBajo}</span>
-          <span className={styles.kpiHint}>Materiales con stock bajo</span>
+          <span className={styles.kpiHint}>
+            {kpis.alertasStockBajo > 0 ? 'Materiales con stock bajo' : 'Todo el stock está OK'}
+          </span>
         </Link>
       </div>
 
