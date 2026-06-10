@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@shared/hooks/useAuth'
 import { ROLE_LABELS } from '@shared/constants/roles'
+import { supabase } from '@shared/utils/supabaseClient'
 import { UsuariosService } from '@modules/m9-usuarios/services/usuarios.service'
 import styles from './PerfilPage.module.css'
 
@@ -19,6 +20,17 @@ export default function PerfilPage() {
   const [saving,  setSaving]  = useState(false)
   const [saved,   setSaved]   = useState(false)
   const [error,   setError]   = useState(null)
+
+  // ── Cambio de contraseña ────────────────────────────────────
+  // No pedimos password actual: el user ya esta logueado (session activa),
+  // eso es prueba de identidad suficiente (mismo criterio que Notion,
+  // Linear, etc.). Supabase Auth tampoco tiene API directa para validar
+  // la password actual sin hacer un signIn temporal — agregar eso seria
+  // complejidad sin valor real.
+  const [passForm, setPassForm] = useState({ nueva: '', confirm: '' })
+  const [savingPass, setSavingPass] = useState(false)
+  const [savedPass,  setSavedPass]  = useState(false)
+  const [errorPass,  setErrorPass]  = useState(null)
 
   useEffect(() => {
     if (profile) {
@@ -45,6 +57,38 @@ export default function PerfilPage() {
     } catch (err) {
       setError(err.message)
     } finally { setSaving(false) }
+  }
+
+  const handleChangePassword = async (ev) => {
+    ev.preventDefault()
+    setErrorPass(null); setSavedPass(false)
+
+    // Validaciones cliente-side. El minimo de 8 es el default de Supabase
+    // Auth — si lo bajamos, el server lo rechaza igual.
+    const nueva = passForm.nueva
+    if (nueva.length < 8) {
+      setErrorPass('La contraseña nueva tiene que tener al menos 8 caracteres.')
+      return
+    }
+    if (nueva !== passForm.confirm) {
+      setErrorPass('Las contraseñas no coinciden.')
+      return
+    }
+    // Recomendaciones sutiles (no bloqueantes): mayus + minus + numero.
+    // Sugerencias en hint del UI, no enforced.
+
+    setSavingPass(true)
+    try {
+      const { error: errSb } = await supabase.auth.updateUser({ password: nueva })
+      if (errSb) throw errSb
+      setSavedPass(true)
+      setPassForm({ nueva: '', confirm: '' })
+      setTimeout(() => setSavedPass(false), 3500)
+    } catch (err) {
+      setErrorPass(err.message || 'No se pudo cambiar la contraseña.')
+    } finally {
+      setSavingPass(false)
+    }
   }
 
   return (
@@ -103,6 +147,47 @@ export default function PerfilPage() {
         <div className={styles.actions}>
           <button type="submit" className={styles.btnPrimary} disabled={saving}>
             {saving ? 'Guardando...' : 'Guardar cambios'}
+          </button>
+        </div>
+      </form>
+
+      {/* ── Cambio de contraseña ─────────────────────────────
+          Form independiente (fuera del form principal) para que el
+          submit no se confunda. Usa supabase.auth.updateUser() directo
+          — no pasa por el backend porque la session activa ya es prueba
+          de identidad suficiente. */}
+      <form className={styles.form} onSubmit={handleChangePassword} noValidate>
+        <fieldset className={styles.section}>
+          <legend className={styles.sectionTitle}>Seguridad</legend>
+          <div className={styles.fields}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="passNueva">Contraseña nueva</label>
+              <input id="passNueva" type="password" className={styles.input}
+                autoComplete="new-password"
+                placeholder="Mínimo 8 caracteres"
+                value={passForm.nueva}
+                onChange={e => setPassForm(f => ({ ...f, nueva: e.target.value }))} />
+              <span className={styles.hint}>
+                Recomendado: 12+ caracteres con mayúsculas, minúsculas, números y símbolos.
+              </span>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="passConfirm">Confirmar contraseña nueva</label>
+              <input id="passConfirm" type="password" className={styles.input}
+                autoComplete="new-password"
+                placeholder="Repetí la contraseña nueva"
+                value={passForm.confirm}
+                onChange={e => setPassForm(f => ({ ...f, confirm: e.target.value }))} />
+            </div>
+          </div>
+        </fieldset>
+
+        {errorPass && <div className={styles.errorBanner}>⚠ {errorPass}</div>}
+        {savedPass && <div className={styles.savedBanner}>✓ Contraseña cambiada. La próxima vez que cierres sesión, usá la nueva.</div>}
+
+        <div className={styles.actions}>
+          <button type="submit" className={styles.btnPrimary} disabled={savingPass}>
+            {savingPass ? 'Cambiando...' : 'Cambiar contraseña'}
           </button>
         </div>
       </form>
