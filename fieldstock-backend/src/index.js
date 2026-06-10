@@ -24,7 +24,30 @@ const app  = express()
 const PORT = process.env.PORT || 3000
 
 // ── Middlewares globales ──────────────────────────────────────
-app.use(cors({ origin: '*' }))
+// CORS: en dev local seguimos abiertos para no romper LAN testing
+// (scaneo QR desde celular en obra). En prod (NODE_ENV=production) usamos
+// allowlist explicito controlado por env var CORS_ALLOWED_ORIGINS
+// (CSV de dominios). Si la env no esta seteada, fallback a "*" — peor
+// que nada pero no rompe.
+//
+// En Fly.io configuramos:
+//   fly secrets set CORS_ALLOWED_ORIGINS="https://fieldstock-ai.vercel.app"
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '*')
+  .split(',').map(s => s.trim()).filter(Boolean)
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // requests sin origin (ej. curl, server-to-server, health checks) → permitir
+    if (!origin) return cb(null, true)
+    // allowlist "*" → cualquier origin (modo dev / fallback)
+    if (allowedOrigins.includes('*')) return cb(null, true)
+    // origin en la lista → permitido
+    if (allowedOrigins.includes(origin)) return cb(null, true)
+    // resto → rechazar
+    cb(new Error(`Origin ${origin} no autorizado por CORS`))
+  },
+  credentials: true,
+}))
 app.use(express.json())
 
 // ── Rutas ─────────────────────────────────────────────────────

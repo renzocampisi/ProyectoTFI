@@ -1,0 +1,36 @@
+# Archivos y carpetas que NO van adentro del image Docker — reduce el
+# tamaño del context que se sube y evita filtrar secrets o cache local.
+
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Variables de entorno locales (en prod usamos fly secrets, no .env)
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# Tests y dev tooling
+**/*.test.js
+**/__tests__
+coverage
+.nyc_output
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Docs y outputs
+*.md
+dist
+build
+
+# Fly específicos (no van adentro del container, son config externa)
+fly.toml
+.fly

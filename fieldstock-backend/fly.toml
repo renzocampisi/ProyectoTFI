@@ -1,0 +1,54 @@
+# fly.toml — config del deploy del backend FieldStock AI en Fly.io.
+#
+# Generado manualmente (sin `fly launch`) para tener control explícito.
+# El `app` lo dejamos en blanco para que `fly launch` lo complete con el
+# nombre que elijas (debe ser único globalmente en Fly.io).
+#
+# Region elegida: gru (São Paulo). Es la más cercana a Argentina entre
+# las que ofrece Fly.io en su free tier, latencia ~30ms vs ~150ms de iad.
+
+app = ""
+primary_region = "gru"
+
+# ───────── Build ─────────
+# Usa el Dockerfile que está en este directorio. Fly.io lo buildea
+# remotamente con buildkit, así no necesitás Docker instalado local.
+[build]
+
+# ───────── Variables de entorno (no secretas) ─────────
+# Las que SÍ son secretas (SUPABASE_SERVICE_KEY) se setean aparte con
+# `fly secrets set`, no van en este archivo (que es público en el repo).
+[env]
+  PORT = "8080"
+  NODE_ENV = "production"
+
+# ───────── HTTP service ─────────
+# Fly.io expone la app vía HTTPS automático (cert Let's Encrypt incluido).
+[http_service]
+  internal_port = 8080
+  force_https = true
+
+  # Auto-stop: la máquina se apaga sola si no hay tráfico durante un
+  # tiempo y vuelve a arrancar en ~2s cuando llega el siguiente request.
+  # Ahorra recursos en free tier y evita consumir las 3 VMs always-on
+  # si no las necesitamos.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  # Health check: Fly.io pinguea /health cada 30s. Si falla 3 veces
+  # seguidas, asume que la máquina murió y la reinicia.
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+
+# ───────── VM specs (free tier shared) ─────────
+# 1 vCPU compartida + 256MB RAM es lo más chico y entra cómodo en el free tier
+# de Fly.io (3 VMs gratis con esta config). Más que suficiente para Express
+# + Supabase SDK (la DB hace el trabajo pesado).
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
