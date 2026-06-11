@@ -3,11 +3,11 @@
 # Build en 2 stages para que la imagen final no incluya devDeps (nodemon,
 # jest, babel) — pesa menos y arranca más rápido en cold start.
 #
-# Base: node:20-alpine (~50MB) — mucho más chico que node:20 (~300MB)
+# Base: node:22-alpine (~50MB) — mucho más chico que node:20 (~300MB)
 # y suficiente para nuestro stack (Express + Supabase SDK, sin deps nativas).
 
 # ───────── Stage 1: install deps de producción ─────────
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 
 # Copiamos solo los manifests primero para aprovechar el cache de capas
@@ -20,7 +20,7 @@ COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
 # ───────── Stage 2: imagen final runtime ─────────
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 WORKDIR /app
 
 # Variables de entorno por default. PORT lo override Fly.io con su env.
