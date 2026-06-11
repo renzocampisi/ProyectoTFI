@@ -84,6 +84,49 @@
 .btnMapa { font-size: var(--text-sm); opacity: 0.4; transition: opacity var(--transition-fast), transform var(--transition-fast); flex-shrink: 0; margin-top: 1px; }
 .btnMapa:hover { opacity: 1; transform: scale(1.2); }
 
+/* ── Toggle Empresa / Particular (Transportes) ── */
+.tipoToggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+}
+.tipoOpt {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.tipoOpt:hover { color: var(--text-primary); }
+.tipoOptActive {
+  background: var(--color-primary);
+  color: #fff;
+}
+.tipoOptActive:hover { color: #fff; }
+
+/* ── Badge tipo en la tabla ── */
+.tipoBadge {
+  display: inline-block;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: rgba(79, 156, 249, 0.15);
+  color: var(--color-primary);
+  border: 1px solid rgba(79, 156, 249, 0.3);
+  white-space: nowrap;
+}
+.tipoBadgeParticular {
+  background: rgba(168, 168, 168, 0.15);
+  color: var(--text-secondary);
+  border-color: var(--color-border);
+}
+
 /* ── Solo desktop: columna de acciones ── */
 .thDesktop { /* visible por defecto */ }
 .tdDesktop { display: flex; }

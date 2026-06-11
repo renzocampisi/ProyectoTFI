@@ -84,21 +84,47 @@ function DireccionCell({ item }) {
   )
 }
 
-const CAMPOS = [
-  { key: 'nombre',    label: 'Nombre de la empresa',  placeholder: 'Ej: Transportes García S.A.', req: true  },
-  { key: 'telefono',  label: 'Teléfono',               placeholder: '3410000000',                 req: true,  tipo: 'tel'      },
-  { key: 'direccion', label: 'Calle y número',          placeholder: 'Ej: Av. San Martín 1250',   req: true  },
-  { key: 'localidad', label: 'Localidad',               placeholder: 'Ej: Rosario',               req: true  },
-  { key: 'provincia', label: 'Provincia',               placeholder: '',                           req: true,  tipo: 'provincia'},
-  { key: 'cuit',      label: 'CUIT / CUIL',            placeholder: 'Sin guiones: 30123456789',   req: false, tipo: 'cuit'     },
-  { key: 'email',     label: 'Email',                   placeholder: 'contacto@empresa.com',       req: false },
-  { key: 'contacto',  label: 'Contacto / Responsable', placeholder: 'Nombre del responsable',     req: false },
-]
+function getCampos(tipo) {
+  const esEmpresa = tipo !== 'PARTICULAR'
+  return [
+    {
+      key: 'nombre',
+      label: esEmpresa ? 'Nombre de la empresa' : 'Nombre y apellido',
+      placeholder: esEmpresa ? 'Ej: Transportes García S.A.' : 'Ej: Juan Pérez',
+      req: true,
+    },
+    { key: 'telefono',  label: 'Teléfono',       placeholder: '3410000000',                 req: true,  tipo: 'tel'      },
+    { key: 'direccion', label: 'Calle y número', placeholder: 'Ej: Av. San Martín 1250',    req: true  },
+    { key: 'localidad', label: 'Localidad',      placeholder: 'Ej: Rosario',                req: true  },
+    { key: 'provincia', label: 'Provincia',      placeholder: '',                           req: true,  tipo: 'provincia'},
+    {
+      key: 'cuit',
+      label: esEmpresa ? 'CUIT' : 'CUIL',
+      placeholder: esEmpresa ? 'Sin guiones: 30123456789' : 'Sin guiones: 20123456789',
+      req: false,
+      tipo: 'cuit',
+    },
+    { key: 'email', label: 'Email', placeholder: esEmpresa ? 'contacto@empresa.com' : 'juan@ejemplo.com', req: false },
+    ...(esEmpresa
+      ? [{ key: 'contacto', label: 'Contacto / Responsable', placeholder: 'Nombre del responsable', req: false }]
+      : []),
+  ]
+}
 
 function FormModal({ titulo, inicial, onSave, onClose, saving, error }) {
-  const [form, setForm] = useState(inicial)
+  const [form, setForm] = useState({ tipo: 'EMPRESA', ...inicial })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  const validar = () => CAMPOS.filter(c => c.req).every(c => form[c.key]?.trim())
+  const campos = getCampos(form.tipo)
+  const validar = () => campos.filter(c => c.req).every(c => form[c.key]?.trim())
+
+  const cambiarTipo = (nuevoTipo) => {
+    if (nuevoTipo === form.tipo) return
+    setForm(f => {
+      const next = { ...f, tipo: nuevoTipo }
+      if (nuevoTipo === 'PARTICULAR') next.contacto = ''
+      return next
+    })
+  }
 
   return (
     <div className={styles.overlay}>
@@ -107,8 +133,20 @@ function FormModal({ titulo, inicial, onSave, onClose, saving, error }) {
           <h3 className={styles.modalTitle}>{titulo}</h3>
           <button className={styles.btnClose} onClick={onClose}>✕</button>
         </div>
+        <div className={styles.tipoToggle} role="radiogroup" aria-label="Tipo de transporte">
+          <button type="button" role="radio" aria-checked={form.tipo === 'EMPRESA'}
+            className={`${styles.tipoOpt} ${form.tipo === 'EMPRESA' ? styles.tipoOptActive : ''}`}
+            onClick={() => cambiarTipo('EMPRESA')}>
+            Empresa
+          </button>
+          <button type="button" role="radio" aria-checked={form.tipo === 'PARTICULAR'}
+            className={`${styles.tipoOpt} ${form.tipo === 'PARTICULAR' ? styles.tipoOptActive : ''}`}
+            onClick={() => cambiarTipo('PARTICULAR')}>
+            Particular
+          </button>
+        </div>
         <div className={styles.fields}>
-          {CAMPOS.map(c => (
+          {campos.map(c => (
             <div key={c.key} className={styles.field}>
               <label className={styles.label}>
                 {c.label}
@@ -185,7 +223,8 @@ export default function TransportesPage() {
   }, [fetchItems])
 
   const handleSave = async (form) => {
-    const faltantes = CAMPOS.filter(c => c.req && !form[c.key]?.trim())
+    const camposActuales = getCampos(form.tipo)
+    const faltantes = camposActuales.filter(c => c.req && !form[c.key]?.trim())
     if (faltantes.length) { setFormError(`Obligatorios: ${faltantes.map(c => c.label).join(', ')}`); return }
     setSaving(true); setFormError(null)
     try {
@@ -203,7 +242,7 @@ export default function TransportesPage() {
     catch (err) { setError(err.message) }
   }
 
-  const inicial = CAMPOS.reduce((acc, c) => ({ ...acc, [c.key]: '' }), {})
+  const inicial = getCampos('EMPRESA').reduce((acc, c) => ({ ...acc, [c.key]: '' }), { tipo: 'EMPRESA' })
 
   return (
     <div className={styles.page}>
@@ -263,24 +302,32 @@ export default function TransportesPage() {
           : <div className={styles.tableWrapper}>
               <table className={styles.table}>
                 <thead><tr>
-                  <th>Nombre</th><th>Teléfono</th><th>Dirección</th>
+                  <th>Tipo</th><th>Nombre</th><th>Teléfono</th><th>Dirección</th>
                   <th>CUIT / CUIL</th><th>Email</th><th>Contacto</th><th></th>
                 </tr></thead>
                 <tbody>
-                  {items.map(item => (
-                    <tr key={item.id} className={styles.row}>
-                      <td className={styles.nombre}>{item.nombre}</td>
-                      <td className={styles.celda}><FormattedCell valor={item.telefono} formatter={formatearTelefono} /></td>
-                      <td className={styles.celda}><DireccionCell item={item} /></td>
-                      <td className={styles.celda}><FormattedCell valor={item.cuit} formatter={formatearCuit} /></td>
-                      <td className={styles.celda}>{item.email    || '—'}</td>
-                      <td className={styles.celda}>{item.contacto || '—'}</td>
-                      <td className={styles.actions}>
-                        <button className={styles.btnEdit} onClick={() => { setEditItem(item); setShowForm(true) }}>✎ Editar</button>
-                        <button className={styles.btnDelete} onClick={() => setConfirmDel(item)}>🗑</button>
-                      </td>
-                    </tr>
-                  ))}
+                  {items.map(item => {
+                    const esParticular = item.tipo === 'PARTICULAR'
+                    return (
+                      <tr key={item.id} className={styles.row}>
+                        <td className={styles.celda}>
+                          <span className={`${styles.tipoBadge} ${esParticular ? styles.tipoBadgeParticular : ''}`}>
+                            {esParticular ? 'Particular' : 'Empresa'}
+                          </span>
+                        </td>
+                        <td className={styles.nombre}>{item.nombre}</td>
+                        <td className={styles.celda}><FormattedCell valor={item.telefono} formatter={formatearTelefono} /></td>
+                        <td className={styles.celda}><DireccionCell item={item} /></td>
+                        <td className={styles.celda}><FormattedCell valor={item.cuit} formatter={formatearCuit} /></td>
+                        <td className={styles.celda}>{item.email    || '—'}</td>
+                        <td className={styles.celda}>{esParticular ? '—' : (item.contacto || '—')}</td>
+                        <td className={styles.actions}>
+                          <button className={styles.btnEdit} onClick={() => { setEditItem(item); setShowForm(true) }}>✎ Editar</button>
+                          <button className={styles.btnDelete} onClick={() => setConfirmDel(item)}>🗑</button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

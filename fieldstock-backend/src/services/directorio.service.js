@@ -26,9 +26,14 @@ export async function getAllTransportes({ q } = {}) {
   return data
 }
 
+function normalizarTipoTransporte(tipo) {
+  return tipo === 'PARTICULAR' ? 'PARTICULAR' : 'EMPRESA'
+}
+
 export async function createTransporte(body) {
   const { data, error } = await supabase.from('transportes')
     .insert({
+      tipo:      normalizarTipoTransporte(body.tipo),
       nombre:    body.nombre,
       cuit:      body.cuit      || null,
       direccion: body.direccion || null,
@@ -46,6 +51,7 @@ export async function createTransporte(body) {
 export async function updateTransporte(id, body) {
   const { data, error } = await supabase.from('transportes')
     .update({
+      tipo:      normalizarTipoTransporte(body.tipo),
       nombre:    body.nombre,
       cuit:      body.cuit      || null,
       direccion: body.direccion || null,
