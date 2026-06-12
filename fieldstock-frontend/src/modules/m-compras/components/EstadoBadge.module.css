@@ -1,0 +1,23 @@
+/* EstadoBadge.module.css — paleta coherente con otros badges del sistema */
+
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--color-surface-alt);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Gris: no iniciado (editable). */
+.estadoBorrador   { background: var(--color-surface-alt); color: var(--text-muted); }
+/* Azul: en curso (esperando recepción). */
+.estadoConfirmada { background: rgba(91,141,239,0.15); color: #5b8def; }
+/* Naranja: atención (recepción incompleta). */
+.estadoParcial    { background: rgba(245,158,11,0.15); color: #f59e0b; }
+/* Verde: completo OK. */
+.estadoRecibida   { background: rgba(45,212,160,0.15); color: var(--estado-disponible, #2dd4a0); }
+/* Rojo: terminal negativo. */
+.estadoCancelada  { background: rgba(242,95,92,0.15); color: var(--color-danger); }
