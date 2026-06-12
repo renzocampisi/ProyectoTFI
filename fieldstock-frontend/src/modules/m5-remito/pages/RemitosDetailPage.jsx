@@ -75,7 +75,7 @@ function imprimirRemito(remito) {
         <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: Arial, sans-serif; background: white; } @page { size: A4; margin: 15mm; }</style>
       </head>
       <body>${el.innerHTML}</body>
-      <script>window.onload = () => { setTimeout(() => { window.print(); setTimeout(() => window.close(), 1000) }, 300) }<\/script>
+      <${'script'}>window.onload = () => { setTimeout(() => { window.print(); setTimeout(() => window.close(), 1000) }, 300) }</${'script'}>
     </html>
   `)
   ventana.document.close()

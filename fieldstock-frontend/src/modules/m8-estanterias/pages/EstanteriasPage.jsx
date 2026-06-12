@@ -1,6 +1,5 @@
 // src/modules/m8-estanterias/pages/EstanteriasPage.jsx
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { EstanteriasService } from '../services/estanterias.service'
 import { InventarioService } from '@modules/m2-inventario/services/inventario.service'
@@ -152,7 +151,6 @@ function AsignarModal({ estanteria, onClose, onSaved }) {
 }
 
 export default function EstanteriasPage() {
-  const navigate = useNavigate()
   const [estanterias, setEstanterias] = useState([])
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState(null)

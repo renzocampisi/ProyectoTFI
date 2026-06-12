@@ -62,7 +62,6 @@ export function clearSupabaseStorage() {
       if (k && k.startsWith('sb-')) keys.push(k)
     }
     keys.forEach(k => localStorage.removeItem(k))
-    // eslint-disable-next-line no-console
     if (keys.length) console.warn('[supabaseClient] localStorage limpiado:', keys)
   } catch {
     // localStorage puede tirar QuotaExceeded o SecurityError en modo
