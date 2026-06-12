@@ -211,6 +211,99 @@
   border-radius: var(--radius-md);
 }
 
+/* ── Items editable (BORRADOR) ───────────────────────── */
+.itemsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.btnLink {
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.btnLink:hover { background: var(--color-primary-dim); }
+
+.inputNumInline {
+  width: 110px;
+  background: var(--color-bg, var(--color-surface));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.inputNumInline:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-dim);
+}
+
+.cellActions {
+  text-align: right;
+  white-space: nowrap;
+}
+.btnRemoveItem {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.btnRemoveItem:hover:not(:disabled) {
+  color: var(--color-danger);
+  background: rgba(242,95,92,0.1);
+}
+.btnRemoveItem:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── Form inline "Agregar item" ──────────────────────── */
+.addItemForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-surface-alt);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-3);
+}
+.addItemHeader {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+.addItemFields {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: var(--space-3);
+}
+.addItemField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.addItemField .inputNumInline { width: 100%; text-align: left; }
+.addItemActions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+@media (max-width: 640px) {
+  .addItemFields { grid-template-columns: 1fr; }
+  .addItemActions { flex-direction: column-reverse; }
+  .addItemActions button { width: 100%; }
+}
+
 /* ── Loading / Error / Empty ─────────────────────────── */
 .loading {
   display: flex; align-items: center; gap: var(--space-3); justify-content: center;
