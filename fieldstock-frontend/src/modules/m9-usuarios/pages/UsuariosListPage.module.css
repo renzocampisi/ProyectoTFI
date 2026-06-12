@@ -166,6 +166,13 @@
   border-radius: var(--radius-sm);
 }
 .btnDesact:hover { color: var(--color-danger); }
+.btnReset {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.btnReset:hover { color: var(--color-primary); background: var(--color-primary-dim); }
 
 /* Confirm modal */
 .confirmOverlay {

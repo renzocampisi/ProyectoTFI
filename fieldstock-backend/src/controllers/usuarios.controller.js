@@ -57,6 +57,19 @@ export async function updateMe(req, res, next) {
   } catch (err) { next(err) }
 }
 
+export async function resetPassword(req, res, next) {
+  try {
+    // Guard: el dueño no puede resetearse a sí mismo via este endpoint
+    // (debería usar el flujo de "olvidé mi password" desde el login).
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({ ok: false, error: 'Para cambiar tu propia password usá la opción desde tu perfil' })
+    }
+    // Body opcional `{ password }`. Si no viene, el service autogenera.
+    const data = await UsuariosService.resetPassword(req.params.id, req.body?.password)
+    res.json({ ok: true, data })
+  } catch (err) { next(err) }
+}
+
 export async function desactivar(req, res, next) {
   try {
     // Guard: el dueño no puede auto-desactivarse (se quedaría afuera sin

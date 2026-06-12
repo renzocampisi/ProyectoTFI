@@ -28,13 +28,16 @@ export default function UsuariosListPage() {
   // Estado de modales
   const [showForm, setShowForm] = useState(false)        // create
   const [editando, setEditando] = useState(null)         // user en edición (o null)
-  const [reveal,   setReveal]   = useState(null)         // { usuario, passwordPlano } post-create
+  const [reveal,   setReveal]   = useState(null)         // { usuario, passwordPlano, modo? } — post-create o post-reset
   const [confDesact, setConfDesact] = useState(null)     // confirm desactivar
   const [errDesact,  setErrDesact]  = useState(null)
+  const [confReset,  setConfReset]  = useState(null)     // confirm reset password
+  const [errReset,   setErrReset]   = useState(null)
+  const [loadingReset, setLoadingReset] = useState(false)
 
   const handleCreated = (result) => {
     setShowForm(false)
-    setReveal(result)  // dispara el modal de password
+    setReveal({ ...result, modo: 'create' })  // dispara el modal de password
     refetch()
   }
   const handleUpdated = () => {
@@ -49,6 +52,22 @@ export default function UsuariosListPage() {
       setConfDesact(null)
       refetch()
     } catch (err) { setErrDesact(err.message) }
+  }
+  // Reset password: confirma → backend autogenera → revela en modal.
+  // No persistimos la nueva password en ningún lado — solo se muestra UNA VEZ.
+  const handleResetPassword = async () => {
+    if (!confReset || loadingReset) return
+    setErrReset(null)
+    setLoadingReset(true)
+    try {
+      const { passwordPlano } = await UsuariosService.resetPassword(confReset.id)
+      setConfReset(null)
+      setReveal({ usuario: confReset, passwordPlano, modo: 'reset' })
+    } catch (err) {
+      setErrReset(err.message)
+    } finally {
+      setLoadingReset(false)
+    }
   }
 
   return (
@@ -119,6 +138,12 @@ export default function UsuariosListPage() {
                         Editar
                       </button>
                       {u.activo && !esYo && (
+                        <button className={styles.btnReset} onClick={() => setConfReset(u)}
+                          title="Resetear contraseña">
+                          🔑
+                        </button>
+                      )}
+                      {u.activo && !esYo && (
                         <button className={styles.btnDesact} onClick={() => setConfDesact(u)}
                           title="Desactivar usuario">
                           🗑
@@ -149,7 +174,32 @@ export default function UsuariosListPage() {
         <PasswordRevealModal
           usuario={reveal.usuario}
           passwordPlano={reveal.passwordPlano}
+          titulo={reveal.modo === 'reset' ? 'Contraseña reseteada' : 'Usuario creado'}
+          passLabel={reveal.modo === 'reset' ? 'Nueva contraseña' : 'Contraseña generada'}
           onClose={() => setReveal(null)} />
+      )}
+
+      {confReset && (
+        <div className={styles.confirmOverlay} onClick={() => !loadingReset && setConfReset(null)}>
+          <div className={styles.confirmCard} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.confirmTitle}>¿Resetear contraseña?</h3>
+            <p className={styles.confirmText}>
+              Se va a generar una contraseña nueva para <strong>{confReset.nombre}</strong> ({confReset.email}).
+              La contraseña anterior dejará de funcionar de inmediato.
+            </p>
+            {errReset && <p className={styles.errorBanner}>⚠ {errReset}</p>}
+            <div className={styles.confirmActions}>
+              <button className={styles.btnGhost}
+                onClick={() => { setConfReset(null); setErrReset(null) }}
+                disabled={loadingReset}>
+                Cancelar
+              </button>
+              <button className={styles.btnPrimary} onClick={handleResetPassword} disabled={loadingReset}>
+                {loadingReset ? 'Generando...' : 'Sí, generar nueva'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {confDesact && (

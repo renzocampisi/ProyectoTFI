@@ -58,6 +58,7 @@ router.post  ('/usuarios',     requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.crea
 router.get   ('/usuarios/:id', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.getById)
 router.patch ('/usuarios/:id', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.update)
 router.delete('/usuarios/:id', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.desactivar)
+router.post  ('/usuarios/:id/reset-password', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.resetPassword)
 
 // ── Categorías ────────────────────────────────────────────────
 router.get ('/categorias', CategoriasCtrl.getAll)
