@@ -37,7 +37,7 @@ const DIRECTORIO_ITEMS = [
 ]
 
 const SISTEMA_ITEMS = [
-  { to: '/compras',     label: 'Compras',     icon: LuShoppingCart, activo: false },
+  { to: '/compras',     label: 'Compras',     icon: LuShoppingCart, activo: true  },
   { to: '/facturacion', label: 'Facturación', icon: LuCreditCard,   activo: false },
 ]
 
