@@ -1,43 +1,48 @@
 // src/layouts/AppLayout.jsx
 import { useState, useEffect, useRef } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import {
+  LuHouse, LuWrench, LuPackage, LuArchive, LuClipboardList, LuConstruction,
+  LuQrCode, LuTruck, LuBuilding2, LuFactory, LuShoppingCart, LuCreditCard,
+  LuSparkles, LuUsers, LuSun, LuMoon, LuUser, LuLogOut, LuChevronDown,
+} from 'react-icons/lu'
 import { useAuth } from '@shared/hooks/useAuth'
 import { ROLE_LABELS, esDueño } from '@shared/constants/roles'
 import NotificacionesBell from '@shared/components/NotificacionesBell'
 import styles from './AppLayout.module.css'
 
-// Word #16: "Inicio" suelto arriba del todo, como dashboard general
+// Iconos unificados via react-icons/lu (Lucide). Antes eran emojis que
+// renderizaban distinto en cada OS (Windows / macOS / Linux) y en temas
+// oscuros perdían contraste (Word B).
 const INICIO_ITEMS = [
-  { to: '/', label: 'Inicio', icon: '🏠', activo: true, end: true },
+  { to: '/', label: 'Inicio', icon: LuHouse, activo: true, end: true },
 ]
 
 const DEPOSITO_ITEMS = [
-  { to: '/herramientas', label: 'Herramientas', icon: '🔧', activo: true },
-  { to: '/materiales',   label: 'Materiales',   icon: '📦', activo: true },
-  { to: '/estanterias',  label: 'Estanterías',  icon: '🗄️', activo: true },
+  { to: '/herramientas', label: 'Herramientas', icon: LuWrench,  activo: true },
+  { to: '/materiales',   label: 'Materiales',   icon: LuPackage, activo: true },
+  { to: '/estanterias',  label: 'Estanterías',  icon: LuArchive, activo: true },
 ]
 
 const OPERATIVO_ITEMS = [
-  { to: '/remitos', label: 'Remitos',      icon: '📋', activo: true },
-  { to: '/obras',   label: 'Obras',        icon: '🏗️', activo: true },
-  { to: '/qr',      label: 'Escanear QR',  icon: '▦',  activo: true },
+  { to: '/remitos', label: 'Remitos',     icon: LuClipboardList, activo: true },
+  { to: '/obras',   label: 'Obras',       icon: LuConstruction,  activo: true },
+  { to: '/qr',      label: 'Escanear QR', icon: LuQrCode,        activo: true },
 ]
 
 const DIRECTORIO_ITEMS = [
-  { to: '/directorio/transportes', label: 'Transportes', icon: '🚚', activo: true  },
-  { to: '/directorio/clientes',    label: 'Clientes',    icon: '🏢', activo: true  },
-  { to: '/directorio/proveedores', label: 'Proveedores', icon: '🏭', activo: true  },
+  { to: '/directorio/transportes', label: 'Transportes', icon: LuTruck,     activo: true },
+  { to: '/directorio/clientes',    label: 'Clientes',    icon: LuBuilding2, activo: true },
+  { to: '/directorio/proveedores', label: 'Proveedores', icon: LuFactory,   activo: true },
 ]
 
 const SISTEMA_ITEMS = [
-  { to: '/compras',     label: 'Compras',     icon: '🛒', activo: false },
-  { to: '/facturacion', label: 'Facturación', icon: '💳', activo: false },
+  { to: '/compras',     label: 'Compras',     icon: LuShoppingCart, activo: false },
+  { to: '/facturacion', label: 'Facturación', icon: LuCreditCard,   activo: false },
 ]
 
-// Solo visible si el role del usuario logueado es DUEÑO. Se inyecta como
-// grupo aparte arriba de Sistema.
 const ADMIN_ITEMS = [
-  { to: '/usuarios', label: 'Usuarios', icon: '👥', activo: true },
+  { to: '/usuarios', label: 'Usuarios', icon: LuUsers, activo: true },
 ]
 
 function useTema() {
@@ -54,29 +59,28 @@ function NavGroup({ label, items, collapsed }) {
   return (
     <div className={styles.navGroup}>
       {label && !collapsed && <span className={styles.navGroupLabel}>{label}</span>}
-      {items.map(item => (
-        <NavLink key={item.to} to={item.to}
-          end={item.end}
-          /* title siempre presente: aparece como tooltip nativo cuando el
-             sidebar está colapsado manualmente (state `collapsed`) o por
-             el responsive a media pantalla (<1024px) que oculta las
-             labels via CSS sin cambiar el state. En desktop full el label
-             ya está visible, el tooltip extra no molesta. */
-          title={item.label}
-          onClick={e => !item.activo && e.preventDefault()}
-          className={({ isActive }) =>
-            [styles.navItem, isActive && styles.active, !item.activo && styles.disabled]
-              .filter(Boolean).join(' ')
-          }>
-          <span className={styles.navIcon}>{item.icon}</span>
-          {!collapsed && (
-            <span className={styles.navLabel}>
-              {item.label}
-              {!item.activo && <span className={styles.soon}>pronto</span>}
-            </span>
-          )}
-        </NavLink>
-      ))}
+      {items.map(item => {
+        // item.icon es un componente de react-icons (no un string).
+        const Icono = item.icon
+        return (
+          <NavLink key={item.to} to={item.to}
+            end={item.end}
+            title={item.label}
+            onClick={e => !item.activo && e.preventDefault()}
+            className={({ isActive }) =>
+              [styles.navItem, isActive && styles.active, !item.activo && styles.disabled]
+                .filter(Boolean).join(' ')
+            }>
+            <span className={styles.navIcon}><Icono size={18} /></span>
+            {!collapsed && (
+              <span className={styles.navLabel}>
+                {item.label}
+                {!item.activo && <span className={styles.soon}>pronto</span>}
+              </span>
+            )}
+          </NavLink>
+        )
+      })}
     </div>
   )
 }
@@ -121,17 +125,17 @@ function UserMenu() {
           <span className={styles.userName}>{profile.nombre}</span>
           <span className={styles.userRole}>{ROLE_LABELS[profile.role] || profile.role}</span>
         </span>
-        <span className={styles.userCaret}>▾</span>
+        <span className={styles.userCaret}><LuChevronDown size={14} /></span>
       </button>
       {open && (
         <div className={styles.userDropdown}>
           <button className={styles.userDropdownItem}
             onClick={() => { setOpen(false); navigate('/perfil') }}>
-            <span>👤</span> Mi perfil
+            <LuUser size={16} /> Mi perfil
           </button>
           <div className={styles.userDropdownSep} />
           <button className={styles.userDropdownItem} onClick={handleLogout}>
-            <span>🚪</span> Cerrar sesión
+            <LuLogOut size={16} /> Cerrar sesión
           </button>
         </div>
       )}
@@ -188,7 +192,7 @@ export default function AppLayout() {
               [styles.navItem, styles.panelIA, isActive && styles.active, styles.disabled]
                 .filter(Boolean).join(' ')
             }>
-            <span className={styles.navIcon}>✦</span>
+            <span className={styles.navIcon}><LuSparkles size={18} /></span>
             {!collapsed && (
               <span className={styles.navLabel}>
                 Panel IA
@@ -215,7 +219,7 @@ export default function AppLayout() {
           <NotificacionesBell />
           <button className={styles.temaBtn} onClick={toggle}
             title={tema === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
-            {tema === 'dark' ? '☀️' : '🌙'}
+            {tema === 'dark' ? <LuSun size={18} /> : <LuMoon size={18} />}
           </button>
           <UserMenu />
         </div>
@@ -228,7 +232,7 @@ export default function AppLayout() {
           la barra (patrón clásico de apps mobile). En desktop se oculta
           vía CSS — el item del sidebar normal sigue cubriendo el acceso. */}
       <NavLink to="/qr" className={styles.fabQr} title="Escanear QR" aria-label="Escanear QR">
-        <span className={styles.fabQrIcon}>▦</span>
+        <span className={styles.fabQrIcon}><LuQrCode size={28} /></span>
       </NavLink>
 
       <main className={styles.main}><Outlet /></main>

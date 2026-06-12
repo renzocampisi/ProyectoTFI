@@ -40,6 +40,9 @@
   font-size: var(--text-xs); color: var(--text-muted);
 }
 .kpiAlerta .kpiValue { color: var(--color-danger); }
+/* KPI Alertas en estado bueno (0 alertas): verde para feedback positivo
+   (Word C). Mismo verde que usan otros estados positivos del sistema. */
+.kpiOk     .kpiValue { color: var(--estado-disponible, #2dd4a0); }
 
 /* ── Bloques de listas ── */
 .row2 {

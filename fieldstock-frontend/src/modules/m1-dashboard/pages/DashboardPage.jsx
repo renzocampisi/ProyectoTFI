@@ -11,6 +11,10 @@
  * para minimizar round-trips. Ver useDashboard().
  */
 import { Link } from 'react-router-dom'
+import {
+  LuWrench, LuConstruction, LuClipboardList, LuTriangleAlert, LuCheck,
+  LuBell, LuPackage, LuFileText,
+} from 'react-icons/lu'
 import { useDashboard } from '../hooks/useDashboard'
 import EstadoRemitoBadge from '@modules/m5-remito/components/EstadoRemitoBadge'
 import styles from './DashboardPage.module.css'
@@ -63,7 +67,7 @@ export default function DashboardPage() {
       <div className={styles.kpiGrid}>
         <Link to="/herramientas" className={styles.kpiCard}>
           <span className={styles.kpiLabel}>
-            <span className={styles.kpiIcon}>🔧</span> Herramientas
+            <span className={styles.kpiIcon}><LuWrench size={14} /></span> Herramientas
           </span>
           <span className={styles.kpiValue}>{kpis.herramientas.total}</span>
           <span className={styles.kpiHint}>
@@ -73,7 +77,7 @@ export default function DashboardPage() {
 
         <Link to="/obras" className={styles.kpiCard}>
           <span className={styles.kpiLabel}>
-            <span className={styles.kpiIcon}>🏗️</span> Obras activas
+            <span className={styles.kpiIcon}><LuConstruction size={14} /></span> Obras activas
           </span>
           <span className={styles.kpiValue}>{kpis.obrasActivas}</span>
           <span className={styles.kpiHint}>En ejecución</span>
@@ -81,18 +85,24 @@ export default function DashboardPage() {
 
         <Link to="/remitos" className={styles.kpiCard}>
           <span className={styles.kpiLabel}>
-            <span className={styles.kpiIcon}>📋</span> Remitos en curso
+            <span className={styles.kpiIcon}><LuClipboardList size={14} /></span> Remitos en curso
           </span>
           <span className={styles.kpiValue}>{kpis.remitosEnCurso}</span>
           <span className={styles.kpiHint}>Sin cerrar</span>
         </Link>
 
-        <Link to="/materiales" className={`${styles.kpiCard} ${styles.kpiAlerta}`}>
+        {/* KPI Alertas: verde si 0 (todo OK), rojo si >0 (Word C).
+            Semaforo conceptual — el verde refuerza positivamente. */}
+        <Link to="/materiales" className={`${styles.kpiCard} ${kpis.alertasStockBajo > 0 ? styles.kpiAlerta : styles.kpiOk}`}>
           <span className={styles.kpiLabel}>
-            <span className={styles.kpiIcon}>⚠️</span> Alertas
+            <span className={styles.kpiIcon}>
+              {kpis.alertasStockBajo > 0 ? <LuTriangleAlert size={14} /> : <LuCheck size={14} />}
+            </span> Alertas
           </span>
           <span className={styles.kpiValue}>{kpis.alertasStockBajo}</span>
-          <span className={styles.kpiHint}>Materiales con stock bajo</span>
+          <span className={styles.kpiHint}>
+            {kpis.alertasStockBajo > 0 ? 'Materiales con stock bajo' : 'Todo el stock está OK'}
+          </span>
         </Link>
       </div>
 
@@ -102,7 +112,7 @@ export default function DashboardPage() {
         {/* Notificaciones */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <span className={styles.cardTitle}>🔔 Notificaciones recientes</span>
+            <span className={styles.cardTitle}><LuBell size={14} /> Notificaciones recientes</span>
           </div>
           {notificaciones.length === 0
             ? <div className={styles.empty}>No hay notificaciones por ahora.</div>
@@ -132,7 +142,7 @@ export default function DashboardPage() {
         {/* Materiales con stock bajo */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <span className={styles.cardTitle}>📦 Materiales con stock bajo</span>
+            <span className={styles.cardTitle}><LuPackage size={14} /> Materiales con stock bajo</span>
             <Link to="/materiales" className={styles.cardLink}>Ver catálogo →</Link>
           </div>
           {materialesStockBajo.length === 0
@@ -170,7 +180,7 @@ export default function DashboardPage() {
       {/* ── Últimos remitos ── */}
       <div className={styles.card}>
         <div className={styles.cardHeader}>
-          <span className={styles.cardTitle}>📄 Últimos remitos</span>
+          <span className={styles.cardTitle}><LuFileText size={14} /> Últimos remitos</span>
           <Link to="/remitos" className={styles.cardLink}>Ver todos →</Link>
         </div>
         {ultimosRemitos.length === 0
