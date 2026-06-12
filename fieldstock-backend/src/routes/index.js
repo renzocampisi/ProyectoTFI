@@ -31,6 +31,7 @@ import * as EstanteriasCtrl     from '../controllers/estanterias.controller.js'
 import * as NotificacionesCtrl  from '../controllers/notificaciones.controller.js'
 import * as DashboardCtrl       from '../controllers/dashboard.controller.js'
 import * as UsuariosCtrl        from '../controllers/usuarios.controller.js'
+import * as ComprasCtrl         from '../controllers/compras.controller.js'
 
 const router = Router()
 
@@ -154,6 +155,18 @@ router.delete('/estanterias/:id',                     EstanteriasCtrl.remove)
 router.post  ('/estanterias/:id/items',               EstanteriasCtrl.addItem)
 router.delete('/estanterias/:id/items/:itemId',       EstanteriasCtrl.removeItem)
 router.patch ('/estanterias/:id/items/:itemId/mover', EstanteriasCtrl.moverItem)
+
+// ── Compras (Órdenes de Compra a proveedores) ────────────────
+router.get   ('/compras',                            ComprasCtrl.getAll)
+router.post  ('/compras',                            ComprasCtrl.create)
+router.get   ('/compras/:id',                        ComprasCtrl.getById)
+router.patch ('/compras/:id',                        ComprasCtrl.update)
+router.post  ('/compras/:id/avanzar',                ComprasCtrl.avanzarEstado)
+router.post  ('/compras/:id/cancelar',               ComprasCtrl.cancelar)
+router.post  ('/compras/:id/recibir',                ComprasCtrl.recibir)
+router.post  ('/compras/:id/items',                  ComprasCtrl.addItem)
+router.patch ('/compras/:id/items/:itemId',          ComprasCtrl.updateItem)
+router.delete('/compras/:id/items/:itemId',          ComprasCtrl.removeItem)
 
 // ── Notificaciones ────────────────────────────────────────────
 router.get  ('/notificaciones',              NotificacionesCtrl.getAll)
