@@ -19,6 +19,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useCompra } from '../hooks/useCompras'
 import { ComprasService } from '../services/compras.service'
 import EstadoBadge from '../components/EstadoBadge'
+import RecepcionModal from '../components/RecepcionModal'
 import {
   MEDIO_PAGO_LABEL, formatFecha, formatFechaHora, formatMoney, formatCantidad,
 } from '../constants'
@@ -27,11 +28,11 @@ import styles from './ComprasDetailPage.module.css'
 // Mapping estado → qué botones se renderizan en la card de acciones.
 // Centralizado para ver de un vistazo qué transiciones hay disponibles.
 const ACCIONES_POR_ESTADO = {
-  BORRADOR:         { confirmar: true,  cancelar: true  },
-  CONFIRMADA:       { confirmar: false, cancelar: true  },
-  RECIBIDA_PARCIAL: { confirmar: false, cancelar: false }, // recibir va en parte 5
-  RECIBIDA:         { confirmar: false, cancelar: false },
-  CANCELADA:        { confirmar: false, cancelar: false },
+  BORRADOR:         { confirmar: true,  cancelar: true,  recibir: false },
+  CONFIRMADA:       { confirmar: false, cancelar: true,  recibir: true  },
+  RECIBIDA_PARCIAL: { confirmar: false, cancelar: false, recibir: true  },
+  RECIBIDA:         { confirmar: false, cancelar: false, recibir: false },
+  CANCELADA:        { confirmar: false, cancelar: false, recibir: false },
 }
 
 function Campo({ label, value }) {
@@ -57,6 +58,16 @@ export default function ComprasDetailPage() {
   const [motivoCancel,    setMotivoCancel]    = useState('')
   const [accionando,      setAccionando]      = useState(false)
   const [errAccion,       setErrAccion]       = useState(null)
+  const [showRecepcion,   setShowRecepcion]   = useState(false)
+
+  // Tras una recepción exitosa: cerrar modal + refetch para reflejar
+  // nuevos cantidad_recibida + posible cambio de estado a
+  // RECIBIDA_PARCIAL o RECIBIDA. La columna "Recibido" del detail
+  // aparece sola por el toggle condicional.
+  const handleRecepcionSuccess = async () => {
+    setShowRecepcion(false)
+    await refetch()
+  }
 
   const handleAvanzar = async () => {
     if (accionando) return
@@ -231,7 +242,7 @@ export default function ComprasDetailPage() {
           Recibir va en parte 5. */}
       {(() => {
         const acciones = ACCIONES_POR_ESTADO[compra.estado] || {}
-        const hayAlguna = acciones.confirmar || acciones.cancelar
+        const hayAlguna = acciones.confirmar || acciones.cancelar || acciones.recibir
         if (!hayAlguna) return null
         return (
           <section className={styles.acciones}>
@@ -249,6 +260,13 @@ export default function ComprasDetailPage() {
                   onClick={() => { setErrAccion(null); setConfirmAvanzar(true) }}
                   disabled={accionando}>
                   Confirmar pedido
+                </button>
+              )}
+              {acciones.recibir && (
+                <button type="button" className={styles.btnConfirmar}
+                  onClick={() => { setErrAccion(null); setShowRecepcion(true) }}
+                  disabled={accionando}>
+                  Registrar recepción
                 </button>
               )}
             </div>
@@ -282,6 +300,17 @@ export default function ComprasDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Modal de recepción ───────────────────────────────
+          Componente aparte porque la UX es más compleja: lista de inputs
+          por item, atajos (todo / nada), validación, conversión delta →
+          total absoluto antes de mandar al backend. */}
+      {showRecepcion && (
+        <RecepcionModal
+          compra={compra}
+          onClose={() => setShowRecepcion(false)}
+          onSuccess={handleRecepcionSuccess} />
       )}
 
       {/* ── Modal cancelar ──────────────────────────────────── */}
