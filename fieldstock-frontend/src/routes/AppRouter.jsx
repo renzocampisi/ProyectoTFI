@@ -27,9 +27,10 @@ import RemitosListPage   from '@modules/m5-remito/pages/RemitosListPage'
 import RemitosNewPage    from '@modules/m5-remito/pages/RemitosNewPage'
 import RemitosDetailPage from '@modules/m5-remito/pages/RemitosDetailPage'
 
-import MateriasListPage from '@modules/m6-materiales/pages/MateriasListPage'
-import MateriasNewPage  from '@modules/m6-materiales/pages/MateriasNewPage'
-import MateriasEditPage from '@modules/m6-materiales/pages/MateriasEditPage'
+import MateriasListPage   from '@modules/m6-materiales/pages/MateriasListPage'
+import MateriasNewPage    from '@modules/m6-materiales/pages/MateriasNewPage'
+import MateriasDetailPage from '@modules/m6-materiales/pages/MateriasDetailPage'
+import MateriasEditPage   from '@modules/m6-materiales/pages/MateriasEditPage'
 
 import TransportesPage from '@modules/m7-directorio/pages/TransportesPage'
 import ClientesPage    from '@modules/m7-directorio/pages/ClientesPage'
@@ -97,6 +98,7 @@ export default function AppRouter() {
           <Route path="materiales">
             <Route index             element={<MateriasListPage />} />
             <Route path="nuevo"      element={<MateriasNewPage />} />
+            <Route path=":id"        element={<MateriasDetailPage />} />
             <Route path=":id/editar" element={<MateriasEditPage />} />
           </Route>
 
