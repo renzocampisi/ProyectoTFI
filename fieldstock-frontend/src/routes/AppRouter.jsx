@@ -40,6 +40,10 @@ import EstanteriasPage from '@modules/m8-estanterias/pages/EstanteriasPage'
 
 import UsuariosListPage from '@modules/m9-usuarios/pages/UsuariosListPage'
 
+import ComprasListPage   from '@modules/m-compras/pages/ComprasListPage'
+import ComprasNewPage    from '@modules/m-compras/pages/ComprasNewPage'
+import ComprasDetailPage from '@modules/m-compras/pages/ComprasDetailPage'
+
 import ComingSoon from '@shared/components/ComingSoon'
 
 export default function AppRouter() {
@@ -111,6 +115,9 @@ export default function AppRouter() {
 
           <Route path="estanterias" element={<EstanteriasPage />} />
 
+          <Route path="compras"       element={<ComprasListPage />} />
+          <Route path="compras/nuevo" element={<ComprasNewPage />} />
+          <Route path="compras/:id"   element={<ComprasDetailPage />} />
           <Route path="compras/*"     element={<ComingSoon modulo="Compras" />} />
           <Route path="facturacion/*" element={<ComingSoon modulo="Facturación" />} />
           <Route path="panel/*"       element={<ComingSoon modulo="Panel IA" />} />
