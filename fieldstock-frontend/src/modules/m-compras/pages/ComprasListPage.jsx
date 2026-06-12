@@ -10,44 +10,9 @@
  */
 import { useNavigate } from 'react-router-dom'
 import { useCompras } from '../hooks/useCompras'
+import EstadoBadge from '../components/EstadoBadge'
+import { MEDIO_PAGO_LABEL, formatFecha, formatMoney } from '../constants'
 import styles from './ComprasListPage.module.css'
-
-// Colores y labels de cada estado. Naranja para "parcial" (atención), verde
-// para terminado OK, rojo para terminal negativo, azul para activo, gris
-// para borrador. Coherente con la paleta del sistema.
-const ESTADO_INFO = {
-  BORRADOR:          { label: 'Borrador',          cls: styles.estadoBorrador },
-  CONFIRMADA:        { label: 'Confirmada',        cls: styles.estadoConfirmada },
-  RECIBIDA_PARCIAL:  { label: 'Recibida parcial',  cls: styles.estadoParcial },
-  RECIBIDA:          { label: 'Recibida',          cls: styles.estadoRecibida },
-  CANCELADA:         { label: 'Cancelada',         cls: styles.estadoCancelada },
-}
-
-const MEDIO_PAGO_LABEL = {
-  EFECTIVO:         'Efectivo',
-  TRANSFERENCIA:    'Transferencia',
-  CHEQUE:           'Cheque',
-  TARJETA:          'Tarjeta',
-  CUENTA_CORRIENTE: 'Cuenta corriente',
-}
-
-function formatFecha(iso) {
-  if (!iso) return '—'
-  const [y, m, d] = iso.split('T')[0].split('-')
-  return `${d}/${m}/${y}`
-}
-
-function formatMoney(n) {
-  if (n == null) return '—'
-  const num = Number(n)
-  if (!Number.isFinite(num)) return '—'
-  return num.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 })
-}
-
-function EstadoBadge({ estado }) {
-  const info = ESTADO_INFO[estado] || { label: estado, cls: '' }
-  return <span className={`${styles.estadoBadge} ${info.cls}`}>{info.label}</span>
-}
 
 export default function ComprasListPage() {
   const navigate = useNavigate()
@@ -111,7 +76,7 @@ export default function ComprasListPage() {
                   onClick={() => navigate(`/compras/${c.id}`)}>
                   <td className={styles.numero} data-label="Número">{c.numero}</td>
                   <td className={styles.proveedor} data-label="Proveedor">
-                    {c.proveedor?.razon_social || c.proveedor_nombre || '—'}
+                    {c.proveedor_nombre || c.proveedor?.nombre || '—'}
                   </td>
                   <td className={styles.fecha} data-label="Fecha pedido">
                     {formatFecha(c.fecha_pedido)}

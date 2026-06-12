@@ -91,20 +91,7 @@
 .total     { font-weight: 600; color: var(--text-primary); white-space: nowrap; }
 .medio     { color: var(--text-secondary); font-size: var(--text-xs); }
 
-.estadoBadge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: var(--radius-pill, 999px);
-}
-/* Paleta coherente: gris para no-iniciado, azul para "en curso", naranja
-   para "atención", verde para OK, rojo para terminal negativo. */
-.estadoBorrador   { background: var(--color-surface-alt); color: var(--text-muted); }
-.estadoConfirmada { background: rgba(91,141,239,0.15); color: #5b8def; }
-.estadoParcial    { background: rgba(245,158,11,0.15); color: #f59e0b; }
-.estadoRecibida   { background: rgba(45,212,160,0.15); color: var(--estado-disponible, #2dd4a0); }
-.estadoCancelada  { background: rgba(242,95,92,0.15); color: var(--color-danger); }
+/* Los estilos de estado viven en EstadoBadge.module.css (componente compartido). */
 
 .actions { text-align: right; }
 .btnRow {
