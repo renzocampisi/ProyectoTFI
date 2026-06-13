@@ -337,6 +337,13 @@ export async function updateItemRetorno(remitoId, itemId, body) {
 }
 
 // ── Registrar cantidad que volvió de un material ──────────────
+// Acepta:
+//   - cantidadRetorno: número >= 0 y <= cantidad_egreso del item.
+//   - observacion: texto libre opcional.
+//   - extraviado: bool opcional. Permite al frontend marcar/desmarcar el
+//     flag cuando el usuario elige "Ninguno" (extraviado=true) vs "Parcial"
+//     o "Todos" (extraviado=false), corrigiendo lo que se haya marcado en
+//     el escaneo QR de LLEGADA si la realidad cambió al inspeccionar.
 export async function updateMaterialRetorno(remitoId, materialItemId, body) {
   const { data: remito } = await supabase
     .from('remitos').select('estado').eq('id', remitoId).single()
@@ -351,9 +358,31 @@ export async function updateMaterialRetorno(remitoId, materialItemId, body) {
     err.status = 400; throw err
   }
 
+  // Validación contra el máximo permitido (no se puede recuperar más de lo
+  // que salió). Leemos el item para conocer cantidad_egreso.
+  const { data: item, error: errItem } = await supabase
+    .from('remito_materiales')
+    .select('cantidad_egreso')
+    .eq('id', materialItemId).eq('remito_id', remitoId).single()
+  if (errItem) throw errItem
+  if (!item) {
+    const err = new Error('Material no encontrado en este remito')
+    err.status = 404; throw err
+  }
+  if (body.cantidadRetorno > Number(item.cantidad_egreso)) {
+    const err = new Error(`La cantidad de retorno (${body.cantidadRetorno}) no puede superar lo que salió (${item.cantidad_egreso})`)
+    err.status = 400; throw err
+  }
+
+  // Solo incluimos `extraviado` y `observacion` en el update si vinieron en
+  // el body — undefined preserva el valor actual sin pisarlo con null.
+  const campos = { cantidad_retorno: body.cantidadRetorno }
+  if (body.observacion !== undefined) campos.observacion = body.observacion || null
+  if (body.extraviado !== undefined)  campos.extraviado  = !!body.extraviado
+
   const { data, error } = await supabase
     .from('remito_materiales')
-    .update({ cantidad_retorno: body.cantidadRetorno, observacion: body.observacion || null })
+    .update(campos)
     .eq('id', materialItemId).eq('remito_id', remitoId)
     .select().single()
 
