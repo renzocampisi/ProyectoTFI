@@ -125,13 +125,13 @@ export default function ComprasNewPage() {
     setGuardando(true); setErrGuardar(null)
     try {
       const compra = await ComprasService.create({
-        proveedor_id:  proveedorId,
-        medio_pago:    medioPago,
+        proveedorId:   proveedorId,
+        medioPago:     medioPago,
         observaciones: observaciones.trim() || null,
         items: items.map(it => ({
-          material_id:     it.material_id,
-          cantidad:        Number(it.cantidad),
-          precio_unitario: Number(it.precio_unitario),
+          materialId:     it.material_id,
+          cantidad:       Number(it.cantidad),
+          precioUnitario: Number(it.precio_unitario),
         })),
       })
       // El backend devuelve la compra creada con su id. Redirigimos al
