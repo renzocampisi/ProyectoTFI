@@ -17,10 +17,21 @@ const mockChain = {
 }
 mockChain.then = (resolve) => resolve({ data: [], error: null })
 
+// Storage mock para tests del comprobante de pago. supabase.storage.from(bucket)
+// devuelve un objeto con createSignedUrl, upload, remove — todos resueltos OK
+// por default. Los tests sobreescriben con mockResolvedValueOnce cuando hace
+// falta forzar un error o un valor específico.
+const mockStorage = {
+  createSignedUrl: jest.fn().mockResolvedValue({ data: { signedUrl: 'https://signed.test/url' }, error: null }),
+  upload:          jest.fn().mockResolvedValue({ data: { path: 'OC-00001.pdf' }, error: null }),
+  remove:          jest.fn().mockResolvedValue({ data: [], error: null }),
+}
+
 jest.mock('../config/supabase.js', () => ({
   supabase: {
     from: jest.fn(() => mockChain),
     rpc:  jest.fn().mockResolvedValue({ data: 'OC-00001', error: null }),
+    storage: { from: jest.fn(() => mockStorage) },
   },
 }))
 
@@ -54,6 +65,11 @@ beforeEach(() => {
   mockChain.then = (resolve) => resolve({ data: [], error: null })
   supabase.from.mockImplementation(() => mockChain)
   supabase.rpc.mockResolvedValue({ data: 'OC-00001', error: null })
+
+  mockStorage.createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://signed.test/url' }, error: null })
+  mockStorage.upload.mockResolvedValue({ data: { path: 'OC-00001.pdf' }, error: null })
+  mockStorage.remove.mockResolvedValue({ data: [], error: null })
+  supabase.storage.from.mockImplementation(() => mockStorage)
 })
 
 // ─────────────────────────────────────────────────────────────
@@ -355,5 +371,122 @@ describe('compras.service.addItem (validaciones)', () => {
     await expect(
       ComprasService.addItem('c-1', { materialId: 'm-1', cantidad: 5, precioUnitario: 10 })
     ).rejects.toThrow(/BORRADOR/)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────
+describe('compras.service.getComprobanteSignedUrl', () => {
+  it('devuelve null si la compra no tiene comprobante_url', async () => {
+    mockChain.single.mockResolvedValueOnce({
+      data: { comprobante_url: null },
+      error: null,
+    })
+    const result = await ComprasService.getComprobanteSignedUrl('c-1')
+    expect(result).toBeNull()
+    expect(mockStorage.createSignedUrl).not.toHaveBeenCalled()
+  })
+
+  it('genera signed URL con TTL de 3600s cuando hay comprobante', async () => {
+    mockChain.single.mockResolvedValueOnce({
+      data: { comprobante_url: 'OC-00001.pdf' },
+      error: null,
+    })
+    const result = await ComprasService.getComprobanteSignedUrl('c-1')
+    expect(supabase.storage.from).toHaveBeenCalledWith('comprobantes-compras')
+    expect(mockStorage.createSignedUrl).toHaveBeenCalledWith('OC-00001.pdf', 3600)
+    expect(result).toEqual({
+      url: 'https://signed.test/url',
+      path: 'OC-00001.pdf',
+      expiresIn: 3600,
+    })
+  })
+})
+
+// ─────────────────────────────────────────────────────────────
+describe('compras.service.setComprobante', () => {
+  const buffer = Buffer.from('fake-pdf-content')
+
+  it('rechaza archivo vacío', async () => {
+    await expect(
+      ComprasService.setComprobante('c-1', { buffer: Buffer.alloc(0), mimetype: 'application/pdf' })
+    ).rejects.toThrow(/vacío/)
+  })
+
+  it('rechaza archivo mayor a 5 MB', async () => {
+    const big = Buffer.alloc(5 * 1024 * 1024 + 1)
+    await expect(
+      ComprasService.setComprobante('c-1', { buffer: big, mimetype: 'application/pdf' })
+    ).rejects.toThrow(/5 MB/)
+  })
+
+  it('rechaza mime type no permitido', async () => {
+    await expect(
+      ComprasService.setComprobante('c-1', { buffer, mimetype: 'application/zip' })
+    ).rejects.toThrow(/Tipo no permitido/)
+  })
+
+  it('sube el archivo y guarda el path en la compra', async () => {
+    // 1) Lectura inicial de la compra
+    mockChain.single.mockResolvedValueOnce({
+      data: { numero: 'OC-00042', comprobante_url: null },
+      error: null,
+    })
+    // 2) Update de comprobante_url devuelve la compra actualizada
+    mockChain.single.mockResolvedValueOnce({
+      data: { id: 'c-1', numero: 'OC-00042', comprobante_url: 'OC-00042-12345.pdf' },
+      error: null,
+    })
+
+    const result = await ComprasService.setComprobante('c-1', { buffer, mimetype: 'application/pdf' })
+
+    expect(mockStorage.upload).toHaveBeenCalledTimes(1)
+    expect(mockStorage.remove).not.toHaveBeenCalled() // no había viejo
+    expect(mockChain.update).toHaveBeenCalledWith({ comprobante_url: expect.stringMatching(/^OC-00042-\d+\.pdf$/) })
+    expect(result.id).toBe('c-1')
+  })
+
+  it('borra el viejo antes de subir el nuevo (reemplazo)', async () => {
+    mockChain.single.mockResolvedValueOnce({
+      data: { numero: 'OC-00042', comprobante_url: 'OC-00042-9999.jpg' },
+      error: null,
+    })
+    mockChain.single.mockResolvedValueOnce({
+      data: { id: 'c-1', comprobante_url: 'OC-00042-12345.pdf' },
+      error: null,
+    })
+
+    await ComprasService.setComprobante('c-1', { buffer, mimetype: 'application/pdf' })
+
+    expect(mockStorage.remove).toHaveBeenCalledWith(['OC-00042-9999.jpg'])
+    expect(mockStorage.upload).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────
+describe('compras.service.removeComprobante', () => {
+  it('devuelve null si la compra no tiene comprobante', async () => {
+    mockChain.single.mockResolvedValueOnce({
+      data: { comprobante_url: null },
+      error: null,
+    })
+    const result = await ComprasService.removeComprobante('c-1')
+    expect(result).toBeNull()
+    expect(mockStorage.remove).not.toHaveBeenCalled()
+  })
+
+  it('borra del bucket y limpia la columna', async () => {
+    mockChain.single.mockResolvedValueOnce({
+      data: { comprobante_url: 'OC-00001.pdf' },
+      error: null,
+    })
+    mockChain.single.mockResolvedValueOnce({
+      data: { id: 'c-1', comprobante_url: null },
+      error: null,
+    })
+
+    await ComprasService.removeComprobante('c-1')
+
+    expect(mockStorage.remove).toHaveBeenCalledWith(['OC-00001.pdf'])
+    expect(mockChain.update).toHaveBeenCalledWith({ comprobante_url: null })
   })
 })
