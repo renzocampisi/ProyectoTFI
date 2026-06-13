@@ -89,7 +89,7 @@ async function request(path, options = {}) {
   // internamente y devuelve el token vigente. Si la llamada se cuelga
   // (caso edge: tab estuvo idle y el refresh quedó pendiente), abortamos
   // y caemos al fallback de leer storage directo.
-  let token = null
+  let token
   try {
     const result = await Promise.race([
       supabase.auth.getSession(),
@@ -105,8 +105,12 @@ async function request(path, options = {}) {
     token = leerTokenDeStorage()
   }
 
+  // Si el body es FormData (multipart), NO seteamos Content-Type: el browser
+  // lo arma con el boundary correcto. Forzar application/json acá rompe el
+  // parser de multer en el backend.
+  const isMultipart = options.body instanceof FormData
   const headers = {
-    'Content-Type': 'application/json',
+    ...(isMultipart ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   }
@@ -147,9 +151,13 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  get:    (path)       => request(path),
-  post:   (path, body) => request(path, { method: 'POST',   body: JSON.stringify(body) }),
-  put:    (path, body) => request(path, { method: 'PUT',    body: JSON.stringify(body) }),
-  patch:  (path, body) => request(path, { method: 'PATCH',  body: JSON.stringify(body) }),
-  delete: (path)       => request(path, { method: 'DELETE' }),
+  get:      (path)           => request(path),
+  post:     (path, body)     => request(path, { method: 'POST',   body: JSON.stringify(body) }),
+  put:      (path, body)     => request(path, { method: 'PUT',    body: JSON.stringify(body) }),
+  patch:    (path, body)     => request(path, { method: 'PATCH',  body: JSON.stringify(body) }),
+  delete:   (path)           => request(path, { method: 'DELETE' }),
+  // postForm: para uploads multipart. body es un FormData ya armado por el
+  // caller (ej. fd.append('archivo', file)). El header Content-Type lo deja
+  // que lo arme el browser para incluir el boundary correcto.
+  postForm: (path, formData) => request(path, { method: 'POST',   body: formData }),
 }

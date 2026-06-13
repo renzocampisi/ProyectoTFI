@@ -21,6 +21,7 @@ import { ComprasService } from '../services/compras.service'
 import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
 import EstadoBadge from '../components/EstadoBadge'
 import RecepcionModal from '../components/RecepcionModal'
+import ComprobantePagoCard from '../components/ComprobantePagoCard'
 import {
   MEDIO_PAGO_LABEL, formatFecha, formatFechaHora, formatMoney, formatCantidad,
 } from '../constants'
@@ -466,6 +467,12 @@ export default function ComprasDetailPage() {
             }} />
         )}
       </section>
+
+      {/* ── Comprobante de pago ─────────────────────────────────
+          Disponible en cualquier estado: el operador puede subir el
+          recibo cuando lo tenga (puede ser antes o despues de confirmar
+          la compra). El componente maneja su propio loading/error. */}
+      <ComprobantePagoCard compraId={compra.id} />
 
       {/* ── Card de acciones ─────────────────────────────────
           Renderizada solo si el estado actual habilita al menos una
