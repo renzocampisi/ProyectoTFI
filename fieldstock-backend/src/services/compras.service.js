@@ -455,3 +455,86 @@ export async function recibir(id, body = {}) {
 
   return data
 }
+
+// ── Comprobante de pago ──────────────────────────────────────
+// Almacenamiento: bucket privado `comprobantes-compras` (ver migration
+// 2026_06_12_compras_comprobante_storage.sql). El path se guarda en
+// `compras.comprobante_url`. El frontend nunca toca Storage directo —
+// pasa por estas funciones que generan signed URLs temporales.
+
+const BUCKET_COMPROBANTES = 'comprobantes-compras'
+const SIGNED_URL_TTL_SEC  = 3600 // 1 hora — suficiente para abrir/descargar
+const MAX_COMPROBANTE_BYTES = 5 * 1024 * 1024 // 5 MiB (matchea bucket)
+const MIMES_COMPROBANTE = new Set(['application/pdf', 'image/jpeg', 'image/png'])
+
+function extDeMime(mime) {
+  if (mime === 'application/pdf') return 'pdf'
+  if (mime === 'image/jpeg')      return 'jpg'
+  if (mime === 'image/png')       return 'png'
+  return 'bin'
+}
+
+// Devuelve { url, path, expiresIn } o null si la compra no tiene comprobante.
+export async function getComprobanteSignedUrl(id) {
+  const { data: compra, error } = await supabase
+    .from('compras').select('comprobante_url').eq('id', id).single()
+  if (error) throw error
+  if (!compra?.comprobante_url) return null
+
+  const { data, error: signErr } = await supabase.storage
+    .from(BUCKET_COMPROBANTES)
+    .createSignedUrl(compra.comprobante_url, SIGNED_URL_TTL_SEC)
+  if (signErr) throw signErr
+
+  return { url: data.signedUrl, path: compra.comprobante_url, expiresIn: SIGNED_URL_TTL_SEC }
+}
+
+// Sube el comprobante. Si ya existía uno, lo reemplaza (borra el viejo del
+// bucket antes de subir el nuevo para no acumular huérfanos).
+export async function setComprobante(id, { buffer, mimetype }) {
+  if (!buffer || buffer.length === 0) throw bad('Archivo vacío')
+  if (buffer.length > MAX_COMPROBANTE_BYTES) throw bad('Archivo supera 5 MB')
+  if (!MIMES_COMPROBANTE.has(mimetype)) {
+    throw bad(`Tipo no permitido: ${mimetype}. Use PDF, JPG o PNG.`)
+  }
+
+  const { data: compra, error: errC } = await supabase
+    .from('compras').select('numero, comprobante_url').eq('id', id).single()
+  if (errC) throw errC
+  if (!compra) throw bad('Compra no encontrada', 404)
+
+  const path = `${compra.numero}-${Date.now()}.${extDeMime(mimetype)}`
+
+  if (compra.comprobante_url) {
+    // best-effort: si falla el delete del viejo no bloqueamos la subida
+    await supabase.storage.from(BUCKET_COMPROBANTES)
+      .remove([compra.comprobante_url]).catch(() => {})
+  }
+
+  const { error: upErr } = await supabase.storage
+    .from(BUCKET_COMPROBANTES)
+    .upload(path, buffer, { contentType: mimetype, upsert: false })
+  if (upErr) throw upErr
+
+  const { data, error: updErr } = await supabase
+    .from('compras').update({ comprobante_url: path }).eq('id', id)
+    .select().single()
+  if (updErr) throw updErr
+  return data
+}
+
+export async function removeComprobante(id) {
+  const { data: compra, error } = await supabase
+    .from('compras').select('comprobante_url').eq('id', id).single()
+  if (error) throw error
+  if (!compra?.comprobante_url) return null
+
+  await supabase.storage.from(BUCKET_COMPROBANTES)
+    .remove([compra.comprobante_url]).catch(() => {})
+
+  const { data, error: updErr } = await supabase
+    .from('compras').update({ comprobante_url: null }).eq('id', id)
+    .select().single()
+  if (updErr) throw updErr
+  return data
+}

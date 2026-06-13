@@ -16,6 +16,7 @@
  * cualquier lógica que aparezca acá es señal de mal lugar.
  */
 import { Router } from 'express'
+import multer from 'multer'
 import { requireAuth } from '../middlewares/requireAuth.js'
 import { requireRole } from '../middlewares/requireRole.js'
 import { ROLES, ROLES_ADMIN_LEVEL } from '../constants/roles.js'
@@ -167,6 +168,18 @@ router.post  ('/compras/:id/recibir',                ComprasCtrl.recibir)
 router.post  ('/compras/:id/items',                  ComprasCtrl.addItem)
 router.patch ('/compras/:id/items/:itemId',          ComprasCtrl.updateItem)
 router.delete('/compras/:id/items/:itemId',          ComprasCtrl.removeItem)
+
+// Comprobante de pago: bucket privado en Supabase Storage, ver service.
+// memoryStorage porque el archivo se reenvía a Supabase sin tocar disco
+// local de Fly.io. Límite 5 MiB matcheado con el del bucket.
+const uploadComprobante = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+})
+router.get   ('/compras/:id/comprobante',            ComprasCtrl.getComprobante)
+router.post  ('/compras/:id/comprobante',
+                uploadComprobante.single('archivo'),  ComprasCtrl.uploadComprobante)
+router.delete('/compras/:id/comprobante',            ComprasCtrl.deleteComprobante)
 
 // ── Notificaciones ────────────────────────────────────────────
 router.get  ('/notificaciones',              NotificacionesCtrl.getAll)

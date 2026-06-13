@@ -89,3 +89,36 @@ export async function updateItem(req, res, next) {
     res.json({ ok: true, data })
   } catch (err) { next(err) }
 }
+
+// ── Comprobante de pago ───────────────────────────────────────
+// GET devuelve { url, path, expiresIn } o 404 si la compra no tiene
+// comprobante asignado todavía. El frontend usa esa url para mostrar/
+// descargar el archivo desde el bucket privado.
+export async function getComprobante(req, res, next) {
+  try {
+    const data = await ComprasService.getComprobanteSignedUrl(req.params.id)
+    if (!data) return res.status(404).json({ ok: false, error: 'Esta compra no tiene comprobante' })
+    res.json({ ok: true, data })
+  } catch (err) { next(err) }
+}
+
+// POST espera multipart/form-data con field `archivo`. El middleware multer
+// (montado en la ruta) deja el buffer en req.file. Acá solo delegamos al
+// service que valida tipo, tamaño y sube a Storage.
+export async function uploadComprobante(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ ok: false, error: 'Falta archivo (field: archivo)' })
+    const data = await ComprasService.setComprobante(req.params.id, {
+      buffer:   req.file.buffer,
+      mimetype: req.file.mimetype,
+    })
+    res.json({ ok: true, data })
+  } catch (err) { next(err) }
+}
+
+export async function deleteComprobante(req, res, next) {
+  try {
+    await ComprasService.removeComprobante(req.params.id)
+    res.json({ ok: true })
+  } catch (err) { next(err) }
+}
