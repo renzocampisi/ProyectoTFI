@@ -56,6 +56,14 @@ app.get('/health', (_req, res) => res.json({ ok: true, service: 'FieldStock API'
 // Toda la API REST bajo /api/...
 app.use('/api', router)
 
+// 404 explícito JSON: una ruta inexistente bajo /api devuelve 404 en lugar
+// de pasar por requireAuth (que tira 401 confuso) o caer en el errorHandler
+// como excepción. Facilita debugging desde el frontend.
+app.use((req, res) => res.status(404).json({
+  ok: false,
+  error: `Ruta no encontrada: ${req.method} ${req.path}`,
+}))
+
 // Error handler global: captura cualquier error propagado con next(err)
 // y lo convierte en JSON consistente. Debe ir AL FINAL (después de rutas).
 app.use(errorHandler)
