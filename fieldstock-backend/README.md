@@ -2,6 +2,8 @@
 
 Node.js + Express · Supabase
 
+Deploy automático a Fly.io en cada push a `main` (workflow `.github/workflows/fly-deploy.yml`).
+
 ## Setup
 
 ```bash
