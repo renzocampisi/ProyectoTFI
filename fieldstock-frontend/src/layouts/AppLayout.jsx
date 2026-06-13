@@ -219,7 +219,9 @@ export default function AppLayout() {
           <NotificacionesBell />
           <button className={styles.temaBtn} onClick={toggle}
             title={tema === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
-            {tema === 'dark' ? <LuSun size={18} /> : <LuMoon size={18} />}
+            {tema === 'dark'
+              ? <LuSun  size={18} color="#fbbf24" />
+              : <LuMoon size={18} color="#6366f1" />}
           </button>
           <UserMenu />
         </div>
