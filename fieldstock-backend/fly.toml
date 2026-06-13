@@ -1,13 +1,12 @@
 # fly.toml — config del deploy del backend FieldStock AI en Fly.io.
 #
 # Generado manualmente (sin `fly launch`) para tener control explícito.
-# El `app` lo dejamos en blanco para que `fly launch` lo complete con el
-# nombre que elijas (debe ser único globalmente en Fly.io).
+# El `app` matchea con el nombre creado en Fly.io (debe ser único globalmente).
 #
 # Region elegida: gru (São Paulo). Es la más cercana a Argentina entre
 # las que ofrece Fly.io en su free tier, latencia ~30ms vs ~150ms de iad.
 
-app = ""
+app = "fieldstock-api"
 primary_region = "gru"
 
 # ───────── Build ─────────
