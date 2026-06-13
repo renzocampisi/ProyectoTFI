@@ -60,6 +60,28 @@
 .input::placeholder { color: var(--text-muted); }
 .input:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.passwordWrapper { position: relative; }
+.passwordWrapper .input { padding-right: 44px; }
+
+.togglePassword {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+.togglePassword:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--color-surface-alt);
+}
+.togglePassword:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .error {
   background: rgba(242,95,92,0.1);
   border: 1px solid rgba(242,95,92,0.3);
