@@ -73,9 +73,9 @@ function AddItemForm({ materiales, onSubmit, onCancel }) {
     setGuardando(true); setErr(null)
     try {
       await onSubmit({
-        material_id:     materialId,
-        cantidad:        cant,
-        precio_unitario: prec,
+        materialId:     materialId,
+        cantidad:       cant,
+        precioUnitario: prec,
       })
     } catch (e) {
       // El padre ya guardó el error en errItems del detail, pero también
@@ -204,7 +204,7 @@ export default function ComprasDetailPage() {
     setLocal(itemId, 'precio_unitario', valor)
     const num = Number(valor)
     if (!Number.isFinite(num) || num < 0) return
-    debouncedUpdate(itemId, { precio_unitario: num })
+    debouncedUpdate(itemId, { precioUnitario: num })
   }
 
   const handleRemoveItem = async (item) => {
