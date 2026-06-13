@@ -563,16 +563,16 @@
 .fabQr { display: none; }
 
 /* FAB Escanear QR visible en TODO viewport mobile/tablet (≤768px).
-   Centrado horizontalmente, posición fija que no requiere scroll para
-   encontrarlo. En tablets (431-768px) queda al pie a 24px del bottom
-   (no hay barra inferior en ese rango). En mobile real (≤430px) el
-   override de arriba lo sube a 80px para que se vea sobre la barra. */
+   Anclado a la esquina inferior derecha (patrón Material Design FAB)
+   para no tapar el contenido central ni los items del sidebar inferior
+   en mobile. En tablets (431-768px) queda al pie a 24px del bottom (no
+   hay barra inferior en ese rango). En mobile real (≤430px) el override
+   de arriba lo sube a 80px para que se vea sobre la barra. */
 @media (max-width: 768px) {
   .fabQr {
     display: flex;
     position: fixed;
-    left: 50%;
-    transform: translateX(-50%);
+    right: 16px;
     bottom: 24px;
     width: 64px;
     height: 64px;
@@ -588,7 +588,7 @@
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
   .fabQr:active {
-    transform: translateX(-50%) scale(0.95);
+    transform: scale(0.95);
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
   }
   .fabQrIcon { font-size: 28px; line-height: 1; }
