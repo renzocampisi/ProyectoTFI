@@ -12,6 +12,7 @@
  */
 import { useState } from 'react'
 import { useNavigate, useLocation, Navigate } from 'react-router-dom'
+import { LuEye, LuEyeOff } from 'react-icons/lu'
 import { useAuth } from '@shared/hooks/useAuth'
 import { clearSupabaseStorage } from '@shared/utils/supabaseClient'
 import styles from './LoginPage.module.css'
@@ -25,6 +26,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error,    setError]    = useState(null)
+  const [mostrarPassword, setMostrarPassword] = useState(false)
 
   // Si está cargando la sesión inicial, no renderizamos para evitar
   // el flash de "form de login" en quien ya está logueado.
@@ -86,11 +88,21 @@ export default function LoginPage() {
 
         <div className={styles.field}>
           <label className={styles.label} htmlFor="password">Contraseña</label>
-          <input id="password" type="password" autoComplete="current-password"
-            className={styles.input}
-            placeholder="••••••••"
-            value={password} onChange={e => setPassword(e.target.value)}
-            disabled={submitting} />
+          <div className={styles.passwordWrapper}>
+            <input id="password" type={mostrarPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              className={styles.input}
+              placeholder="••••••••"
+              value={password} onChange={e => setPassword(e.target.value)}
+              disabled={submitting} />
+            <button type="button" className={styles.togglePassword}
+              onClick={() => setMostrarPassword(v => !v)}
+              disabled={submitting}
+              title={mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              aria-label={mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
+              {mostrarPassword ? <LuEyeOff size={18} /> : <LuEye size={18} />}
+            </button>
+          </div>
         </div>
 
         {error && <div className={styles.error}>⚠ {error}</div>}
