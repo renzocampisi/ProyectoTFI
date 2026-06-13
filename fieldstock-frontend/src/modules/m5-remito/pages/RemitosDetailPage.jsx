@@ -502,6 +502,8 @@ export default function RemitosDetailPage() {
   // sin refetch. El próximo refetch lo dispara handleAvanzar al final.
   const [retornosLocales,    setRetornosLocales]    = useState({})  // { itemId: estado_retorno }
   const [cantidadesLocales,  setCantidadesLocales]  = useState({})  // { matItemId: cantidad_retorno }
+  const [extraviadosLocales, setExtraviadosLocales] = useState({})  // { matItemId: bool }  — override optimistic del flag
+  const [modoLocales,        setModoLocales]        = useState({})  // { matItemId: 'TODOS'|'PARCIAL'|'NINGUNO' } — solo cuando el user clickeó pero aún no commiteó (caso "Parcial" sin escribir todavía)
 
   // (El useEffect del auto-close del modal QR se removió junto con el
   // botón QR del header. Ahora el QR vive inline en la card "Acción"
@@ -540,15 +542,28 @@ export default function RemitosDetailPage() {
     }
   }
 
-  const handleRetornoMaterial = async (matItemId, cantidadRetorno) => {
-    const valor = Number(cantidadRetorno)
-    const prev  = cantidadesLocales[matItemId]
+  // Persiste el retorno parcial/total/ninguno con optimistic update.
+  // body: { cantidadRetorno: number, extraviado?: bool }
+  const handleRetornoMaterial = async (matItemId, body) => {
+    const valor = Number(body.cantidadRetorno)
+    const prevCantidad   = cantidadesLocales[matItemId]
+    const prevExtraviado = extraviadosLocales[matItemId]
     setCantidadesLocales(o => ({ ...o, [matItemId]: valor }))
+    if (body.extraviado !== undefined) {
+      setExtraviadosLocales(o => ({ ...o, [matItemId]: body.extraviado }))
+    }
     setErrAction(null)
     try {
-      await RemitosService.updateMaterialRetorno(id, matItemId, { cantidadRetorno: valor })
+      await RemitosService.updateMaterialRetorno(id, matItemId, {
+        cantidadRetorno: valor,
+        ...(body.extraviado !== undefined ? { extraviado: body.extraviado } : {}),
+      })
     } catch (err) {
-      setCantidadesLocales(o => ({ ...o, [matItemId]: prev }))
+      // Revertir ambos overrides si falló la persistencia
+      setCantidadesLocales(o => ({ ...o, [matItemId]: prevCantidad }))
+      if (body.extraviado !== undefined) {
+        setExtraviadosLocales(o => ({ ...o, [matItemId]: prevExtraviado }))
+      }
       setErrAction(err.message)
     }
   }
@@ -832,25 +847,63 @@ export default function RemitosDetailPage() {
                           <td className={styles.itemSub}>{m.unidad}</td>
                           {esRetorno && (
                             <td>
-                              {m.extraviado ? (
-                                // Word C2: si el material se extravió, no aplica
-                                // cantidad de retorno (queda en 0 por default).
-                                <span className={styles.extraviadoNote}>— No aplica (extraviado)</span>
-                              ) : (
-                              <input type="number" min="0" step="1"
-                                className={styles.cantidadRetornoInput}
-                                placeholder={`Máx: ${m.cantidad_egreso}`}
-                                // Optimistic: override local > valor del backend
-                                defaultValue={(cantidadesLocales[m.id] ?? m.cantidad_retorno) ?? ''}
-                                key={`${m.id}-${m.cantidad_retorno ?? ''}`}
-                                onBlur={e => {
-                                  const val   = e.target.value
-                                  const nuevo = val === '' ? 0 : Number(val)
-                                  const actual = cantidadesLocales[m.id] ?? m.cantidad_retorno
-                                  if (val !== '' && nuevo !== actual)
-                                    handleRetornoMaterial(m.id, nuevo)
-                                }} />
-                              )}
+                              {(() => {
+                                // Override optimistic > valor del backend
+                                const cantActual  = cantidadesLocales[m.id]  ?? m.cantidad_retorno
+                                const extrActual  = extraviadosLocales[m.id] ?? m.extraviado
+                                const cantEgreso  = Number(m.cantidad_egreso)
+                                // Modo inferido: si el user clickeó "Parcial" sin commitear todavía, modoLocales manda.
+                                // Si no, lo inferimos del estado persistido.
+                                let modo = modoLocales[m.id]
+                                if (!modo) {
+                                  if (extrActual || cantActual === 0)               modo = 'NINGUNO'
+                                  else if (cantActual === cantEgreso)               modo = 'TODOS'
+                                  else if (cantActual > 0 && cantActual < cantEgreso) modo = 'PARCIAL'
+                                }
+                                const setModo = (nuevo) => setModoLocales(o => ({ ...o, [m.id]: nuevo }))
+                                return (
+                                  <div className={styles.retornoCell}>
+                                    <div className={styles.retornoOpciones} role="group">
+                                      <button type="button"
+                                        className={`${styles.retornoBtn} ${modo === 'TODOS' ? styles.retornoBtnActiveOk : ''}`}
+                                        onClick={() => { setModo('TODOS'); handleRetornoMaterial(m.id, { cantidadRetorno: cantEgreso, extraviado: false }) }}>
+                                        ✓ Todos
+                                      </button>
+                                      <button type="button"
+                                        className={`${styles.retornoBtn} ${modo === 'PARCIAL' ? styles.retornoBtnActiveWarn : ''}`}
+                                        onClick={() => { setModo('PARCIAL'); /* esperamos input */ }}>
+                                        ⚠ Parcial
+                                      </button>
+                                      <button type="button"
+                                        className={`${styles.retornoBtn} ${modo === 'NINGUNO' ? styles.retornoBtnActiveDanger : ''}`}
+                                        onClick={() => { setModo('NINGUNO'); handleRetornoMaterial(m.id, { cantidadRetorno: 0, extraviado: true }) }}>
+                                        ✕ Ninguno
+                                      </button>
+                                    </div>
+                                    {modo === 'PARCIAL' && (
+                                      <input type="number" min="1" max={cantEgreso - 1} step="1"
+                                        className={styles.cantidadRetornoInput}
+                                        placeholder={`Cant. recibida (1 a ${cantEgreso - 1})`}
+                                        defaultValue={(cantActual > 0 && cantActual < cantEgreso) ? cantActual : ''}
+                                        key={`${m.id}-parcial-${m.cantidad_retorno ?? ''}`}
+                                        onBlur={e => {
+                                          const val = e.target.value
+                                          if (val === '') return
+                                          const nuevo = Number(val)
+                                          if (!Number.isFinite(nuevo) || nuevo < 1 || nuevo >= cantEgreso) {
+                                            setErrAction(`Valor inválido. Debe estar entre 1 y ${cantEgreso - 1} (si llegaron todos usá "Todos", si no llegó ninguno usá "Ninguno").`)
+                                            return
+                                          }
+                                          handleRetornoMaterial(m.id, { cantidadRetorno: nuevo, extraviado: false })
+                                          setModoLocales(o => ({ ...o, [m.id]: undefined }))
+                                        }} />
+                                    )}
+                                    {modo === 'PARCIAL' && cantActual > 0 && cantActual < cantEgreso && (
+                                      <span className={styles.retornoResumen}>Llegaron {cantActual} de {cantEgreso}</span>
+                                    )}
+                                  </div>
+                                )
+                              })()}
                             </td>
                           )}
                           {!esRetorno && (remito.estado === 'EN_TRANSITO_RETORNO' || remito.estado === 'CERRADO') && (

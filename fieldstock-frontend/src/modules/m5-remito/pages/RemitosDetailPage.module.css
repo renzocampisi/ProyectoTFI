@@ -95,8 +95,54 @@
 .cantidadRow    { display: flex; gap: var(--space-2); align-items: center; }
 .cantidadInput  { background: var(--color-surface-alt); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); color: var(--text-primary); font-size: var(--text-sm); outline: none; width: 140px; transition: border-color var(--transition-fast); }
 .cantidadInput:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-dim); }
-.cantidadRetornoInput { background: var(--color-surface-alt); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-1) var(--space-2); color: var(--text-primary); font-size: var(--text-xs); outline: none; width: 100px; transition: border-color var(--transition-fast); }
+.cantidadRetornoInput { background: var(--color-surface-alt); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-1) var(--space-2); color: var(--text-primary); font-size: var(--text-xs); outline: none; width: 160px; transition: border-color var(--transition-fast); }
 .cantidadRetornoInput:focus { border-color: var(--color-primary); }
+
+/* ── Segmented control para retorno de materiales (Todos / Parcial / Ninguno) ── */
+.retornoCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+.retornoOpciones {
+  display: inline-flex;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  gap: 2px;
+}
+.retornoBtn {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.retornoBtn:hover { color: var(--text-primary); }
+.retornoBtnActiveOk {
+  background: var(--estado-disponible, #10b981);
+  color: #fff;
+}
+.retornoBtnActiveOk:hover { color: #fff; }
+.retornoBtnActiveWarn {
+  background: #f59e0b;
+  color: #fff;
+}
+.retornoBtnActiveWarn:hover { color: #fff; }
+.retornoBtnActiveDanger {
+  background: var(--color-danger);
+  color: #fff;
+}
+.retornoBtnActiveDanger:hover { color: #fff; }
+.retornoResumen {
+  font-size: 11px;
+  color: #f59e0b;
+  font-weight: 500;
+}
 .btnCancelarCant { font-size: var(--text-xs); color: var(--text-muted); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); transition: color var(--transition-fast); }
 .btnCancelarCant:hover { color: var(--color-danger); }
 
