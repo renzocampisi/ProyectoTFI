@@ -49,6 +49,25 @@
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-dim);
 }
+
+.passwordWrapper { position: relative; }
+.passwordWrapper .input { padding-right: 44px; width: 100%; box-sizing: border-box; }
+
+.togglePassword {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+.togglePassword:hover { color: var(--text-primary); background: var(--color-surface-alt); }
+
 .readonly {
   font-size: var(--text-sm);
   color: var(--text-muted);
