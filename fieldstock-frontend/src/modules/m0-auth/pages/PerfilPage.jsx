@@ -7,6 +7,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { LuEye, LuEyeOff } from 'react-icons/lu'
 import { useAuth } from '@shared/hooks/useAuth'
 import { ROLE_LABELS } from '@shared/constants/roles'
 import { supabase } from '@shared/utils/supabaseClient'
@@ -28,6 +29,7 @@ export default function PerfilPage() {
   // la password actual sin hacer un signIn temporal — agregar eso seria
   // complejidad sin valor real.
   const [passForm, setPassForm] = useState({ nueva: '', confirm: '' })
+  const [mostrarPass, setMostrarPass] = useState({ nueva: false, confirm: false })
   const [savingPass, setSavingPass] = useState(false)
   const [savedPass,  setSavedPass]  = useState(false)
   const [errorPass,  setErrorPass]  = useState(null)
@@ -162,22 +164,40 @@ export default function PerfilPage() {
           <div className={styles.fields}>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="passNueva">Contraseña nueva</label>
-              <input id="passNueva" type="password" className={styles.input}
-                autoComplete="new-password"
-                placeholder="Mínimo 8 caracteres"
-                value={passForm.nueva}
-                onChange={e => setPassForm(f => ({ ...f, nueva: e.target.value }))} />
+              <div className={styles.passwordWrapper}>
+                <input id="passNueva" type={mostrarPass.nueva ? 'text' : 'password'}
+                  className={styles.input}
+                  autoComplete="new-password"
+                  placeholder="Mínimo 8 caracteres"
+                  value={passForm.nueva}
+                  onChange={e => setPassForm(f => ({ ...f, nueva: e.target.value }))} />
+                <button type="button" className={styles.togglePassword}
+                  onClick={() => setMostrarPass(s => ({ ...s, nueva: !s.nueva }))}
+                  title={mostrarPass.nueva ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  aria-label={mostrarPass.nueva ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
+                  {mostrarPass.nueva ? <LuEyeOff size={18} /> : <LuEye size={18} />}
+                </button>
+              </div>
               <span className={styles.hint}>
                 Recomendado: 12+ caracteres con mayúsculas, minúsculas, números y símbolos.
               </span>
             </div>
             <div className={styles.field}>
               <label className={styles.label} htmlFor="passConfirm">Confirmar contraseña nueva</label>
-              <input id="passConfirm" type="password" className={styles.input}
-                autoComplete="new-password"
-                placeholder="Repetí la contraseña nueva"
-                value={passForm.confirm}
-                onChange={e => setPassForm(f => ({ ...f, confirm: e.target.value }))} />
+              <div className={styles.passwordWrapper}>
+                <input id="passConfirm" type={mostrarPass.confirm ? 'text' : 'password'}
+                  className={styles.input}
+                  autoComplete="new-password"
+                  placeholder="Repetí la contraseña nueva"
+                  value={passForm.confirm}
+                  onChange={e => setPassForm(f => ({ ...f, confirm: e.target.value }))} />
+                <button type="button" className={styles.togglePassword}
+                  onClick={() => setMostrarPass(s => ({ ...s, confirm: !s.confirm }))}
+                  title={mostrarPass.confirm ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  aria-label={mostrarPass.confirm ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
+                  {mostrarPass.confirm ? <LuEyeOff size={18} /> : <LuEye size={18} />}
+                </button>
+              </div>
             </div>
           </div>
         </fieldset>
