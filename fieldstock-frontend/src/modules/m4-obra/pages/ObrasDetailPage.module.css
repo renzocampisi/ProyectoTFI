@@ -10,8 +10,11 @@
 .headerActions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; flex-shrink: 0; }
 
 .badge { display: inline-flex; align-items: center; font-size: var(--text-xs); font-weight: 500; padding: 3px 10px; border-radius: var(--radius-full); white-space: nowrap; }
-.activa     { background: rgba(45,212,160,0.12); color: var(--estado-disponible); border: 1px solid rgba(45,212,160,0.25); }
-.finalizada { background: rgba(139,144,167,0.12); color: var(--text-secondary);   border: 1px solid rgba(139,144,167,0.25); }
+.activa       { background: rgba(45,212,160,0.12);  color: var(--estado-disponible); border: 1px solid rgba(45,212,160,0.25); }
+.finalizada   { background: rgba(139,144,167,0.12); color: var(--text-secondary);    border: 1px solid rgba(139,144,167,0.25); }
+.pendiente    { background: rgba(139,144,167,0.12); color: var(--text-secondary);    border: 1px solid rgba(139,144,167,0.25); }
+.enAprobacion { background: rgba(245,166,35,0.15);  color: #f59e0b;                  border: 1px solid rgba(245,166,35,0.3);  }
+.rechazada    { background: rgba(242,95,92,0.12);   color: var(--color-danger);      border: 1px solid rgba(242,95,92,0.25); }
 
 .btnEdit { font-size: var(--text-sm); color: var(--color-warning); background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.3); padding: var(--space-2) var(--space-4); border-radius: var(--radius-md); transition: background var(--transition-fast); white-space: nowrap; }
 .btnEdit:hover { background: rgba(245,166,35,0.2); }
