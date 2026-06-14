@@ -11,9 +11,15 @@
  *   - Card "Costos extra": tabla agrupada por categoria.
  *   - Card "Totales": breakdown subtotales + ganancia + total final.
  */
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { LuDownload } from 'react-icons/lu'
 import { usePresupuesto } from '../hooks/usePresupuestos'
+import { PresupuestosService } from '../services/presupuestos.service'
 import EstadoPresupuestoBadge from '../components/EstadoPresupuestoBadge'
+import { descargarPdfPresupuesto } from '../utils/pdfGenerator'
+import { useAuth } from '@shared/hooks/useAuth'
+import { esDueño } from '@shared/constants/roles'
 import {
   CATEGORIA_INFO, formatMoney, formatCantidad, formatFechaHora,
 } from '../constants'
@@ -31,7 +37,40 @@ function Campo({ label, value }) {
 export default function PresupuestoDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { presupuesto, loading, error } = usePresupuesto(id)
+  const { profile } = useAuth()
+  const { presupuesto, loading, error, refetch } = usePresupuesto(id)
+  const [accion,       setAccion]       = useState(null) // null | 'enviar' | 'aprobar' | 'rechazar' | 'volver' | 'eliminar'
+  const [accionando,   setAccionando]   = useState(false)
+  const [errAccion,    setErrAccion]    = useState(null)
+  const [motivoRechazo, setMotivoRechazo] = useState('')
+
+  const puedeAprobar = esDueño(profile?.role)
+
+  const cerrarModal = () => { setAccion(null); setMotivoRechazo(''); setErrAccion(null) }
+
+  const ejecutar = async (fn, { redirectAfter = null } = {}) => {
+    setAccionando(true); setErrAccion(null)
+    try {
+      await fn()
+      if (redirectAfter) navigate(redirectAfter)
+      else { await refetch(); cerrarModal() }
+    } catch (err) { setErrAccion(err.message); setAccionando(false) }
+    finally { if (!redirectAfter) setAccionando(false) }
+  }
+
+  const handleEnviar    = () => ejecutar(() => PresupuestosService.enviarAprobacion(id))
+  const handleVolver    = () => ejecutar(() => PresupuestosService.volverABorrador(id))
+  const handleAprobar   = () => ejecutar(() => PresupuestosService.aprobar(id))
+  const handleRechazar  = () => ejecutar(() => PresupuestosService.rechazar(id, motivoRechazo))
+  const handleEliminar  = () => ejecutar(
+    () => PresupuestosService.remove(id),
+    { redirectAfter: presupuesto?.obra?.id ? `/obras/${presupuesto.obra.id}` : '/obras' }
+  )
+
+  const handleDescargarPdf = () => {
+    if (!presupuesto) return
+    descargarPdfPresupuesto(presupuesto)
+  }
 
   if (loading) return (
     <div className={styles.loadingWrapper}><span className={styles.spinner} />Cargando presupuesto...</div>
@@ -78,6 +117,9 @@ export default function PresupuestoDetailPage() {
           <div className={styles.headerRight}>
             <span className={styles.totalLabel}>Total</span>
             <span className={styles.totalValue}>{formatMoney(presupuesto.total)}</span>
+            <button type="button" className={styles.btnPdf} onClick={handleDescargarPdf}>
+              <LuDownload size={14} /> Descargar PDF
+            </button>
           </div>
         </div>
       </header>
@@ -210,6 +252,165 @@ export default function PresupuestoDetailPage() {
           </div>
         </div>
       </section>
+
+      {/* Acciones según estado. Sale solo si el estado actual habilita
+          alguna transición. APROBADO muestra link al remito. */}
+      {(presupuesto.estado === 'BORRADOR' ||
+        presupuesto.estado === 'EN_APROBACION' ||
+        presupuesto.estado === 'APROBADO') && (
+        <section className={styles.card}>
+          <h2 className={styles.cardTitle}>Acciones</h2>
+          {errAccion && <div className={styles.errorBanner}>⚠ {errAccion}</div>}
+
+          {presupuesto.estado === 'BORRADOR' && (
+            <div className={styles.acciones}>
+              <button type="button" className={styles.btnGhost}
+                onClick={() => setAccion('eliminar')} disabled={accionando}>
+                🗑 Eliminar
+              </button>
+              <button type="button" className={styles.btnPrimary}
+                onClick={() => setAccion('enviar')} disabled={accionando}>
+                Enviar a aprobación →
+              </button>
+            </div>
+          )}
+
+          {presupuesto.estado === 'EN_APROBACION' && (
+            <>
+              <p className={styles.hint}>
+                El presupuesto está esperando aprobación.
+                {!puedeAprobar && ' Solo DUEÑO o ADMIN pueden aprobar/rechazar.'}
+              </p>
+              <div className={styles.acciones}>
+                <button type="button" className={styles.btnGhost}
+                  onClick={() => setAccion('volver')} disabled={accionando}>
+                  ← Volver a borrador
+                </button>
+                {puedeAprobar && (
+                  <>
+                    <button type="button" className={styles.btnDanger}
+                      onClick={() => setAccion('rechazar')} disabled={accionando}>
+                      ✕ Rechazar
+                    </button>
+                    <button type="button" className={styles.btnPrimary}
+                      onClick={() => setAccion('aprobar')} disabled={accionando}>
+                      ✓ Aprobar
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+
+          {presupuesto.estado === 'APROBADO' && presupuesto.remito_generado_id && (
+            <div className={styles.aprobadoInfo}>
+              <p className={styles.hint}>
+                Presupuesto aprobado. Se generó un remito BORRADOR con los insumos —
+                el operador debe completar transporte y responsable antes de confirmarlo.
+              </p>
+              <Link to={`/remitos/${presupuesto.remito_generado_id}`} className={styles.btnSecondary}>
+                Ir al remito generado →
+              </Link>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Modal: confirmar enviar a aprobación */}
+      {accion === 'enviar' && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalCard}>
+            <h3 className={styles.modalTitle}>¿Enviar a aprobación?</h3>
+            <p className={styles.modalText}>
+              Una vez enviado no vas a poder editar los items hasta que vuelva a borrador.
+            </p>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnGhost} onClick={cerrarModal} disabled={accionando}>Cancelar</button>
+              <button type="button" className={styles.btnPrimary} onClick={handleEnviar} disabled={accionando}>
+                {accionando ? 'Enviando...' : 'Sí, enviar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: volver a borrador */}
+      {accion === 'volver' && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalCard}>
+            <h3 className={styles.modalTitle}>¿Volver a borrador?</h3>
+            <p className={styles.modalText}>
+              El presupuesto vuelve a ser editable. Podés ajustar items y reenviarlo.
+            </p>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnGhost} onClick={cerrarModal} disabled={accionando}>Cancelar</button>
+              <button type="button" className={styles.btnPrimary} onClick={handleVolver} disabled={accionando}>
+                {accionando ? 'Volviendo...' : 'Sí, volver a borrador'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: aprobar */}
+      {accion === 'aprobar' && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalCard}>
+            <h3 className={styles.modalTitle}>¿Aprobar presupuesto?</h3>
+            <p className={styles.modalText}>
+              Se va a generar automáticamente un remito en estado BORRADOR con
+              los <strong>{presupuesto.insumos?.length || 0} insumo(s)</strong> de este presupuesto.
+              La obra pasará a estado ACTIVA.
+            </p>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnGhost} onClick={cerrarModal} disabled={accionando}>Cancelar</button>
+              <button type="button" className={styles.btnPrimary} onClick={handleAprobar} disabled={accionando}>
+                {accionando ? 'Aprobando...' : 'Sí, aprobar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: rechazar (con motivo opcional) */}
+      {accion === 'rechazar' && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalCard}>
+            <h3 className={styles.modalTitle}>¿Rechazar presupuesto?</h3>
+            <p className={styles.modalText}>
+              Anotá un motivo (opcional) para que quede registrado. Esta acción no se puede deshacer.
+            </p>
+            <textarea className={styles.modalTextarea} rows={3}
+              placeholder="Ej. precios muy altos, falta detalle, etc."
+              value={motivoRechazo}
+              onChange={e => setMotivoRechazo(e.target.value)} />
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnGhost} onClick={cerrarModal} disabled={accionando}>Cancelar</button>
+              <button type="button" className={styles.btnDanger} onClick={handleRechazar} disabled={accionando}>
+                {accionando ? 'Rechazando...' : 'Sí, rechazar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: eliminar */}
+      {accion === 'eliminar' && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalCard}>
+            <h3 className={styles.modalTitle}>¿Eliminar presupuesto?</h3>
+            <p className={styles.modalText}>
+              Se elimina el presupuesto y todos sus items. Esta acción no se puede deshacer.
+            </p>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnGhost} onClick={cerrarModal} disabled={accionando}>Cancelar</button>
+              <button type="button" className={styles.btnDanger} onClick={handleEliminar} disabled={accionando}>
+                {accionando ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
