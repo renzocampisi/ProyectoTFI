@@ -38,4 +38,9 @@ export const MaterialesService = {
   // Disparado desde el modal cuando el usuario elige "sumar al existente".
   agregarStock: (id, cantidad) =>
     api.post(`/materiales/${id}/agregar-stock`, { cantidad }),
+
+  // Devuelve { precio, fuente } con el precio de la ultima compra. Lo usa
+  // el form de Presupuestos para autocompletar al elegir un material.
+  // Lanza err.status=404 si nunca se compro — el caller cae al "vacio".
+  getPrecioReferencia: (id) => api.get(`/materiales/${id}/precio-referencia`),
 }
