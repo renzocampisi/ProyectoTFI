@@ -1,0 +1,161 @@
+.page { display: flex; flex-direction: column; gap: var(--space-5); max-width: 1100px; }
+.loading { padding: var(--space-10); text-align: center; color: var(--text-secondary); }
+
+/* ── Header ── */
+.header { display: flex; flex-direction: column; gap: var(--space-1); }
+.btnBack { font-size: var(--text-sm); color: var(--text-secondary); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); align-self: flex-start; transition: color var(--transition-fast); }
+.btnBack:hover { color: var(--text-primary); }
+.title { font-size: var(--text-2xl); font-weight: 600; color: var(--text-primary); margin: 0; }
+.subtitle { font-size: var(--text-sm); color: var(--text-secondary); margin: 0; }
+.linkObra { color: var(--color-primary); text-decoration: none; }
+.linkObra:hover { text-decoration: underline; }
+
+.form { display: flex; flex-direction: column; gap: var(--space-5); }
+
+/* ── Cards ── */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.cardTitle { font-size: var(--text-lg); font-weight: 600; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: var(--space-2); }
+.cardHeaderRow { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+.opcional { font-size: var(--text-xs); color: var(--text-muted); font-weight: 400; margin-left: var(--space-1); }
+
+/* ── Fields ── */
+.fieldsGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-3); }
+.field { display: flex; flex-direction: column; gap: var(--space-2); }
+.label { font-size: var(--text-sm); font-weight: 500; color: var(--text-secondary); }
+.hint  { font-size: var(--text-xs); color: var(--text-muted); }
+
+.input, .inputNum, .inputSm, .textarea {
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  font-family: inherit;
+}
+.input:focus, .inputNum:focus, .inputSm:focus, .textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-dim);
+}
+.inputNum { width: 100px; text-align: right; font-variant-numeric: tabular-nums; }
+.inputSm  { width: 110px; }
+.textarea { resize: vertical; min-height: 70px; }
+
+/* ── Items dinámicos ── */
+.itemsList { display: flex; flex-direction: column; gap: var(--space-2); }
+.itemRow { display: flex; gap: var(--space-2); align-items: center; }
+.itemNum {
+  width: 24px; height: 24px;
+  display: grid; place-items: center;
+  background: var(--color-surface-alt);
+  border-radius: 50%;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.itemFields {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.subtotal {
+  min-width: 100px;
+  text-align: right;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.btnLink {
+  font-size: var(--text-sm);
+  color: var(--color-primary);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+.btnLink:hover { background: var(--color-primary-dim); }
+
+.btnRemove {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+}
+.btnRemove:hover:not(:disabled) { color: var(--color-danger); }
+.btnRemove:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.emptyCat { font-size: var(--text-sm); color: var(--text-muted); margin: 0; padding: var(--space-2) 0; }
+
+/* ── Total ── */
+.cardTotal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 480px;
+  margin-left: auto;
+  width: 100%;
+}
+.totalRow { display: flex; justify-content: space-between; align-items: center; font-size: var(--text-sm); color: var(--text-secondary); }
+.totalFinal { border-top: 2px solid var(--color-border); padding-top: var(--space-3); margin-top: var(--space-2); font-size: var(--text-lg); font-weight: 700; color: var(--text-primary); }
+.totalFinal span:last-child { color: var(--color-primary); }
+
+/* ── Actions ── */
+.errorBanner {
+  background: rgba(242, 95, 92, 0.1);
+  border: 1px solid rgba(242, 95, 92, 0.3);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+}
+.actions { display: flex; gap: var(--space-3); justify-content: flex-end; flex-wrap: wrap; }
+.btnPrimary {
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+.btnPrimary:hover:not(:disabled) { background: var(--color-primary-hover); }
+.btnPrimary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btnGhost {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+.btnGhost:hover:not(:disabled) { background: var(--color-surface-alt); }
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .itemFields { grid-template-columns: 1fr; }
+  .inputNum, .inputSm { width: 100%; text-align: left; }
+  .subtotal { text-align: left; }
+  .actions { flex-direction: column-reverse; }
+  .actions .btnPrimary, .actions .btnGhost { width: 100%; text-align: center; }
+}
