@@ -76,3 +76,14 @@ export async function agregarStock(req, res, next) {
     res.json({ ok: true, data })
   } catch (err) { next(err) }
 }
+
+// Devuelve el precio_unitario de la ultima compra registrada para este
+// material. Lo usa el form de Presupuestos para autocompletar precio.
+// 404 si nunca se compro.
+export async function getPrecioReferencia(req, res, next) {
+  try {
+    const data = await MateriasService.getPrecioReferencia(req.params.id)
+    if (!data) return res.status(404).json({ ok: false, error: 'Sin precio de referencia (nunca se compró este material)' })
+    res.json({ ok: true, data })
+  } catch (err) { next(err) }
+}

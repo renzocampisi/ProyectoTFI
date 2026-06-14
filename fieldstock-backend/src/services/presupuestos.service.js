@@ -1,0 +1,479 @@
+// src/services/presupuestos.service.js
+/**
+ * Service del módulo Presupuestos.
+ *
+ * Flujo: BORRADOR → EN_APROBACION → APROBADO / RECHAZADO
+ *
+ * Side effects relevantes:
+ *  · `obras.estado` — al aprobar pasa a ACTIVA; al rechazar (si TODOS los
+ *     presupuestos están rechazados) pasa a RECHAZADA.
+ *  · `remitos` (insert) — al aprobar se crea un remito BORRADOR con los
+ *     insumos del presupuesto. El operador después completa transporte
+ *     y responsable.
+ *  · `presupuestos.subtotal_*` y `total` se recalculan via triggers SQL
+ *     cuando cambian items o el % de ganancia (ver migration parte 1).
+ *
+ * Reglas:
+ *  - Solo se pueden editar cabecera/items en BORRADOR.
+ *  - EN_APROBACION solo puede volver a BORRADOR (no editable directo).
+ *  - APROBADO y RECHAZADO son terminales — no se puede revertir.
+ *  - Múltiples presupuestos por obra (versiones complementarias):
+ *    cada uno APROBADO genera su propio remito BORRADOR.
+ */
+import { supabase } from '../config/supabase.js'
+
+function bad(msg, status = 400) {
+  const err = new Error(msg)
+  err.status = status
+  return err
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+async function generarNumero() {
+  const { data, error } = await supabase.rpc('generar_numero_presupuesto')
+  if (error) throw error
+  return data
+}
+
+async function getCabecera(id) {
+  const { data, error } = await supabase
+    .from('presupuestos').select('*').eq('id', id).maybeSingle()
+  if (error) throw error
+  return data
+}
+
+// ── Listar presupuestos ───────────────────────────────────────
+// Filtros: obraId (lo más común), estado.
+export async function getAll({ obraId, estado } = {}) {
+  let query = supabase
+    .from('presupuestos')
+    .select('*, obra:obras(id, nombre, cliente, direccion)')
+    .order('created_at', { ascending: false })
+
+  if (obraId) query = query.eq('obra_id', obraId)
+  if (estado) query = query.eq('estado', estado)
+
+  const { data, error } = await query
+  if (error) throw error
+  return data
+}
+
+// ── Detalle: cabecera + insumos + costos (en paralelo) ───────
+export async function getById(id) {
+  const [
+    { data: presupuesto, error: errP },
+    { data: insumos,     error: errI },
+    { data: costos,      error: errC },
+  ] = await Promise.all([
+    supabase.from('presupuestos').select('*, obra:obras(id, nombre, cliente, direccion)').eq('id', id).maybeSingle(),
+    supabase.from('presupuesto_insumos').select('*, material:materiales(id, nombre, unidad, marca)').eq('presupuesto_id', id).order('created_at'),
+    supabase.from('presupuesto_costos').select('*').eq('presupuesto_id', id).order('created_at'),
+  ])
+  if (errP) throw errP
+  if (errI) throw errI
+  if (errC) throw errC
+  if (!presupuesto) return null
+
+  return { ...presupuesto, insumos: insumos ?? [], costos: costos ?? [] }
+}
+
+// ── Crear (arranca en BORRADOR) ──────────────────────────────
+export async function create(body) {
+  if (!body?.obraId) throw bad('obraId es obligatorio')
+
+  // Validar que la obra existe
+  const { data: obra, error: errObra } = await supabase
+    .from('obras').select('id, estado').eq('id', body.obraId).maybeSingle()
+  if (errObra) throw errObra
+  if (!obra) throw bad('Obra no encontrada', 404)
+
+  const numero = await generarNumero()
+
+  // % ganancia: si vino en el body usarlo; sino tomar el default global
+  let pct = body.porcentajeGanancia
+  if (pct === undefined || pct === null || pct === '') {
+    const { data: cfg } = await supabase
+      .from('config_sistema').select('value').eq('key', 'porcentaje_ganancia_default').maybeSingle()
+    pct = Number(cfg?.value ?? 10)
+  } else {
+    pct = Number(pct)
+  }
+  if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+    throw bad('porcentajeGanancia debe ser un número entre 0 y 100')
+  }
+
+  const { data, error } = await supabase
+    .from('presupuestos').insert({
+      numero,
+      obra_id:             body.obraId,
+      estado:              'BORRADOR',
+      porcentaje_ganancia: pct,
+      observaciones:       body.observaciones || null,
+    }).select().single()
+  if (error) throw error
+  return data
+}
+
+// ── Editar cabecera (solo BORRADOR) ──────────────────────────
+// Campos editables: porcentaje_ganancia, observaciones.
+export async function update(id, body) {
+  const cab = await getCabecera(id)
+  if (!cab) throw bad('Presupuesto no encontrado', 404)
+  if (cab.estado !== 'BORRADOR') throw bad('Solo se pueden editar presupuestos en BORRADOR')
+
+  const campos = {}
+  if (body.porcentajeGanancia !== undefined) {
+    const pct = Number(body.porcentajeGanancia)
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      throw bad('porcentajeGanancia debe ser un número entre 0 y 100')
+    }
+    campos.porcentaje_ganancia = pct
+  }
+  if (body.observaciones !== undefined) campos.observaciones = body.observaciones || null
+
+  if (!Object.keys(campos).length) throw bad('No hay campos para actualizar')
+
+  const { data, error } = await supabase
+    .from('presupuestos').update(campos).eq('id', id).select().single()
+  if (error) throw error
+  return data
+}
+
+// ── Eliminar (solo BORRADOR) ─────────────────────────────────
+// Hard delete con cascade a insumos/costos. Storage del PDF NO se toca
+// (si había PDF cargado queda huérfano pero ocupa < 5 MiB, lo aceptamos).
+export async function remove(id) {
+  const cab = await getCabecera(id)
+  if (!cab) throw bad('Presupuesto no encontrado', 404)
+  if (cab.estado !== 'BORRADOR') throw bad('Solo se pueden eliminar presupuestos en BORRADOR')
+
+  const { error } = await supabase.from('presupuestos').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ── Insumos (items materiales) ───────────────────────────────
+export async function addInsumo(id, body) {
+  const cab = await getCabecera(id)
+  if (!cab) throw bad('Presupuesto no encontrado', 404)
+  if (cab.estado !== 'BORRADOR') throw bad('Solo se pueden agregar insumos en BORRADOR')
+
+  if (!body?.materialId) throw bad('materialId es obligatorio')
+  const cantidad = Number(body.cantidad)
+  const precio   = Number(body.precioUnitario)
+  if (!Number.isFinite(cantidad) || cantidad <= 0) throw bad('cantidad debe ser > 0')
+  if (!Number.isFinite(precio)   || precio   <  0) throw bad('precioUnitario debe ser >= 0')
+
+  const { data, error } = await supabase
+    .from('presupuesto_insumos').insert({
+      presupuesto_id:  id,
+      material_id:     body.materialId,
+      cantidad,
+      precio_unitario: precio,
+    }).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateInsumo(id, insumoId, body) {
+  const cab = await getCabecera(id)
+  if (!cab) throw bad('Presupuesto no encontrado', 404)
+  if (cab.estado !== 'BORRADOR') throw bad('Solo se pueden editar insumos en BORRADOR')
+
+  const campos = {}
+  if (body.cantidad !== undefined) {
+    const c = Number(body.cantidad)
+    if (!Number.isFinite(c) || c <= 0) throw bad('cantidad debe ser > 0')
+    campos.cantidad = c
+  }
+  if (body.precioUnitario !== undefined) {
+    const p = Number(body.precioUnitario)
+    if (!Number.isFinite(p) || p < 0) throw bad('precioUnitario debe ser >= 0')
+    campos.precio_unitario = p
+  }
+  if (!Object.keys(campos).length) throw bad('No hay campos para actualizar')
+
+  const { data, error } = await supabase
+    .from('presupuesto_insumos').update(campos)
+    .eq('id', insumoId).eq('presupuesto_id', id)
+    .select().single()
+  if (error) throw error
+  return data
+}
+
+export async function removeInsumo(id, insumoId) {
+  const cab = await getCabecera(id)
+  if (!cab) throw bad('Presupuesto no encontrado', 404)
+  if (cab.estado !== 'BORRADOR') throw bad('Solo se pueden eliminar insumos en BORRADOR')
+
+  const { error } = await supabase
+    .from('presupuesto_insumos').delete()
+    .eq('id', insumoId).eq('presupuesto_id', id)
+  if (error) throw error
+}
+
+// ── Costos extra (mano de obra, viáticos, etc.) ──────────────
+const CATEGORIAS_VALIDAS = new Set([
+  'MANO_OBRA', 'VIATICOS', 'SEGUROS', 'PERSONAL_EXTRA', 'OTROS',
+])
+
+export async function addCosto(id, body) {
+  const cab = await getCabecera(id)
+  if (!cab) throw bad('Presupuesto no encontrado', 404)
+  if (cab.estado !== 'BORRADOR') throw bad('Solo se pueden agregar costos en BORRADOR')
+
+  if (!CATEGORIAS_VALIDAS.has(body?.categoria)) throw bad(`categoria inválida: ${body?.categoria}`)
+  if (!body.descripcion?.trim()) throw bad('descripcion es obligatoria')
+  const cantidad = Number(body.cantidad ?? 1)
+  const costo    = Number(body.costoUnitario)
+  if (!Number.isFinite(cantidad) || cantidad <= 0) throw bad('cantidad debe ser > 0')
+  if (!Number.isFinite(costo)    || costo    <  0) throw bad('costoUnitario debe ser >= 0')
+
+  const { data, error } = await supabase
+    .from('presupuesto_costos').insert({
+      presupuesto_id: id,
+      categoria:      body.categoria,
+      descripcion:    body.descripcion.trim(),
+      cantidad,
+      unidad:         body.unidad || null,
+      costo_unitario: costo,
+    }).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateCosto(id, costoId, body) {
+  const cab = await getCabecera(id)
+  if (!cab) throw bad('Presupuesto no encontrado', 404)
+  if (cab.estado !== 'BORRADOR') throw bad('Solo se pueden editar costos en BORRADOR')
+
+  const campos = {}
+  if (body.descripcion !== undefined) {
+    if (!body.descripcion.trim()) throw bad('descripcion no puede quedar vacía')
+    campos.descripcion = body.descripcion.trim()
+  }
+  if (body.cantidad !== undefined) {
+    const c = Number(body.cantidad)
+    if (!Number.isFinite(c) || c <= 0) throw bad('cantidad debe ser > 0')
+    campos.cantidad = c
+  }
+  if (body.unidad         !== undefined) campos.unidad         = body.unidad || null
+  if (body.costoUnitario  !== undefined) {
+    const p = Number(body.costoUnitario)
+    if (!Number.isFinite(p) || p < 0) throw bad('costoUnitario debe ser >= 0')
+    campos.costo_unitario = p
+  }
+  if (!Object.keys(campos).length) throw bad('No hay campos para actualizar')
+
+  const { data, error } = await supabase
+    .from('presupuesto_costos').update(campos)
+    .eq('id', costoId).eq('presupuesto_id', id)
+    .select().single()
+  if (error) throw error
+  return data
+}
+
+export async function removeCosto(id, costoId) {
+  const cab = await getCabecera(id)
+  if (!cab) throw bad('Presupuesto no encontrado', 404)
+  if (cab.estado !== 'BORRADOR') throw bad('Solo se pueden eliminar costos en BORRADOR')
+
+  const { error } = await supabase
+    .from('presupuesto_costos').delete()
+    .eq('id', costoId).eq('presupuesto_id', id)
+  if (error) throw error
+}
+
+// ── Transiciones de estado ────────────────────────────────────
+// BORRADOR → EN_APROBACION
+export async function enviarAprobacion(id) {
+  const cab = await getCabecera(id)
+  if (!cab) throw bad('Presupuesto no encontrado', 404)
+  if (cab.estado !== 'BORRADOR') throw bad(`Solo BORRADOR puede enviarse a aprobación (actual: ${cab.estado})`)
+
+  // Validar que tenga al menos 1 item (insumo o costo)
+  const [{ count: cInsumos }, { count: cCostos }] = await Promise.all([
+    supabase.from('presupuesto_insumos').select('id', { count: 'exact', head: true }).eq('presupuesto_id', id),
+    supabase.from('presupuesto_costos').select('id',  { count: 'exact', head: true }).eq('presupuesto_id', id),
+  ])
+  if ((cInsumos ?? 0) + (cCostos ?? 0) === 0) {
+    throw bad('El presupuesto no tiene items. Agregá al menos un insumo o costo antes de enviar.')
+  }
+
+  const { data, error } = await supabase
+    .from('presupuestos').update({
+      estado: 'EN_APROBACION',
+      fecha_envio: new Date().toISOString(),
+    }).eq('id', id).select().single()
+  if (error) throw error
+
+  // Actualizar estado de la obra si es la primera en aprobación
+  await sincronizarEstadoObra(cab.obra_id)
+  return data
+}
+
+// EN_APROBACION → BORRADOR (rollback antes de aprobar/rechazar)
+export async function volverABorrador(id) {
+  const cab = await getCabecera(id)
+  if (!cab) throw bad('Presupuesto no encontrado', 404)
+  if (cab.estado !== 'EN_APROBACION') throw bad(`Solo EN_APROBACION puede volver a BORRADOR (actual: ${cab.estado})`)
+
+  const { data, error } = await supabase
+    .from('presupuestos').update({
+      estado: 'BORRADOR',
+      fecha_envio: null,
+    }).eq('id', id).select().single()
+  if (error) throw error
+
+  await sincronizarEstadoObra(cab.obra_id)
+  return data
+}
+
+// EN_APROBACION → APROBADO + genera remito BORRADOR con los insumos
+export async function aprobar(id, userId) {
+  const cab = await getCabecera(id)
+  if (!cab) throw bad('Presupuesto no encontrado', 404)
+  if (cab.estado !== 'EN_APROBACION') throw bad(`Solo EN_APROBACION puede aprobarse (actual: ${cab.estado})`)
+
+  // Leer obra para el remito (necesitamos nombre/cliente)
+  const { data: obra, error: errObra } = await supabase
+    .from('obras').select('id, nombre, cliente').eq('id', cab.obra_id).single()
+  if (errObra) throw errObra
+
+  // Leer insumos del presupuesto
+  const { data: insumos, error: errIns } = await supabase
+    .from('presupuesto_insumos')
+    .select('material_id, cantidad, material:materiales(nombre, unidad)')
+    .eq('presupuesto_id', id)
+  if (errIns) throw errIns
+
+  // Generar remito BORRADOR (numero auto via RPC de remitos)
+  const { data: numeroRemito, error: errNum } = await supabase.rpc('generar_numero_remito')
+  if (errNum) throw errNum
+
+  const { data: remito, error: errR } = await supabase
+    .from('remitos').insert({
+      numero:       numeroRemito,
+      estado:       'BORRADOR',
+      obra:         obra.nombre,
+      responsable:  '-- por completar --',
+      fecha_egreso: new Date().toISOString().split('T')[0],
+      observacion:  `Generado automáticamente desde presupuesto ${cab.numero}`,
+    }).select().single()
+  if (errR) throw errR
+
+  // Insertar items del remito por cada insumo del presupuesto
+  if (insumos?.length) {
+    const rows = insumos.map(i => ({
+      remito_id:       remito.id,
+      material_id:     i.material_id,
+      cantidad_egreso: i.cantidad,
+      unidad:          i.material?.unidad || 'unidad',
+    }))
+    const { error: errMat } = await supabase.from('remito_materiales').insert(rows)
+    if (errMat) {
+      // rollback del remito si falla la inserción de materiales
+      await supabase.from('remitos').delete().eq('id', remito.id)
+      throw errMat
+    }
+  }
+
+  // Actualizar el presupuesto: APROBADO + linkear remito
+  const { data, error } = await supabase
+    .from('presupuestos').update({
+      estado:             'APROBADO',
+      fecha_aprobacion:   new Date().toISOString(),
+      aprobado_por:       userId || null,
+      remito_generado_id: remito.id,
+    }).eq('id', id).select().single()
+  if (error) throw error
+
+  await sincronizarEstadoObra(cab.obra_id)
+  return data
+}
+
+// EN_APROBACION → RECHAZADO
+export async function rechazar(id, motivo) {
+  const cab = await getCabecera(id)
+  if (!cab) throw bad('Presupuesto no encontrado', 404)
+  if (cab.estado !== 'EN_APROBACION') throw bad(`Solo EN_APROBACION puede rechazarse (actual: ${cab.estado})`)
+
+  const { data, error } = await supabase
+    .from('presupuestos').update({
+      estado:         'RECHAZADO',
+      motivo_rechazo: motivo || null,
+    }).eq('id', id).select().single()
+  if (error) throw error
+
+  await sincronizarEstadoObra(cab.obra_id)
+  return data
+}
+
+// ── Sincronizar estado de la obra según sus presupuestos ─────
+// Logica:
+//   - hay alguno APROBADO → obra ACTIVA
+//   - sino, hay alguno EN_APROBACION → obra EN_APROBACION
+//   - sino, hay alguno BORRADOR → obra PENDIENTE_PRESUPUESTO
+//   - sino, todos son RECHAZADO → obra RECHAZADA
+//   - sin presupuestos → no toca el estado (puede haber sido creada directo)
+// FINALIZADA no se sobrescribe nunca (es decisión manual final).
+async function sincronizarEstadoObra(obraId) {
+  const { data: obra } = await supabase
+    .from('obras').select('estado').eq('id', obraId).maybeSingle()
+  if (!obra || obra.estado === 'FINALIZADA') return
+
+  const { data: presupuestos } = await supabase
+    .from('presupuestos').select('estado').eq('obra_id', obraId)
+
+  if (!presupuestos?.length) return
+
+  const estados = new Set(presupuestos.map(p => p.estado))
+  let nuevoEstado
+  if      (estados.has('APROBADO'))      nuevoEstado = 'ACTIVA'
+  else if (estados.has('EN_APROBACION')) nuevoEstado = 'EN_APROBACION'
+  else if (estados.has('BORRADOR'))      nuevoEstado = 'PENDIENTE_PRESUPUESTO'
+  else                                    nuevoEstado = 'RECHAZADA'
+
+  if (nuevoEstado === obra.estado) return
+
+  await supabase.from('obras').update({ estado: nuevoEstado }).eq('id', obraId)
+}
+
+// ── PDF ──────────────────────────────────────────────────────
+const BUCKET_PDF = 'presupuestos-pdf'
+const SIGNED_URL_TTL_SEC = 3600
+
+export async function uploadPdf(id, { buffer, mimetype }) {
+  if (mimetype !== 'application/pdf') throw bad('El comprobante debe ser PDF')
+  if (!buffer || buffer.length === 0)  throw bad('Archivo vacío')
+  if (buffer.length > 5 * 1024 * 1024) throw bad('PDF supera 5 MB')
+
+  const cab = await getCabecera(id)
+  if (!cab) throw bad('Presupuesto no encontrado', 404)
+
+  const path = `${cab.numero}-${Date.now()}.pdf`
+
+  // Borrar el viejo si existía (no acumular huérfanos)
+  if (cab.pdf_url) {
+    await supabase.storage.from(BUCKET_PDF).remove([cab.pdf_url]).catch(() => {})
+  }
+
+  const { error: upErr } = await supabase.storage
+    .from(BUCKET_PDF).upload(path, buffer, { contentType: mimetype, upsert: false })
+  if (upErr) throw upErr
+
+  const { data, error } = await supabase
+    .from('presupuestos').update({ pdf_url: path }).eq('id', id).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function getPdfSignedUrl(id) {
+  const cab = await getCabecera(id)
+  if (!cab) throw bad('Presupuesto no encontrado', 404)
+  if (!cab.pdf_url) return null
+
+  const { data, error } = await supabase.storage
+    .from(BUCKET_PDF).createSignedUrl(cab.pdf_url, SIGNED_URL_TTL_SEC)
+  if (error) throw error
+  return { url: data.signedUrl, path: cab.pdf_url, expiresIn: SIGNED_URL_TTL_SEC }
+}

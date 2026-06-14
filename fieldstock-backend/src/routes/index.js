@@ -33,6 +33,8 @@ import * as NotificacionesCtrl  from '../controllers/notificaciones.controller.j
 import * as DashboardCtrl       from '../controllers/dashboard.controller.js'
 import * as UsuariosCtrl        from '../controllers/usuarios.controller.js'
 import * as ComprasCtrl         from '../controllers/compras.controller.js'
+import * as PresupuestosCtrl    from '../controllers/presupuestos.controller.js'
+import * as ConfigCtrl          from '../controllers/config.controller.js'
 
 const router = Router()
 
@@ -94,6 +96,7 @@ router.get   ('/materiales/:id',            MateriasCtrl.getById)
 router.put   ('/materiales/:id',            MateriasCtrl.update)
 router.delete('/materiales/:id',            MateriasCtrl.remove)
 router.post  ('/materiales/:id/agregar-stock', MateriasCtrl.agregarStock)
+router.get   ('/materiales/:id/precio-referencia', MateriasCtrl.getPrecioReferencia)
 
 // ── Remitos ───────────────────────────────────────────────────
 router.get   ('/remitos',                                    RemitosCtrl.getAll)
@@ -180,6 +183,44 @@ router.get   ('/compras/:id/comprobante',            ComprasCtrl.getComprobante)
 router.post  ('/compras/:id/comprobante',
                 uploadComprobante.single('archivo'),  ComprasCtrl.uploadComprobante)
 router.delete('/compras/:id/comprobante',            ComprasCtrl.deleteComprobante)
+
+// ── Presupuestos ──────────────────────────────────────────────
+// Lista/detalle/CRUD para DUEÑO, ADMIN y ENCARGADO. Aprobar/rechazar
+// queda restringido a ADMIN/DUEÑO con requireRole abajo.
+router.get   ('/presupuestos',                                PresupuestosCtrl.getAll)
+router.post  ('/presupuestos',                                PresupuestosCtrl.create)
+router.get   ('/presupuestos/:id',                            PresupuestosCtrl.getById)
+router.patch ('/presupuestos/:id',                            PresupuestosCtrl.update)
+router.delete('/presupuestos/:id',                            PresupuestosCtrl.remove)
+
+router.post  ('/presupuestos/:id/insumos',                    PresupuestosCtrl.addInsumo)
+router.patch ('/presupuestos/:id/insumos/:insumoId',          PresupuestosCtrl.updateInsumo)
+router.delete('/presupuestos/:id/insumos/:insumoId',          PresupuestosCtrl.removeInsumo)
+
+router.post  ('/presupuestos/:id/costos',                     PresupuestosCtrl.addCosto)
+router.patch ('/presupuestos/:id/costos/:costoId',            PresupuestosCtrl.updateCosto)
+router.delete('/presupuestos/:id/costos/:costoId',            PresupuestosCtrl.removeCosto)
+
+// Transiciones de estado
+router.post  ('/presupuestos/:id/enviar-aprobacion',          PresupuestosCtrl.enviarAprobacion)
+router.post  ('/presupuestos/:id/volver-borrador',            PresupuestosCtrl.volverABorrador)
+router.post  ('/presupuestos/:id/aprobar',
+                                                              requireRole(ROLES_ADMIN_LEVEL),
+                                                              PresupuestosCtrl.aprobar)
+router.post  ('/presupuestos/:id/rechazar',
+                                                              requireRole(ROLES_ADMIN_LEVEL),
+                                                              PresupuestosCtrl.rechazar)
+
+// PDF (mismo patron que comprobante de compras)
+router.get   ('/presupuestos/:id/pdf',                        PresupuestosCtrl.getPdf)
+router.post  ('/presupuestos/:id/pdf',
+                                                              PresupuestosCtrl.uploadPdfMiddleware,
+                                                              PresupuestosCtrl.uploadPdf)
+
+// ── Configuracion del sistema (solo ADMIN/DUEÑO escribe) ──────
+router.get   ('/config',         ConfigCtrl.getAll)
+router.get   ('/config/:key',    ConfigCtrl.get)
+router.put   ('/config/:key',    requireRole(ROLES_ADMIN_LEVEL), ConfigCtrl.set)
 
 // ── Notificaciones ────────────────────────────────────────────
 router.get  ('/notificaciones',              NotificacionesCtrl.getAll)
