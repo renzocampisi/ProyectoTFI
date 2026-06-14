@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useObra } from '../hooks/useObras'
 import { ObrasService } from '../services/obras.service'
+import PresupuestosObraSection from '@modules/m-presupuestos/components/PresupuestosObraSection'
 import styles from './ObrasDetailPage.module.css'
 
 function formatFecha(iso) {
@@ -12,11 +13,18 @@ function formatFecha(iso) {
 }
 
 function EstadoBadge({ estado }) {
-  return (
-    <span className={`${styles.badge} ${estado === 'ACTIVA' ? styles.activa : styles.finalizada}`}>
-      {estado === 'ACTIVA' ? '● Activa' : '✓ Finalizada'}
-    </span>
-  )
+  // Mapeo extendido con los 5 estados (los 2 originales + 3 del flujo
+  // de presupuestos). Si llega un estado no mapeado, fallback al estilo
+  // base con el texto crudo.
+  const MAP = {
+    PENDIENTE_PRESUPUESTO: { label: '⏳ Pendiente presupuesto', cls: styles.pendiente },
+    EN_APROBACION:         { label: '⏰ En aprobación',         cls: styles.enAprobacion },
+    ACTIVA:                { label: '● Activa',                 cls: styles.activa },
+    FINALIZADA:            { label: '✓ Finalizada',             cls: styles.finalizada },
+    RECHAZADA:             { label: '✕ Rechazada',              cls: styles.rechazada },
+  }
+  const { label, cls } = MAP[estado] ?? { label: estado, cls: '' }
+  return <span className={`${styles.badge} ${cls}`}>{label}</span>
 }
 
 function EstadoRemitoBadge({ estado }) {
@@ -118,8 +126,12 @@ export default function ObrasDetailPage() {
           </section>
         </div>
 
-        {/* Remitos asociados */}
+        {/* Main col: Presupuestos + Remitos asociados */}
         <div className={styles.mainCol}>
+          {/* Presupuestos (parte 3 de la feature). Va arriba de remitos
+              porque cronológicamente vienen primero en el flujo de obra. */}
+          <PresupuestosObraSection obraId={obra.id} />
+
           <section className={styles.card}>
             <div className={styles.cardHeader}>
               <h2 className={styles.cardTitle}>

@@ -44,6 +44,8 @@ import ComprasListPage   from '@modules/m-compras/pages/ComprasListPage'
 import ComprasNewPage    from '@modules/m-compras/pages/ComprasNewPage'
 import ComprasDetailPage from '@modules/m-compras/pages/ComprasDetailPage'
 
+import PresupuestoDetailPage from '@modules/m-presupuestos/pages/PresupuestoDetailPage'
+
 import ComingSoon from '@shared/components/ComingSoon'
 
 export default function AppRouter() {
@@ -119,6 +121,11 @@ export default function AppRouter() {
           <Route path="compras/nuevo" element={<ComprasNewPage />} />
           <Route path="compras/:id"   element={<ComprasDetailPage />} />
           <Route path="compras/*"     element={<ComingSoon modulo="Compras" />} />
+
+          {/* Presupuestos — por ahora solo detalle read-only.
+              Form de creación + acciones llegan en partes 4-5. */}
+          <Route path="presupuestos/:id" element={<PresupuestoDetailPage />} />
+          <Route path="presupuestos/*"   element={<ComingSoon modulo="Presupuestos" />} />
           <Route path="facturacion/*" element={<ComingSoon modulo="Facturación" />} />
           <Route path="panel/*"       element={<ComingSoon modulo="Panel IA" />} />
 
