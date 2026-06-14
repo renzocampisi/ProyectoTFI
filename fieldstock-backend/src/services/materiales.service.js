@@ -222,3 +222,28 @@ export async function updateStock(id, cantidad, operacion = 'descontar') {
   if (error) throw error
   return data
 }
+
+// ── Precio de referencia ──────────────────────────────────────
+// Devuelve el precio_unitario de la ULTIMA compra registrada para ese
+// material (la mas reciente por fecha_recepcion, fallback created_at).
+// Lo usa el form de Presupuestos para autocompletar el precio al elegir
+// un material. Si nunca se compro, devuelve null (el operador lo escribe
+// a mano).
+export async function getPrecioReferencia(materialId) {
+  const { data, error } = await supabase
+    .from('compras_items')
+    .select('precio_unitario, compra:compras(fecha_recepcion, created_at)')
+    .eq('material_id', materialId)
+    .order('created_at', { ascending: false })
+    .limit(20)  // tomamos las ultimas 20 y elegimos en JS la mas reciente por fecha
+  if (error) throw error
+  if (!data?.length) return null
+
+  // Ordenar por fecha_recepcion (cuando llegó) desc, fallback created_at
+  const sorted = [...data].sort((a, b) => {
+    const fa = a.compra?.fecha_recepcion || a.compra?.created_at || ''
+    const fb = b.compra?.fecha_recepcion || b.compra?.created_at || ''
+    return fb.localeCompare(fa)
+  })
+  return { precio: Number(sorted[0].precio_unitario), fuente: 'ultima_compra' }
+}
