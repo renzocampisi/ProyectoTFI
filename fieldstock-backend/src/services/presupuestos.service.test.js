@@ -189,6 +189,42 @@ describe('presupuestos.service.enviarAprobacion', () => {
 })
 
 // ─────────────────────────────────────────────────────────────
+describe('presupuestos.service.aprobar (RPC transaccional)', () => {
+  it('llama a la RPC aprobar_presupuesto con id y userId', async () => {
+    supabase.rpc.mockResolvedValueOnce({ data: 'r-uuid-1', error: null })
+    // getCabecera al final devuelve el presupuesto actualizado
+    mockChain.maybeSingle.mockResolvedValueOnce({
+      data: { id: 'p-1', estado: 'APROBADO', remito_generado_id: 'r-uuid-1' },
+      error: null,
+    })
+
+    const result = await PresupuestosService.aprobar('p-1', 'u-1')
+
+    expect(supabase.rpc).toHaveBeenCalledWith('aprobar_presupuesto', { p_id: 'p-1', p_user_id: 'u-1' })
+    expect(result.estado).toBe('APROBADO')
+    expect(result.remito_generado_id).toBe('r-uuid-1')
+  })
+
+  it('mapea P0002 a 404 (presupuesto u obra no encontrados)', async () => {
+    supabase.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { code: 'P0002', message: 'Presupuesto no encontrado' },
+    })
+    await expect(PresupuestosService.aprobar('p-nope', null))
+      .rejects.toMatchObject({ status: 404 })
+  })
+
+  it('mapea otros raise (P0001 estado invalido) a 400', async () => {
+    supabase.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { code: 'P0001', message: 'Solo EN_APROBACION puede aprobarse' },
+    })
+    await expect(PresupuestosService.aprobar('p-1', null))
+      .rejects.toMatchObject({ status: 400 })
+  })
+})
+
+// ─────────────────────────────────────────────────────────────
 describe('presupuestos.service.rechazar', () => {
   it('rechaza si no esta EN_APROBACION', async () => {
     mockChain.maybeSingle.mockResolvedValueOnce({ data: { estado: 'BORRADOR' }, error: null })

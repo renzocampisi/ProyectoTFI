@@ -329,66 +329,30 @@ export async function volverABorrador(id) {
 }
 
 // EN_APROBACION → APROBADO + genera remito BORRADOR con los insumos
+//
+// Implementado como RPC transaccional `aprobar_presupuesto(p_id, p_user_id)`
+// (ver migration 2026_06_15_presupuestos_rls_y_rpc.sql). Antes esto eran
+// 4 escrituras sucesivas sin transacción — si fallaba cualquiera después
+// del insert del remito quedaba un remito huérfano y el presupuesto en
+// EN_APROBACION, permitiendo re-aprobar y duplicar. La RPC envuelve todo
+// en una sola transacción PL/pgSQL: si cualquier paso lanza excepción,
+// Postgres revierte todos los cambios.
+//
+// Adicional: la RPC NO crea un remito si el presupuesto no tiene insumos
+// (evita remitos vacíos que confunden al operador — issue 2.4).
 export async function aprobar(id, userId) {
-  const cab = await getCabecera(id)
-  if (!cab) throw bad('Presupuesto no encontrado', 404)
-  if (cab.estado !== 'EN_APROBACION') throw bad(`Solo EN_APROBACION puede aprobarse (actual: ${cab.estado})`)
-
-  // Leer obra para el remito (necesitamos nombre/cliente)
-  const { data: obra, error: errObra } = await supabase
-    .from('obras').select('id, nombre, cliente').eq('id', cab.obra_id).single()
-  if (errObra) throw errObra
-
-  // Leer insumos del presupuesto
-  const { data: insumos, error: errIns } = await supabase
-    .from('presupuesto_insumos')
-    .select('material_id, cantidad, material:materiales(nombre, unidad)')
-    .eq('presupuesto_id', id)
-  if (errIns) throw errIns
-
-  // Generar remito BORRADOR (numero auto via RPC de remitos)
-  const { data: numeroRemito, error: errNum } = await supabase.rpc('generar_numero_remito')
-  if (errNum) throw errNum
-
-  const { data: remito, error: errR } = await supabase
-    .from('remitos').insert({
-      numero:       numeroRemito,
-      estado:       'BORRADOR',
-      obra:         obra.nombre,
-      responsable:  '-- por completar --',
-      fecha_egreso: new Date().toISOString().split('T')[0],
-      observacion:  `Generado automáticamente desde presupuesto ${cab.numero}`,
-    }).select().single()
-  if (errR) throw errR
-
-  // Insertar items del remito por cada insumo del presupuesto
-  if (insumos?.length) {
-    const rows = insumos.map(i => ({
-      remito_id:       remito.id,
-      material_id:     i.material_id,
-      cantidad_egreso: i.cantidad,
-      unidad:          i.material?.unidad || 'unidad',
-    }))
-    const { error: errMat } = await supabase.from('remito_materiales').insert(rows)
-    if (errMat) {
-      // rollback del remito si falla la inserción de materiales
-      await supabase.from('remitos').delete().eq('id', remito.id)
-      throw errMat
-    }
+  const { error: errRpc } = await supabase.rpc('aprobar_presupuesto', {
+    p_id:      id,
+    p_user_id: userId || null,
+  })
+  if (errRpc) {
+    // Postgres ERRCODE P0002 = "no_data_found", lo mapeamos a 404.
+    // Cualquier otro raise (P0001 estado inválido) cae como 400.
+    throw bad(errRpc.message, errRpc.code === 'P0002' ? 404 : 400)
   }
 
-  // Actualizar el presupuesto: APROBADO + linkear remito
-  const { data, error } = await supabase
-    .from('presupuestos').update({
-      estado:             'APROBADO',
-      fecha_aprobacion:   new Date().toISOString(),
-      aprobado_por:       userId || null,
-      remito_generado_id: remito.id,
-    }).eq('id', id).select().single()
-  if (error) throw error
-
-  await sincronizarEstadoObra(cab.obra_id)
-  return data
+  // Re-leer el presupuesto ya actualizado por la RPC.
+  return await getCabecera(id)
 }
 
 // EN_APROBACION → RECHAZADO
