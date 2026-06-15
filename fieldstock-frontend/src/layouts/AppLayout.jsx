@@ -4,7 +4,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LuHouse, LuWrench, LuPackage, LuArchive, LuClipboardList, LuConstruction,
   LuQrCode, LuTruck, LuBuilding2, LuFactory, LuShoppingCart, LuCreditCard,
-  LuSparkles, LuUsers, LuSun, LuMoon, LuUser, LuLogOut, LuChevronDown,
+  LuSparkles, LuUsers, LuSettings, LuSun, LuMoon, LuUser, LuLogOut, LuChevronDown,
 } from 'react-icons/lu'
 import { useAuth } from '@shared/hooks/useAuth'
 import { ROLE_LABELS, esDueño } from '@shared/constants/roles'
@@ -42,7 +42,8 @@ const SISTEMA_ITEMS = [
 ]
 
 const ADMIN_ITEMS = [
-  { to: '/usuarios', label: 'Usuarios', icon: LuUsers, activo: true },
+  { to: '/usuarios',      label: 'Usuarios',      icon: LuUsers,    activo: true },
+  { to: '/configuracion', label: 'Configuración', icon: LuSettings, activo: true },
 ]
 
 function useTema() {

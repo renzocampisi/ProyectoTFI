@@ -47,6 +47,8 @@ import ComprasDetailPage from '@modules/m-compras/pages/ComprasDetailPage'
 import PresupuestoDetailPage from '@modules/m-presupuestos/pages/PresupuestoDetailPage'
 import PresupuestoNewPage    from '@modules/m-presupuestos/pages/PresupuestoNewPage'
 
+import ConfigPage from '@modules/m-config/pages/ConfigPage'
+
 import ComingSoon from '@shared/components/ComingSoon'
 
 export default function AppRouter() {
@@ -76,6 +78,13 @@ export default function AppRouter() {
           <Route path="usuarios" element={
             <RequireRole roles={ROLES_ADMIN_LEVEL}>
               <UsuariosListPage />
+            </RequireRole>
+          } />
+
+          {/* Configuración global del sistema — DUEÑO o ADMIN */}
+          <Route path="configuracion" element={
+            <RequireRole roles={ROLES_ADMIN_LEVEL}>
+              <ConfigPage />
             </RequireRole>
           } />
 
