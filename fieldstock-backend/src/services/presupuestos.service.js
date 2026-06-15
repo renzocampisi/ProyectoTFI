@@ -111,6 +111,17 @@ export async function create(body) {
       observaciones:       body.observaciones || null,
     }).select().single()
   if (error) throw error
+
+  // Sincronizar estado de la obra (issue 2.1). Caso típico que cubre:
+  //   - Obra recién creada (ACTIVA por default) → pasa a PENDIENTE_PRESUPUESTO
+  //     porque ahora tiene un BORRADOR.
+  //   - Obra RECHAZADA (todos los presupuestos anteriores rechazados) →
+  //     vuelve a PENDIENTE_PRESUPUESTO al sumar este BORRADOR nuevo.
+  //   - Obra ACTIVA con presupuesto APROBADO previo → se mantiene ACTIVA
+  //     (estados.has('APROBADO') gana en la cascada de sincronizar).
+  // FINALIZADA nunca se sobrescribe (decisión manual final).
+  await sincronizarEstadoObra(body.obraId)
+
   return data
 }
 
@@ -149,6 +160,12 @@ export async function remove(id) {
 
   const { error } = await supabase.from('presupuestos').delete().eq('id', id)
   if (error) throw error
+
+  // Re-sincronizar la obra tras el delete (el set de presupuestos cambió,
+  // el estado de la obra podría cambiar — ej. era el único BORRADOR y se
+  // elimina, la obra vuelve a su estado anterior según los presupuestos
+  // que queden).
+  await sincronizarEstadoObra(cab.obra_id)
 }
 
 // ── Insumos (items materiales) ───────────────────────────────
@@ -378,7 +395,10 @@ export async function rechazar(id, motivo) {
 //   - sino, hay alguno EN_APROBACION → obra EN_APROBACION
 //   - sino, hay alguno BORRADOR → obra PENDIENTE_PRESUPUESTO
 //   - sino, todos son RECHAZADO → obra RECHAZADA
-//   - sin presupuestos → no toca el estado (puede haber sido creada directo)
+//   - sin presupuestos + obra estaba en algún estado del flow de
+//     presupuestos → volver a ACTIVA (caso: se eliminó el último
+//     BORRADOR, la obra no debería quedar pegada en
+//     PENDIENTE_PRESUPUESTO con 0 presupuestos).
 // FINALIZADA no se sobrescribe nunca (es decisión manual final).
 async function sincronizarEstadoObra(obraId) {
   const { data: obra } = await supabase
@@ -388,7 +408,15 @@ async function sincronizarEstadoObra(obraId) {
   const { data: presupuestos } = await supabase
     .from('presupuestos').select('estado').eq('obra_id', obraId)
 
-  if (!presupuestos?.length) return
+  // Si quedó sin presupuestos y la obra estaba en algún estado del flow
+  // de presupuestos, vuelve a ACTIVA. Si ya era ACTIVA, no toca nada.
+  if (!presupuestos?.length) {
+    const ESTADOS_FLOW_PRESUP = ['PENDIENTE_PRESUPUESTO', 'EN_APROBACION', 'RECHAZADA']
+    if (ESTADOS_FLOW_PRESUP.includes(obra.estado)) {
+      await supabase.from('obras').update({ estado: 'ACTIVA' }).eq('id', obraId)
+    }
+    return
+  }
 
   const estados = new Set(presupuestos.map(p => p.estado))
   let nuevoEstado
