@@ -74,31 +74,50 @@ export default function ObrasListPage() {
   const [filtroEstado, setFiltroEstado] = useState('TODOS')      // chip dentro del bucket
   const [busqueda,     setBusqueda]     = useState('')
 
-  // Una sola query sin filtro de estado — filtramos cliente-side por
-  // bucket (en_proceso / historial) y por el chip de estado puntual.
-  // El backend ya soporta el filtro `?estado=`, pero para mostrar counts
-  // por chip en el bucket actual conviene tener el set completo cargado.
-  const { obras: todas, loading, error } = useObras({ q: busqueda || undefined })
+  // Una sola query SIN filtros — todo el filtrado (bucket / chip /
+  // busqueda) es cliente-side. Tres razones:
+  //   1) Counts en chips deben reflejar TODO el bucket, no solo lo
+  //      filtrado por la busqueda (issue 2.10 de auditoria).
+  //   2) Evita un fetch por tecla mientras el user tipea (issue 2.11).
+  //   3) Para una empresa pequeña hay decenas/cientos de obras —
+  //      cliente-side va sobrado y es mas rapido (sin round-trip).
+  const { obras: todas, loading, error } = useObras()
 
   const bucketActual = seccion === 'en_proceso' ? BUCKET_EN_PROCESO : BUCKET_HISTORIAL
 
-  // Counts por estado dentro del bucket actual (para los chips)
+  // Aplica la busqueda cliente-side. Match case-insensitive contra nombre,
+  // cliente (FK o legacy text) y direccion.
+  const obrasMatchBusqueda = useMemo(() => {
+    if (!busqueda.trim()) return todas
+    const q = busqueda.trim().toLowerCase()
+    return todas.filter(o =>
+      (o.nombre        || '').toLowerCase().includes(q) ||
+      (o.cliente_nombre|| '').toLowerCase().includes(q) ||
+      (o.cliente       || '').toLowerCase().includes(q) ||
+      (o.direccion     || '').toLowerCase().includes(q)
+    )
+  }, [todas, busqueda])
+
+  // Counts por estado dentro del bucket actual.
+  // - Sin busqueda: count del bucket completo (set canonico).
+  // - Con busqueda: count de los que matchean la busqueda + estan en el bucket
+  //   (asi los chips no mienten cuando el user filtra por texto).
   const countsPorEstado = useMemo(() => {
     const map = Object.fromEntries(bucketActual.map(e => [e, 0]))
-    for (const o of todas) {
+    for (const o of obrasMatchBusqueda) {
       if (map[o.estado] !== undefined) map[o.estado]++
     }
     return map
-  }, [todas, bucketActual])
+  }, [obrasMatchBusqueda, bucketActual])
 
   // Lista filtrada que se muestra
   const lista = useMemo(() => {
-    const dentroBucket = todas.filter(o => bucketActual.includes(o.estado))
+    const dentroBucket = obrasMatchBusqueda.filter(o => bucketActual.includes(o.estado))
     if (filtroEstado === 'TODOS') return dentroBucket
     return dentroBucket.filter(o => o.estado === filtroEstado)
-  }, [todas, bucketActual, filtroEstado])
+  }, [obrasMatchBusqueda, bucketActual, filtroEstado])
 
-  const totalBucket = todas.filter(o => bucketActual.includes(o.estado)).length
+  const totalBucket = obrasMatchBusqueda.filter(o => bucketActual.includes(o.estado)).length
 
   const cambiarSeccion = (nueva) => {
     setSeccion(nueva)
