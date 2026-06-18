@@ -1,0 +1,57 @@
+/* FAB Escanear QR — solo visible en mobile/tablet (≤768px).
+   Por default anclado a bottom-right; el usuario lo puede arrastrar
+   y la posición queda persistida en localStorage. */
+
+/* Desktop: oculto (el sidebar lateral ya tiene "Escanear QR" normal). */
+.fabQr { display: none; }
+
+@media (max-width: 768px) {
+  .fabQr {
+    display: flex;
+    position: fixed;
+    right: 16px;
+    bottom: 24px;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--color-primary, #2dd4a0);
+    color: #ffffff;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+    z-index: 101;
+    border: 3px solid var(--color-surface);
+    /* Sin transition en transform durante drag para que siga el dedo
+       sin lag. La transition solo aplica al :active feedback. */
+    transition: box-shadow 0.15s ease;
+    /* touch-action: none evita que el browser interprete el drag como
+       gestos nativos (scroll, pull-to-refresh). */
+    touch-action: none;
+    /* Evita seleccion de texto al hacer drag largo */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    cursor: grab;
+  }
+  .fabQr:active {
+    transform: scale(0.95);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  }
+  /* Mientras se arrastra: feedback visual + cursor distinto */
+  .dragging {
+    cursor: grabbing;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    opacity: 0.92;
+  }
+  .dragging:active { transform: none; }
+
+  .fabQrIcon { font-size: 28px; line-height: 1; }
+}
+
+/* En mobile real (≤430px) el sidebar es una barra inferior de 64px.
+   Subir el FAB por default a 80px para que no se monte sobre la barra.
+   El user puede moverlo libre y esto se respeta (porque entonces el
+   inline style override left/top). */
+@media (max-width: 430px) {
+  .fabQr { bottom: 80px; }
+}

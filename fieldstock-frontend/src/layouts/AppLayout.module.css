@@ -554,42 +554,5 @@
   /* Mostrar el logo en el topbar (en desktop lo trae el sidebar) */
   .topbarLogo { display: inline-block; }
 
-  /* En mobile (≤430px) el sidebar se vuelve una barra inferior de 64px.
-     El FAB queda sobre ella (bottom: 80px = 64 + 16 de gap visual). */
-  .fabQr { bottom: 80px; }
 }
-
-/* Default desktop: el FAB no se muestra — el sidebar lateral tiene el item normal. */
-.fabQr { display: none; }
-
-/* FAB Escanear QR visible en TODO viewport mobile/tablet (≤768px).
-   Anclado a la esquina inferior derecha (patrón Material Design FAB)
-   para no tapar el contenido central ni los items del sidebar inferior
-   en mobile. En tablets (431-768px) queda al pie a 24px del bottom (no
-   hay barra inferior en ese rango). En mobile real (≤430px) el override
-   de arriba lo sube a 80px para que se vea sobre la barra. */
-@media (max-width: 768px) {
-  .fabQr {
-    display: flex;
-    position: fixed;
-    right: 16px;
-    bottom: 24px;
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background: var(--color-primary, #2dd4a0);
-    color: #ffffff;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
-    z-index: 101;
-    text-decoration: none;
-    border: 3px solid var(--color-surface);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-  .fabQr:active {
-    transform: scale(0.95);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
-  }
-  .fabQrIcon { font-size: 28px; line-height: 1; }
-}
+/* Los estilos del FAB se movieron a shared/components/DraggableFAB.module.css */
