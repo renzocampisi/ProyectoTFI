@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useObra } from '../hooks/useObras'
 import { ObrasService } from '../services/obras.service'
 import PresupuestosObraSection from '@modules/m-presupuestos/components/PresupuestosObraSection'
+import { ESTADO_INFO } from '../constants'
 import styles from './ObrasDetailPage.module.css'
 
 function formatFecha(iso) {
@@ -13,18 +14,11 @@ function formatFecha(iso) {
 }
 
 function EstadoBadge({ estado }) {
-  // Mapeo extendido con los 5 estados (los 2 originales + 3 del flujo
-  // de presupuestos). Si llega un estado no mapeado, fallback al estilo
-  // base con el texto crudo.
-  const MAP = {
-    PENDIENTE_PRESUPUESTO: { label: '⏳ Pendiente presupuesto', cls: styles.pendiente },
-    EN_APROBACION:         { label: '⏰ En aprobación',         cls: styles.enAprobacion },
-    ACTIVA:                { label: '● Activa',                 cls: styles.activa },
-    FINALIZADA:            { label: '✓ Finalizada',             cls: styles.finalizada },
-    RECHAZADA:             { label: '✕ Rechazada',              cls: styles.rechazada },
-  }
-  const { label, cls } = MAP[estado] ?? { label: estado, cls: '' }
-  return <span className={`${styles.badge} ${cls}`}>{label}</span>
+  // ESTADO_INFO viene de m4-obra/constants — fuente única para los 5
+  // estados de obra. `cls` es el nombre de la clase, que mapeamos al
+  // CSS Module local con styles[].
+  const info = ESTADO_INFO[estado] ?? { label: estado, cls: '' }
+  return <span className={`${styles.badge} ${styles[info.cls] || ''}`}>{info.label}</span>
 }
 
 function EstadoRemitoBadge({ estado }) {

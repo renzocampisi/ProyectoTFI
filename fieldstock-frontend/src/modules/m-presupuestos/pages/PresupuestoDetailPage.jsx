@@ -164,6 +164,13 @@ export default function PresupuestoDetailPage() {
           <Campo label="Fecha creación"   value={formatFechaHora(presupuesto.fecha_creacion)} />
           <Campo label="Fecha envío"      value={formatFechaHora(presupuesto.fecha_envio)} />
           <Campo label="Fecha aprobación" value={formatFechaHora(presupuesto.fecha_aprobacion)} />
+          {/* Issue menor 3.11: mostrar quién aprobó. Solo aparece si
+              hay aprobador resuelto (el join del backend devuelve null
+              si aprobado_por es null o si el user fue eliminado). */}
+          {presupuesto.aprobador && (
+            <Campo label="Aprobado por"
+              value={presupuesto.aprobador.nombre || presupuesto.aprobador.id} />
+          )}
         </div>
         {presupuesto.observaciones && (
           <div className={styles.observaciones}>
@@ -382,25 +389,40 @@ export default function PresupuestoDetailPage() {
         </div>
       )}
 
-      {/* Modal: aprobar */}
-      {accion === 'aprobar' && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalCard}>
-            <h3 className={styles.modalTitle}>¿Aprobar presupuesto?</h3>
-            <p className={styles.modalText}>
-              Se va a generar automáticamente un remito en estado BORRADOR con
-              los <strong>{presupuesto.insumos?.length || 0} insumo(s)</strong> de este presupuesto.
-              La obra pasará a estado ACTIVA.
-            </p>
-            <div className={styles.modalActions}>
-              <button type="button" className={styles.btnGhost} onClick={cerrarModal} disabled={accionando}>Cancelar</button>
-              <button type="button" className={styles.btnPrimary} onClick={handleAprobar} disabled={accionando}>
-                {accionando ? 'Aprobando...' : 'Sí, aprobar'}
-              </button>
+      {/* Modal: aprobar — copy dinámico según haya insumos o no
+          (issue menor 3.2). Si solo hay costos extra, no se genera
+          remito: el modal lo aclara para no confundir al operador. */}
+      {accion === 'aprobar' && (() => {
+        const nInsumos = presupuesto.insumos?.length || 0
+        return (
+          <div className={styles.modalOverlay}>
+            <div className={styles.modalCard}>
+              <h3 className={styles.modalTitle}>¿Aprobar presupuesto?</h3>
+              <p className={styles.modalText}>
+                {nInsumos > 0 ? (
+                  <>
+                    Se va a generar automáticamente un remito en estado BORRADOR con
+                    los <strong>{nInsumos} insumo{nInsumos !== 1 ? 's' : ''}</strong> de este presupuesto.
+                    La obra pasará a estado ACTIVA.
+                  </>
+                ) : (
+                  <>
+                    Este presupuesto no tiene insumos cargados — solo costos extra.
+                    Se va a marcar como APROBADO pero <strong>no se va a generar ningún remito</strong>.
+                    La obra pasará a estado ACTIVA.
+                  </>
+                )}
+              </p>
+              <div className={styles.modalActions}>
+                <button type="button" className={styles.btnGhost} onClick={cerrarModal} disabled={accionando}>Cancelar</button>
+                <button type="button" className={styles.btnPrimary} onClick={handleAprobar} disabled={accionando}>
+                  {accionando ? 'Aprobando...' : 'Sí, aprobar'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Modal: rechazar (con motivo opcional) */}
       {accion === 'rechazar' && (

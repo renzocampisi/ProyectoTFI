@@ -2,6 +2,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useObras } from '../hooks/useObras'
+import { ESTADO_INFO, BUCKET_EN_PROCESO, BUCKET_HISTORIAL } from '../constants'
 import styles from './ObrasListPage.module.css'
 
 function formatFecha(iso) {
@@ -9,19 +10,6 @@ function formatFecha(iso) {
   const [y, m, d] = iso.split('T')[0].split('-')
   return `${d}/${m}/${y}`
 }
-
-// Mapeo de los 5 estados de obra a label + clase visual.
-const ESTADO_INFO = {
-  PENDIENTE_PRESUPUESTO: { label: '⏳ Pendiente presupuesto', cls: 'pendiente' },
-  EN_APROBACION:         { label: '⏰ En aprobación',         cls: 'enAprobacion' },
-  ACTIVA:                { label: '● Activa',                 cls: 'activa' },
-  FINALIZADA:            { label: '✓ Finalizada',             cls: 'finalizada' },
-  RECHAZADA:             { label: '✕ Rechazada',              cls: 'rechazada' },
-}
-
-// Agrupamiento por bucket: "En proceso" = estados vivos, "Historial" = terminales.
-const BUCKET_EN_PROCESO = ['PENDIENTE_PRESUPUESTO', 'EN_APROBACION', 'ACTIVA']
-const BUCKET_HISTORIAL  = ['FINALIZADA', 'RECHAZADA']
 
 function EstadoBadge({ estado }) {
   const info = ESTADO_INFO[estado] || { label: estado, cls: '' }
