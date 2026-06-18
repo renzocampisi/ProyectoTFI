@@ -164,6 +164,10 @@ function totales(doc, presupuesto, startY) {
     ['Total',                                  formatMoney(presupuesto.total), true],
   ]
 
+  // Issue 2.8: el bloque de totales (4 filas + total grande) ocupa ~30mm.
+  // Si no entra en la pagina actual, salta a una nueva antes de empezar.
+  startY = ensureSpace(doc, startY, 32)
+
   doc.setDrawColor(...COLOR_BORDER).setLineWidth(0.3)
   doc.line(xLabel, startY, xVal, startY)
 
@@ -184,15 +188,37 @@ function totales(doc, presupuesto, startY) {
   return y
 }
 
+// Garantiza que quedan `needed` mm libres antes del footer en la pagina
+// actual. Si no entran, agrega pagina nueva y devuelve el y inicial de
+// la nueva pagina (margen superior). Issue 2.8: antes el bloque de
+// observaciones largas podia pisar el footer.
+function ensureSpace(doc, y, needed) {
+  const pageH      = doc.internal.pageSize.getHeight()
+  const FOOTER_RES = 18  // 8mm del footer + 10mm de padding visual
+  if (y + needed > pageH - FOOTER_RES) {
+    doc.addPage()
+    return MARGIN  // reset al margen superior de la pagina nueva
+  }
+  return y
+}
+
 function observaciones(doc, presupuesto, startY) {
   if (!presupuesto.observaciones) return startY
 
+  doc.setTextColor(...COLOR_TEXT).setFont('helvetica', 'normal').setFontSize(10)
+  const lines = doc.splitTextToSize(
+    presupuesto.observaciones,
+    doc.internal.pageSize.getWidth() - MARGIN * 2,
+  )
+  // Espacio que ocuparia: titulo (5mm) + lineas (4mm c/u) + padding (3mm)
+  const needed = 5 + lines.length * 4 + 3
+  const y = ensureSpace(doc, startY, needed)
+
   doc.setFontSize(10).setTextColor(...COLOR_MUTED).setFont('helvetica', 'bold')
-  doc.text('Observaciones:', MARGIN, startY)
+  doc.text('Observaciones:', MARGIN, y)
   doc.setTextColor(...COLOR_TEXT).setFont('helvetica', 'normal')
-  const lines = doc.splitTextToSize(presupuesto.observaciones, doc.internal.pageSize.getWidth() - MARGIN * 2)
-  doc.text(lines, MARGIN, startY + 5)
-  return startY + 5 + lines.length * 4
+  doc.text(lines, MARGIN, y + 5)
+  return y + 5 + lines.length * 4
 }
 
 function footer(doc) {
@@ -207,11 +233,9 @@ function footer(doc) {
   }
 }
 
-/**
- * Genera y descarga el PDF de un presupuesto.
- * @param {object} presupuesto El detalle completo (con insumos y costos).
- */
-export function descargarPdfPresupuesto(presupuesto) {
+// Helper interno: arma el PDF completo y devuelve { doc, fileName }.
+// Single source of truth para el layout — descargar y subir reusan esto.
+function construirPdf(presupuesto) {
   const doc = new jsPDF('p', 'mm', 'a4')
 
   header(doc, presupuesto)
@@ -225,5 +249,27 @@ export function descargarPdfPresupuesto(presupuesto) {
   const fileName = `${presupuesto.numero}-${presupuesto.obra?.nombre || 'presupuesto'}`
     .replace(/[^a-zA-Z0-9_-]+/g, '_')
     + '.pdf'
+
+  return { doc, fileName }
+}
+
+/**
+ * Genera y descarga el PDF de un presupuesto (lo dispara el browser).
+ * @param {object} presupuesto El detalle completo (con insumos y costos).
+ */
+export function descargarPdfPresupuesto(presupuesto) {
+  const { doc, fileName } = construirPdf(presupuesto)
   doc.save(fileName)
+}
+
+/**
+ * Genera el PDF y devuelve un File listo para uploadear al backend.
+ * Issue 2.9: para guardar copia oficial en el bucket Storage.
+ * @param {object} presupuesto El detalle completo.
+ * @returns {File} archivo PDF con el nombre derivado del presupuesto.
+ */
+export function generarFilePdfPresupuesto(presupuesto) {
+  const { doc, fileName } = construirPdf(presupuesto)
+  const blob = doc.output('blob')
+  return new File([blob], fileName, { type: 'application/pdf' })
 }
