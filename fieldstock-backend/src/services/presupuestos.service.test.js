@@ -122,7 +122,11 @@ describe('presupuestos.service.addInsumo', () => {
   })
 
   it('inserta el insumo en BORRADOR', async () => {
+    // 1) getCabecera → BORRADOR
     mockChain.maybeSingle.mockResolvedValueOnce({ data: { estado: 'BORRADOR' }, error: null })
+    // 2) validar material existe (issue 3.7)
+    mockChain.maybeSingle.mockResolvedValueOnce({ data: { id: 'm-1' }, error: null })
+    // 3) insert del insumo
     mockChain.single.mockResolvedValueOnce({
       data: { id: 'i-1', material_id: 'm-1', cantidad: 5, precio_unitario: 100 },
       error: null,

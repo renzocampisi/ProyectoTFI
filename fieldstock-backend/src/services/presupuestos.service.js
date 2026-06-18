@@ -74,7 +74,19 @@ export async function getById(id) {
   if (errC) throw errC
   if (!presupuesto) return null
 
-  return { ...presupuesto, insumos: insumos ?? [], costos: costos ?? [] }
+  // Issue menor 3.11: enriquecer con el aprobador. La FK aprobado_por
+  // referencia auth.users (no la tabla `usuarios` publica), asi que
+  // PostgREST no puede inferir el join inline. Hacemos query separada
+  // contra `usuarios` (mirror del perfil con nombre y rol).
+  let aprobador = null
+  if (presupuesto.aprobado_por) {
+    const { data: u } = await supabase
+      .from('usuarios').select('id, nombre, role')
+      .eq('id', presupuesto.aprobado_por).maybeSingle()
+    aprobador = u ?? null
+  }
+
+  return { ...presupuesto, insumos: insumos ?? [], costos: costos ?? [], aprobador }
 }
 
 // ── Crear (arranca en BORRADOR) ──────────────────────────────
@@ -179,6 +191,14 @@ export async function addInsumo(id, body) {
   const precio   = Number(body.precioUnitario)
   if (!Number.isFinite(cantidad) || cantidad <= 0) throw bad('cantidad debe ser > 0')
   if (!Number.isFinite(precio)   || precio   <  0) throw bad('precioUnitario debe ser >= 0')
+
+  // Issue menor 3.7: validar que el material existe antes de insertar.
+  // Sin esto, Postgres devuelve un FK violation críptico ("violates foreign
+  // key constraint") en lugar de un 404 con mensaje legible.
+  const { data: material, error: errMat } = await supabase
+    .from('materiales').select('id').eq('id', body.materialId).maybeSingle()
+  if (errMat) throw errMat
+  if (!material) throw bad(`Material no encontrado (id: ${body.materialId})`, 404)
 
   const { data, error } = await supabase
     .from('presupuesto_insumos').insert({
@@ -306,6 +326,16 @@ export async function enviarAprobacion(id) {
   const cab = await getCabecera(id)
   if (!cab) throw bad('Presupuesto no encontrado', 404)
   if (cab.estado !== 'BORRADOR') throw bad(`Solo BORRADOR puede enviarse a aprobación (actual: ${cab.estado})`)
+
+  // Issue menor 3.1: bloquear envío si la obra ya está FINALIZADA.
+  // Semánticamente raro aprobar un presupuesto de una obra cerrada — y
+  // el sincronizarEstadoObra protege FINALIZADA igual, así que aprobar
+  // no devolvería nada útil.
+  const { data: obra } = await supabase
+    .from('obras').select('estado').eq('id', cab.obra_id).maybeSingle()
+  if (obra?.estado === 'FINALIZADA') {
+    throw bad('No se puede enviar a aprobación: la obra ya está finalizada.')
+  }
 
   // Validar que tenga al menos 1 item (insumo o costo)
   const [{ count: cInsumos }, { count: cCostos }] = await Promise.all([
