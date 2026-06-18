@@ -9,6 +9,7 @@ import {
 import { useAuth } from '@shared/hooks/useAuth'
 import { ROLE_LABELS, esDueño } from '@shared/constants/roles'
 import NotificacionesBell from '@shared/components/NotificacionesBell'
+import DraggableFAB from '@shared/components/DraggableFAB'
 import styles from './AppLayout.module.css'
 
 // Iconos unificados via react-icons/lu (Lucide). Antes eran emojis que
@@ -228,15 +229,11 @@ export default function AppLayout() {
         </div>
       </header>
 
-      {/* FAB Escanear QR — solo visible en mobile. El sidebar en mobile es
-          una barra inferior con scroll horizontal: el item QR puede quedar
-          fuera del viewport y obligar a scrollear para encontrarlo. El FAB
-          lo hace siempre accesible con un tap, centrado y destacado sobre
-          la barra (patrón clásico de apps mobile). En desktop se oculta
-          vía CSS — el item del sidebar normal sigue cubriendo el acceso. */}
-      <NavLink to="/qr" className={styles.fabQr} title="Escanear QR" aria-label="Escanear QR">
-        <span className={styles.fabQrIcon}><LuQrCode size={28} /></span>
-      </NavLink>
+      {/* FAB Escanear QR — solo visible en mobile/tablet. El user puede
+          arrastrarlo a la posición que quiera (persistida en localStorage).
+          Default: esquina inferior derecha. En desktop el sidebar lateral
+          ya tiene el item "Escanear QR" normal — el FAB no se muestra. */}
+      <DraggableFAB />
 
       <main className={styles.main}><Outlet /></main>
     </div>
