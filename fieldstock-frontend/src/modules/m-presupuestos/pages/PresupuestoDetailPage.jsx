@@ -17,7 +17,7 @@ import { LuDownload } from 'react-icons/lu'
 import { usePresupuesto } from '../hooks/usePresupuestos'
 import { PresupuestosService } from '../services/presupuestos.service'
 import EstadoPresupuestoBadge from '../components/EstadoPresupuestoBadge'
-import { descargarPdfPresupuesto } from '../utils/pdfGenerator'
+import { descargarPdfPresupuesto, generarFilePdfPresupuesto } from '../utils/pdfGenerator'
 import { useAuth } from '@shared/hooks/useAuth'
 import { esDueño } from '@shared/constants/roles'
 import {
@@ -72,6 +72,25 @@ export default function PresupuestoDetailPage() {
     descargarPdfPresupuesto(presupuesto)
   }
 
+  // Issue 2.9: subir el PDF generado al bucket `presupuestos-pdf`. Esto
+  // crea una copia "oficial" del PDF tal como se mostró al cliente. Útil
+  // como audit trail si el presupuesto se edita despues. Si ya habia
+  // pdf_url previo, el backend lo reemplaza (borra el viejo antes de subir).
+  const [guardandoCopia, setGuardandoCopia] = useState(false)
+  const handleGuardarCopia = async () => {
+    if (!presupuesto || guardandoCopia) return
+    setGuardandoCopia(true); setErrAccion(null)
+    try {
+      const file = generarFilePdfPresupuesto(presupuesto)
+      await PresupuestosService.uploadPdf(presupuesto.id, file)
+      await refetch()
+    } catch (err) {
+      setErrAccion(`No se pudo guardar la copia: ${err.message}`)
+    } finally {
+      setGuardandoCopia(false)
+    }
+  }
+
   if (loading) return (
     <div className={styles.loadingWrapper}><span className={styles.spinner} />Cargando presupuesto...</div>
   )
@@ -117,9 +136,20 @@ export default function PresupuestoDetailPage() {
           <div className={styles.headerRight}>
             <span className={styles.totalLabel}>Total</span>
             <span className={styles.totalValue}>{formatMoney(presupuesto.total)}</span>
-            <button type="button" className={styles.btnPdf} onClick={handleDescargarPdf}>
-              <LuDownload size={14} /> Descargar PDF
-            </button>
+            <div className={styles.pdfActions}>
+              <button type="button" className={styles.btnPdf} onClick={handleDescargarPdf}>
+                <LuDownload size={14} /> Descargar PDF
+              </button>
+              <button type="button" className={styles.btnPdfGhost}
+                onClick={handleGuardarCopia} disabled={guardandoCopia}
+                title={presupuesto.pdf_url
+                  ? 'Reemplaza la copia guardada con el PDF actual'
+                  : 'Sube el PDF generado al sistema (audit trail)'}>
+                {guardandoCopia
+                  ? 'Guardando...'
+                  : presupuesto.pdf_url ? '🔄 Actualizar copia' : '💾 Guardar copia'}
+              </button>
+            </div>
           </div>
         </div>
       </header>
