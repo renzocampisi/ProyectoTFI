@@ -19,7 +19,7 @@ import { Router } from 'express'
 import multer from 'multer'
 import { requireAuth } from '../middlewares/requireAuth.js'
 import { requireRole } from '../middlewares/requireRole.js'
-import { ROLES, ROLES_ADMIN_LEVEL } from '../constants/roles.js'
+import { ROLES, ROLES_ADMIN_LEVEL, ROLES_OPERATIVOS } from '../constants/roles.js'
 import * as CategoriasCtrl      from '../controllers/categorias.controller.js'
 import * as MarcasCtrl          from '../controllers/marcas.controller.js'
 import * as HerramientasCtrl    from '../controllers/herramientas.controller.js'
@@ -179,10 +179,13 @@ const uploadComprobante = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
 })
+// Upload/delete del comprobante requiere rol operativo (no OPERARIO).
+// GET queda accesible para cualquier usuario autenticado (es solo lectura).
 router.get   ('/compras/:id/comprobante',            ComprasCtrl.getComprobante)
 router.post  ('/compras/:id/comprobante',
+                requireRole(ROLES_OPERATIVOS),
                 uploadComprobante.single('archivo'),  ComprasCtrl.uploadComprobante)
-router.delete('/compras/:id/comprobante',            ComprasCtrl.deleteComprobante)
+router.delete('/compras/:id/comprobante',            requireRole(ROLES_OPERATIVOS), ComprasCtrl.deleteComprobante)
 
 // ── Presupuestos ──────────────────────────────────────────────
 // Lista/detalle/CRUD para DUEÑO, ADMIN y ENCARGADO. Aprobar/rechazar
@@ -211,9 +214,12 @@ router.post  ('/presupuestos/:id/rechazar',
                                                               requireRole(ROLES_ADMIN_LEVEL),
                                                               PresupuestosCtrl.rechazar)
 
-// PDF (mismo patron que comprobante de compras)
+// PDF (mismo patron que comprobante de compras).
+// Upload requiere rol operativo (no OPERARIO). GET queda abierto a
+// cualquier autenticado — es solo lectura.
 router.get   ('/presupuestos/:id/pdf',                        PresupuestosCtrl.getPdf)
 router.post  ('/presupuestos/:id/pdf',
+                                                              requireRole(ROLES_OPERATIVOS),
                                                               PresupuestosCtrl.uploadPdfMiddleware,
                                                               PresupuestosCtrl.uploadPdf)
 
