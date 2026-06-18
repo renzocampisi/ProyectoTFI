@@ -27,3 +27,13 @@ export const ROLES_LIST = Object.values(ROLES)
 // `[ROLES.DUEÑO]` cuando se chequea autorización de operaciones de gestión
 // (CRUD de usuarios, volver-a-borrador, etc).
 export const ROLES_ADMIN_LEVEL = Object.freeze([ROLES.ADMIN, ROLES.DUEÑO])
+
+// Roles que pueden ejecutar acciones operativas: todos menos OPERARIO.
+// OPERARIO es read-only + escaneo de QR. Cualquier acción que escriba
+// (subir comprobantes, generar PDFs, modificar entidades del negocio)
+// requiere al menos rol ENCARGADO.
+export const ROLES_OPERATIVOS = Object.freeze([
+  ROLES.ENCARGADO,
+  ROLES.ADMIN,
+  ROLES.DUEÑO,
+])
