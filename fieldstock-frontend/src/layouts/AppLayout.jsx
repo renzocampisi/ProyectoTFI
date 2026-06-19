@@ -185,22 +185,17 @@ export default function AppLayout() {
           {/* Sistema */}
           <NavGroup label="Sistema" items={SISTEMA_ITEMS} collapsed={collapsed} />
 
-          {/* Panel IA — suelto, siempre visible */}
+          {/* Panel IA — suelto, siempre visible. Va con su propio NavLink
+              fuera de NavGroup para poder estilar el icono ✨ destacado. */}
           {!collapsed && <div className={styles.navSeparator} />}
           <NavLink to="/panel"
             title="Panel IA"
-            onClick={e => e.preventDefault()}
             className={({ isActive }) =>
-              [styles.navItem, styles.panelIA, isActive && styles.active, styles.disabled]
+              [styles.navItem, styles.panelIA, isActive && styles.active]
                 .filter(Boolean).join(' ')
             }>
             <span className={styles.navIcon}><LuSparkles size={18} /></span>
-            {!collapsed && (
-              <span className={styles.navLabel}>
-                Panel IA
-                <span className={styles.soon}>pronto</span>
-              </span>
-            )}
+            {!collapsed && <span className={styles.navLabel}>Panel IA</span>}
           </NavLink>
 
         </nav>
