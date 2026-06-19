@@ -49,6 +49,8 @@ import PresupuestoNewPage    from '@modules/m-presupuestos/pages/PresupuestoNewP
 
 import ConfigPage from '@modules/m-config/pages/ConfigPage'
 
+import PanelPage from '@modules/m1-panel/pages/PanelPage'
+
 import ComingSoon from '@shared/components/ComingSoon'
 
 export default function AppRouter() {
@@ -138,7 +140,7 @@ export default function AppRouter() {
           <Route path="presupuestos/:id"   element={<PresupuestoDetailPage />} />
           <Route path="presupuestos/*"     element={<ComingSoon modulo="Presupuestos" />} />
           <Route path="facturacion/*" element={<ComingSoon modulo="Facturación" />} />
-          <Route path="panel/*"       element={<ComingSoon modulo="Panel IA" />} />
+          <Route path="panel"         element={<PanelPage />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
