@@ -84,6 +84,9 @@ function leerTokenDeStorage() {
 }
 
 async function request(path, options = {}) {
+  // Timeout custom por request (default FETCH_TIMEOUT_MS). El panel IA lo
+  // sube a ~60s porque Gemini con tool chaining puede pasarse de 15s.
+  const reqTimeout = options.timeoutMs ?? FETCH_TIMEOUT_MS
   // Inyectar el JWT actual de Supabase Auth en cada request. Hacemos un
   // getSession() por request porque Supabase maneja el refresh automático
   // internamente y devuelve el token vigente. Si la llamada se cuelga
@@ -119,7 +122,7 @@ async function request(path, options = {}) {
   // (caso edge: proxy de Vite roto, backend hangueado), evitamos que el
   // hook que llamó nunca termine y deje la UI "cargando" para siempre.
   const controller = new AbortController()
-  const timeoutId  = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+  const timeoutId  = setTimeout(() => controller.abort(), reqTimeout)
 
   let res
   try {
@@ -151,8 +154,8 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  get:      (path)           => request(path),
-  post:     (path, body)     => request(path, { method: 'POST',   body: JSON.stringify(body) }),
+  get:      (path, opts)     => request(path, opts),
+  post:     (path, body, opts) => request(path, { ...(opts || {}), method: 'POST',   body: JSON.stringify(body) }),
   put:      (path, body)     => request(path, { method: 'PUT',    body: JSON.stringify(body) }),
   patch:    (path, body)     => request(path, { method: 'PATCH',  body: JSON.stringify(body) }),
   delete:   (path)           => request(path, { method: 'DELETE' }),

@@ -1,0 +1,61 @@
+/* src/modules/m1-panel/components/Composer.module.css */
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  transition: border-color var(--transition-fast);
+}
+
+.composer:focus-within {
+  border-color: var(--color-primary);
+}
+
+.textarea {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  padding: var(--space-2) var(--space-3);
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.btnSend {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: var(--text-base);
+  transition: var(--transition-fast);
+}
+
+.btnSend:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.btnSend:disabled {
+  background: var(--color-surface-alt);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
