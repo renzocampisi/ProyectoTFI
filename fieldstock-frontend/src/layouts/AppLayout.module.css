@@ -340,25 +340,46 @@
   background: var(--color-border);
   margin: var(--space-2) var(--space-3);
 }
-@media (max-width: 1024px) {
+/* ── Tablet (431-1024px) ─────────────────────────────────────
+   El sidebar se ensancha apenas (88px) para mostrar icono + label
+   chiquito vertical debajo. La idea: usar el sidebar sin mouse en
+   tablet — el label evita tener que reconocer iconos a ciegas. */
+@media (max-width: 1024px) and (min-width: 431px) {
   .shell {
-    grid-template-columns: var(--sidebar-collapsed) 1fr;
+    grid-template-columns: 88px 1fr;
   }
-  .navLabel,
+  .shell.collapsed {
+    grid-template-columns: 88px 1fr; /* no se puede colapsar mas en tablet */
+  }
   .logoTag,
   .sidebarFooter,
   .navGroupLabel,
   .soon,
   .dropdownItems,
-  .dropdownArrow {
+  .dropdownArrow,
+  .collapseBtn {
     display: none;
   }
   .navItem {
+    flex-direction: column;
     justify-content: center;
-    padding: var(--space-3);
+    align-items: center;
+    gap: 4px;
+    padding: var(--space-2) 4px;
+    text-align: center;
   }
   .navIcon {
     width: auto;
+  }
+  .navLabel {
+    display: block;
+    font-size: 10px;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
+    text-align: center;
   }
   .sidebarHeader {
     justify-content: center;
@@ -369,9 +390,6 @@
   }
   .main {
     padding: var(--space-4);
-  }
-  .collapseBtn {
-    display: none;
   }
 }
 
