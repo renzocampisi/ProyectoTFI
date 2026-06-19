@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>M1 Panel IA — Etapa 1: Arquitectura</title>
+<style>
+  :root {
+    --ink:   #1a1a1a;
+    --muted: #6b6b6b;
+    --line:  #e6e6e6;
+    --card:  #fafafa;
+    --accent:#3b6eea;
+    --warn:  #b07b00;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    margin: 0;
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  main {
+    max-width: 720px;
+    margin: 56px auto 80px;
+    padding: 0 24px;
+  }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 26px;
+    margin: 0 0 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 18px 0;
+  }
+  section.card > h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    font-weight: 600;
+  }
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  ul { padding-left: 18px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  strong { color: var(--ink); }
+  .pill {
+    display: inline-block;
+    background: #eef3ff;
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .pill-warn { background: #fff5e0; color: var(--warn); }
+  .diagram-card { padding: 18px; background: #fff; }
+  .mermaid { font-family: inherit; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+    font-size: 14px;
+  }
+  th, td {
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    padding: 8px 6px;
+    vertical-align: top;
+  }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .meta {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 28px;
+    text-align: center;
+  }
+  @media print {
+    body { font-size: 13px; }
+    main { margin: 0 auto; padding: 0 16px; }
+    section.card { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="eyebrow">FieldStock AI · Liber-Plan · Etapa 1 de 2</div>
+  <h1>M1 — Panel IA</h1>
+  <div class="sub">Arquitectura de alto nivel · pendiente de aprobación</div>
+</header>
+
+<section class="card">
+  <h2>Problema</h2>
+  <p>
+    FieldStock ya tiene seis módulos generando datos: herramientas, obras, remitos,
+    materiales, presupuestos y compras. Para responder preguntas transversales
+    (<em>¿qué obras tienen más herramientas?</em>, <em>¿qué materiales se quedan sin
+    stock este mes?</em>, <em>¿quién es el encargado de tal obra?</em>) hoy hay que
+    navegar manualmente entre listas y hacer la cuenta a mano.
+  </p>
+  <p>
+    El Panel IA es <strong>el punto único de entrada para preguntar al sistema
+    en lenguaje natural</strong> sobre cualquiera de esos datos, sin tener que
+    abrir cada módulo.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Forma de la solución</h2>
+  <p>
+    Asistente conversacional con un LLM que tiene acceso de lectura a los datos
+    del sistema a través de <strong>tool use</strong> (function calling). El
+    usuario escribe una pregunta, el LLM decide qué endpoints internos consultar,
+    lee los resultados y sintetiza una respuesta en castellano.
+  </p>
+</section>
+
+<section class="card diagram-card">
+  <h2 style="padding: 0 6px;">Flujo de una pregunta</h2>
+  <pre class="mermaid">
+flowchart TB
+    U([Usuario]) -->|pregunta en lenguaje natural| FE[Frontend<br/>PanelChat]
+    FE -->|POST /api/panel/chat<br/>+ historial sesion| BE[Backend<br/>panel.service]
+    BE -->|prompt + tools| LLM[Gemini API<br/>gemini-2.0-flash]
+    LLM -.->|tool calls| BE
+    BE -->|llama| TOOLS[(Tools internas<br/>= APIs ya existentes)]
+    TOOLS -->|datos| BE
+    BE -.->|tool results| LLM
+    LLM -->|respuesta final| BE
+    BE -->|JSON con respuesta + traza de tools| FE
+    FE -->|renderiza chat| U
+  </pre>
+</section>
+
+<section class="card">
+  <h2>Bloques y responsabilidades</h2>
+  <table>
+    <tr>
+      <th>Bloque</th>
+      <th>Responsabilidad</th>
+    </tr>
+    <tr>
+      <td><strong>PanelChat</strong> <span class="pill">frontend</span></td>
+      <td>UI de chat efímero. Mantiene el historial en memoria de la sesión,
+      muestra cada turno con su respuesta, indica cuando el LLM está "pensando"
+      o "consultando datos".</td>
+    </tr>
+    <tr>
+      <td><strong>panel.service</strong> <span class="pill">backend</span></td>
+      <td>Orquesta el ciclo agéntico: recibe la pregunta + historial, llama al
+      LLM, ejecuta las tools que el LLM pide, devuelve el resultado al LLM,
+      itera hasta tener respuesta final.</td>
+    </tr>
+    <tr>
+      <td><strong>Tools registry</strong> <span class="pill">backend</span></td>
+      <td>Catálogo de funciones expuestas al LLM. Cada tool es un wrapper
+      delgado sobre un service ya existente (herramientas, obras, materiales,
+      remitos, presupuestos, compras). Todas <strong>read-only</strong>.</td>
+    </tr>
+    <tr>
+      <td><strong>Provider adapter</strong> <span class="pill">backend</span></td>
+      <td>Capa fina que aísla el SDK del LLM. Hoy Gemini; mañana se puede
+      cambiar a Claude o OpenAI sin tocar panel.service.</td>
+    </tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Decisiones tomadas</h2>
+  <table>
+    <tr>
+      <th style="width:35%">Decisión</th>
+      <th>Por qué</th>
+    </tr>
+    <tr>
+      <td><strong>Provider: Google Gemini</strong></td>
+      <td>Tier gratuito sustentable (1500 req/día, sin tarjeta). Soporta tool
+      use. Anthropic ya no ofrece créditos iniciales gratis.</td>
+    </tr>
+    <tr>
+      <td><strong>Modelo: gemini-2.0-flash</strong></td>
+      <td>Latencia baja, calidad suficiente para Q&A sobre datos estructurados,
+      gratis en el tier free.</td>
+    </tr>
+    <tr>
+      <td><strong>Read-only</strong></td>
+      <td>Las tools solo leen. Crear remitos, dar de baja, etc. queda para una
+      v2 con confirmaciones explícitas.</td>
+    </tr>
+    <tr>
+      <td><strong>Visión total (sin filtro por rol)</strong></td>
+      <td>App de uso interno. Los roles existen para "qué se puede hacer",
+      no para "qué se puede ver". El asistente usa la service key del backend
+      como el resto de la app. Filtros por rol se pueden sumar después.</td>
+    </tr>
+    <tr>
+      <td><strong>Chat efímero</strong></td>
+      <td>Historial en memoria del frontend, no se persiste en Supabase.
+      Persistencia en una v2.</td>
+    </tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Límites aceptados para esta versión</h2>
+  <ul>
+    <li><strong>Sin acciones</strong>: el panel responde, no ejecuta nada que modifique datos.</li>
+    <li><strong>Sin memoria entre sesiones</strong>: recargar la página borra el chat.</li>
+    <li><strong>Sin filtros por rol</strong>: cualquier usuario logueado ve todo lo que el panel puede consultar.</li>
+    <li><strong>Sin streaming de tokens</strong>: la respuesta llega de una sola vez (más simple; el costo en UX es ~2-5s de espera por turno).</li>
+    <li><strong>Dependencia de internet</strong>: el panel no funciona offline (la app sí; el resto de los módulos siguen andando).</li>
+    <li><strong>Riesgo residual de alucinación</strong>: acotado pero no cero — el LLM podría inventar datos si la tool falla o devuelve algo ambiguo. Se mitiga con prompt + manejo de errores en tools, no se elimina.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Cosas que NO entran en esta etapa</h2>
+  <p>
+    Esta etapa define <em>qué</em> hace el panel y la <em>forma</em> de la solución.
+    El <em>cómo</em> concreto (rutas de archivo, contratos de cada tool, prompts
+    exactos, manejo de errores y reintentos, esquema de logging para debugging)
+    se acuerda en la Etapa 2, una vez aprobada esta.
+  </p>
+</section>
+
+<div class="meta">
+  Esperando aprobación para pasar a Etapa 2 (implementación).
+</div>
+
+</main>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral', flowchart: { curve: 'basis' } })
+</script>
+</body>
+</html>

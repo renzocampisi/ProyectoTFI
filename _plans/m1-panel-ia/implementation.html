@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>M1 Panel IA — Etapa 2: Implementación</title>
+<style>
+  :root {
+    --ink:   #1a1a1a;
+    --muted: #6b6b6b;
+    --line:  #e6e6e6;
+    --card:  #fafafa;
+    --accent:#3b6eea;
+    --warn:  #b07b00;
+    --ok:    #1f7a3a;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    margin: 0;
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  main {
+    max-width: 760px;
+    margin: 56px auto 80px;
+    padding: 0 24px;
+  }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 26px;
+    margin: 0 0 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 18px 0;
+  }
+  section.card > h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    font-weight: 600;
+  }
+  section.card > h3 {
+    font-size: 15px;
+    margin: 16px 0 8px;
+    font-weight: 600;
+  }
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  ul, ol { padding-left: 22px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  strong { color: var(--ink); }
+  code, .mono {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    background: #eef2f7;
+    color: #2a3a5a;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .pill {
+    display: inline-block;
+    background: #eef3ff;
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    margin-left: 6px;
+  }
+  .pill-warn { background: #fff5e0; color: var(--warn); }
+  .pill-ok   { background: #e6f5ec; color: var(--ok); }
+  .diagram-card { padding: 18px; background: #fff; }
+  .mermaid { font-family: inherit; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+    font-size: 14px;
+  }
+  th, td {
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    padding: 8px 6px;
+    vertical-align: top;
+  }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .step {
+    border-left: 2px solid var(--accent);
+    padding: 4px 0 4px 14px;
+    margin: 14px 0;
+  }
+  .step h3 {
+    margin: 0 0 6px;
+    font-size: 15px;
+  }
+  .step .files {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin: 4px 0;
+  }
+  .meta {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 28px;
+    text-align: center;
+  }
+  @media print {
+    body { font-size: 13px; }
+    main { margin: 0 auto; padding: 0 16px; }
+    section.card { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="eyebrow">FieldStock AI · Liber-Plan · Etapa 2 de 2</div>
+  <h1>M1 — Panel IA · Implementación</h1>
+  <div class="sub">Plan de construcción sobre la arquitectura aprobada</div>
+</header>
+
+<section class="card">
+  <h2>Patrones aplicados</h2>
+  <table>
+    <tr>
+      <th style="width:32%">Patrón</th>
+      <th>Dónde y por qué</th>
+    </tr>
+    <tr>
+      <td><strong>Controller → Service</strong></td>
+      <td>Igual que el resto del backend: <code>panel.controller</code> solo recibe
+      <code>req/res</code> y delega en <code>panel.service.responder()</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Adapter / Port</strong></td>
+      <td><code>panel/provider.js</code> aísla el SDK de Gemini detrás de una interfaz
+      pequeña (<code>chat(messages, tools) → respuesta</code>). Cambiar a Claude u
+      OpenAI más adelante no toca <code>panel.service</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Registry</strong></td>
+      <td><code>panel/tools.js</code> exporta un array de tools, cada una con
+      <code>{ name, description, parameters, handler }</code>. Agregar tools nuevas
+      es push al array, sin tocar el orquestador.</td>
+    </tr>
+    <tr>
+      <td><strong>Loop agéntico acotado</strong></td>
+      <td>El orquestador itera <em>llamar LLM → ejecutar tools → reinyectar resultados</em>
+      hasta que el LLM da respuesta final o se llega a <code>MAX_ITERATIONS = 8</code>.
+      Sin tope, una tool que devuelve datos ambiguos puede entrar en loop infinito.</td>
+    </tr>
+    <tr>
+      <td><strong>Hook por módulo</strong></td>
+      <td><code>usePanel</code> encapsula el estado del chat (mensajes, estado,
+      enviar, reset). El componente no llama a <code>api</code> directo.</td>
+    </tr>
+    <tr>
+      <td><strong>CSS Modules</strong></td>
+      <td>Un <code>.module.css</code> por archivo (página + cada componente). Sin
+      estilos inline para layout.</td>
+    </tr>
+  </table>
+</section>
+
+<section class="card diagram-card">
+  <h2 style="padding: 0 6px;">Secuencia de un turno</h2>
+  <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as Usuario
+    participant FE as PanelPage
+    participant API as panel.controller
+    participant SVC as panel.service
+    participant LLM as Gemini
+    participant TOOLS as tools registry
+    participant DB as services internos
+
+    U->>FE: escribe pregunta
+    FE->>API: POST /api/panel/chat<br/>{ mensaje, historial }
+    API->>SVC: responder(pregunta, historial)
+    loop hasta respuesta final o MAX_ITERATIONS
+        SVC->>LLM: chat(messages, tools)
+        alt LLM pide tool
+            LLM-->>SVC: tool_call(nombre, args)
+            SVC->>TOOLS: ejecutar(nombre, args)
+            TOOLS->>DB: query via service existente
+            DB-->>TOOLS: datos
+            TOOLS-->>SVC: resultado
+            SVC->>SVC: append tool_result al historial
+        else LLM responde
+            LLM-->>SVC: texto final
+        end
+    end
+    SVC-->>API: { respuesta, traza }
+    API-->>FE: 200 JSON
+    FE-->>U: renderiza burbuja
+  </pre>
+</section>
+
+<section class="card diagram-card">
+  <h2 style="padding: 0 6px;">Estado del chat en el frontend</h2>
+  <pre class="mermaid">
+stateDiagram-v2
+    [*] --> idle
+    idle --> enviando: submit
+    enviando --> pensando: backend recibe
+    pensando --> idle: respuesta
+    pensando --> error: timeout / fallo
+    error --> idle: dismiss
+  </pre>
+</section>
+
+<section class="card">
+  <h2>Pasos ordenados</h2>
+
+  <div class="step">
+    <h3>1. Plumbing del provider <span class="pill">backend</span></h3>
+    <ul>
+      <li>Instalar <code>@google/generative-ai</code> en <code>fieldstock-backend</code>.</li>
+      <li>Agregar <code>GEMINI_API_KEY</code> al <code>.env</code> y al ejemplo <code>.env.example</code>.</li>
+      <li>Crear el adapter: encapsula el SDK y expone una función única
+      <code>chat({ system, messages, tools }) → { type, content }</code> donde <code>type</code>
+      es <code>"text"</code> o <code>"tool_use"</code>.</li>
+    </ul>
+    <div class="files">
+      fieldstock-backend/src/services/panel/provider.js<br>
+      fieldstock-backend/.env
+    </div>
+  </div>
+
+  <div class="step">
+    <h3>2. Registry de tools <span class="pill">backend</span></h3>
+    <p>Cada tool es un wrapper delgado sobre un service existente. <strong>Todas read-only</strong>.
+    Set inicial mínimo (~10 tools) suficiente para preguntas frecuentes:</p>
+    <ul>
+      <li><code>listar_obras(estado?)</code>, <code>obra_por_id(id)</code></li>
+      <li><code>listar_herramientas(estado?, categoria?)</code>, <code>herramienta_por_id(id)</code></li>
+      <li><code>listar_materiales()</code>, <code>materiales_bajo_stock()</code></li>
+      <li><code>listar_remitos(obraId?, estado?, tipo?, desde?, hasta?)</code></li>
+      <li><code>listar_presupuestos(obraId?, estado?)</code>, <code>presupuesto_por_id(id)</code></li>
+      <li><code>listar_compras(estado?, proveedorId?)</code></li>
+    </ul>
+    <p>Cada handler aplica <strong>LIMIT 50 por defecto</strong> y proyecta solo los campos
+    relevantes (no enviar timestamps de auditoría al LLM si no se piden — gasta tokens).</p>
+    <div class="files">
+      fieldstock-backend/src/services/panel/tools.js
+    </div>
+  </div>
+
+  <div class="step">
+    <h3>3. Orquestador del ciclo agéntico <span class="pill">backend</span></h3>
+    <ul>
+      <li><code>responder(pregunta, historial)</code> arma el system prompt en castellano
+      con la lista de tools y un par de ejemplos.</li>
+      <li>Loop hasta <code>MAX_ITERATIONS = 8</code> o respuesta final.</li>
+      <li>Cada tool call que falla devuelve <code>{ error: "..." }</code> al LLM en
+      vez de tirar — el LLM decide si reintenta o reporta al user.</li>
+      <li>Devuelve <code>{ respuesta: string, traza: Array&lt;{ tool, args, ok }&gt; }</code>.
+      La traza sirve para debugging visual en el frontend (opcional).</li>
+    </ul>
+    <div class="files">
+      fieldstock-backend/src/services/panel.service.js
+    </div>
+  </div>
+
+  <div class="step">
+    <h3>4. Endpoint <span class="pill">backend</span></h3>
+    <ul>
+      <li>Controller thin: valida que venga <code>mensaje</code>, llama a <code>panel.service.responder</code>,
+      devuelve <code>{ data: { respuesta, traza } }</code>.</li>
+      <li>Wire en <code>routes/index.js</code>: <code>POST /api/panel/chat</code>
+      detrás de <code>requireAuth</code> (igual que el resto).</li>
+      <li>Sin <code>requireRole</code> — cualquier rol logueado puede usar el panel.</li>
+    </ul>
+    <div class="files">
+      fieldstock-backend/src/controllers/panel.controller.js<br>
+      fieldstock-backend/src/routes/index.js
+    </div>
+  </div>
+
+  <div class="step">
+    <h3>5. Service del frontend <span class="pill">frontend</span></h3>
+    <ul>
+      <li>Wrapper sobre <code>api.post('/panel/chat', { mensaje, historial })</code>.</li>
+      <li>Define el shape de <code>Mensaje</code> y <code>Turno</code> en comentarios JSDoc.</li>
+    </ul>
+    <div class="files">
+      fieldstock-frontend/src/modules/m1-panel/services/panel.service.js
+    </div>
+  </div>
+
+  <div class="step">
+    <h3>6. Hook <code>usePanel</code> <span class="pill">frontend</span></h3>
+    <ul>
+      <li>Estado: <code>mensajes</code> (array), <code>estado</code> (idle / enviando / error), <code>error</code>.</li>
+      <li>Acción <code>enviar(texto)</code>: optimistic append del turno del user, llama al service, append de la respuesta o seteo de error.</li>
+      <li>Acción <code>resetChat()</code>: limpia el array.</li>
+    </ul>
+    <div class="files">
+      fieldstock-frontend/src/modules/m1-panel/hooks/usePanel.js
+    </div>
+  </div>
+
+  <div class="step">
+    <h3>7. UI del chat <span class="pill">frontend</span></h3>
+    <ul>
+      <li><code>PanelPage</code>: layout principal con header (título + botón "limpiar chat"),
+      lista de mensajes con scroll automático al fondo, y composer abajo fijo.</li>
+      <li><code>ChatMessage</code>: burbuja con avatar (user vs asistente), texto en markdown
+      simple (negrita, listas), indicador de "pensando" cuando el último turno es del user
+      y aún no respondió.</li>
+      <li><code>Composer</code>: textarea + botón enviar. Enter envía, Shift+Enter newline.</li>
+      <li>Estado vacío inicial: sugerencias clickeables tipo "¿qué obras están activas?",
+      "¿qué materiales tienen poco stock?", "¿qué herramientas están en mantenimiento?".</li>
+    </ul>
+    <div class="files">
+      fieldstock-frontend/src/modules/m1-panel/pages/PanelPage.jsx + .module.css<br>
+      fieldstock-frontend/src/modules/m1-panel/components/ChatMessage.jsx + .module.css<br>
+      fieldstock-frontend/src/modules/m1-panel/components/Composer.jsx + .module.css
+    </div>
+  </div>
+
+  <div class="step">
+    <h3>8. Wire en el router <span class="pill">frontend</span></h3>
+    <ul>
+      <li>Reemplazar la línea <code>&lt;Route path="panel/*" element={&lt;ComingSoon … /&gt;} /&gt;</code>
+      por el import lazy de <code>PanelPage</code>.</li>
+    </ul>
+    <div class="files">
+      fieldstock-frontend/src/routes/AppRouter.jsx
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Riesgos puntuales</h2>
+  <ul>
+    <li><strong>Bucle agéntico infinito</strong>: cap duro a 8 iteraciones; si llega al tope, devolver "no pude resolverlo en este turno, reformulá la pregunta".</li>
+    <li><strong>Payloads grandes a contexto del LLM</strong>: cada tool limita a 50 filas y proyecta campos mínimos. Documentado en la descripción de la tool para que el LLM sepa pedir filtros.</li>
+    <li><strong>API key en frontend</strong>: <code>GEMINI_API_KEY</code> vive solo en el <code>.env</code> del backend. Nunca con prefijo <code>VITE_</code>.</li>
+    <li><strong>Rate limit del tier gratuito</strong>: 1500 req/día. Para una demo o uso interno está sobrado, pero loggear cada request en consola del backend para no quedar a ciegas si se acerca al tope.</li>
+    <li><strong>Idioma de respuesta</strong>: system prompt explícitamente "respondé siempre en castellano rioplatense, conciso, sin emojis salvo que el dato lo pida".</li>
+    <li><strong>Alucinación cuando una tool devuelve vacío</strong>: el handler devuelve <code>{ items: [], total: 0 }</code> en vez de string vacío para que el LLM no infiera "no hay datos" como "no existe la entidad".</li>
+    <li><strong>Latencia visible</strong>: cada turno puede tardar 3-6s. Mostrar siempre el indicador "pensando…" — sin feedback la UI se siente rota.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Verificación</h2>
+  <ol>
+    <li>Levantar la app con <code>npm run dev</code> en la raíz.</li>
+    <li>Loguearse, ir a <code>/panel</code>.</li>
+    <li>Probar las 4 categorías de pregunta:
+      <ul>
+        <li><strong>Listado simple</strong>: "¿qué obras están activas?" → debe llamar a <code>listar_obras</code> con <code>estado=ACTIVA</code>.</li>
+        <li><strong>Agregación</strong>: "¿cuántas herramientas están en mantenimiento?" → llamar <code>listar_herramientas(EN_MANTENIMIENTO)</code> y contar.</li>
+        <li><strong>Cross-módulo</strong>: "¿qué materiales se están por quedar sin stock?" → <code>materiales_bajo_stock</code>.</li>
+        <li><strong>Fuera de alcance</strong>: "creame un remito" → debe responder educadamente que no puede ejecutar acciones todavía.</li>
+      </ul>
+    </li>
+    <li>Lint del frontend: <code>npm run lint --prefix fieldstock-frontend</code>.</li>
+    <li>Probar con el segundo perfil (rol distinto) para confirmar que el endpoint responde igual (visión total intencional).</li>
+  </ol>
+</section>
+
+<section class="card">
+  <h2>Estimación gruesa</h2>
+  <table>
+    <tr><th>Bloque</th><th>Esfuerzo</th></tr>
+    <tr><td>Plumbing + provider adapter</td><td>~30 min</td></tr>
+    <tr><td>Tools registry (10 tools)</td><td>~1 h</td></tr>
+    <tr><td>Orquestador + endpoint</td><td>~1 h</td></tr>
+    <tr><td>UI completa (página + 2 componentes)</td><td>~1.5 h</td></tr>
+    <tr><td>Pulido + verificación</td><td>~30 min</td></tr>
+    <tr><td><strong>Total</strong></td><td><strong>~4.5 h</strong></td></tr>
+  </table>
+</section>
+
+<div class="meta">
+  Listo para empezar a construir. Plan dividible en 2 PRs naturales:<br>
+  <strong>PR 1</strong> backend (pasos 1-4) · <strong>PR 2</strong> frontend (pasos 5-8).
+</div>
+
+</main>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral', flowchart: { curve: 'basis' } })
+</script>
+</body>
+</html>

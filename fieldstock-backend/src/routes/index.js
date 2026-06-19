@@ -35,6 +35,7 @@ import * as UsuariosCtrl        from '../controllers/usuarios.controller.js'
 import * as ComprasCtrl         from '../controllers/compras.controller.js'
 import * as PresupuestosCtrl    from '../controllers/presupuestos.controller.js'
 import * as ConfigCtrl          from '../controllers/config.controller.js'
+import * as PanelCtrl           from '../controllers/panel.controller.js'
 
 const router = Router()
 
@@ -227,6 +228,11 @@ router.post  ('/presupuestos/:id/pdf',
 router.get   ('/config',         ConfigCtrl.getAll)
 router.get   ('/config/:key',    ConfigCtrl.get)
 router.put   ('/config/:key',    requireRole(ROLES_ADMIN_LEVEL), ConfigCtrl.set)
+
+// ── M1 Panel IA ───────────────────────────────────────────────
+// Asistente conversacional con tool use sobre Gemini. Read-only,
+// vision total — cualquier usuario autenticado puede usarlo.
+router.post('/panel/chat', PanelCtrl.chat)
 
 // ── Notificaciones ────────────────────────────────────────────
 router.get  ('/notificaciones',              NotificacionesCtrl.getAll)
