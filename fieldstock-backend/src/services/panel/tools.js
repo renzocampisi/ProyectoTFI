@@ -184,12 +184,18 @@ export const TOOLS = [
     description:
       'Lista remitos (movimientos de herramientas/materiales entre la empresa y obras). ' +
       'Tipo: EGRESO (envio a obra) o INGRESO (vuelta a la empresa). ' +
-      'Estados: BORRADOR, CONFIRMADO, EN_TRANSITO, RECIBIDO_EN_OBRA, CERRADO.',
+      'Maquina de estados completa, en orden: ' +
+      'BORRADOR → CONFIRMADO → EN_TRANSITO → EN_OBRA → EN_RETORNO → EN_TRANSITO_RETORNO → CERRADO. ' +
+      'Un remito esta "activo / en curso" si NO esta en CERRADO. ' +
+      'Si el filtro `estado` se omite, devuelve TODOS los remitos.',
     parameters: {
       type: 'object',
       properties: {
-        estado: { type: 'string', enum: ['BORRADOR', 'CONFIRMADO', 'EN_TRANSITO', 'RECIBIDO_EN_OBRA', 'CERRADO'] },
-        q:      { type: 'string', description: 'Busqueda parcial por numero o nombre de obra.' },
+        estado: {
+          type: 'string',
+          enum: ['BORRADOR', 'CONFIRMADO', 'EN_TRANSITO', 'EN_OBRA', 'EN_RETORNO', 'EN_TRANSITO_RETORNO', 'CERRADO'],
+        },
+        q: { type: 'string', description: 'Busqueda parcial por numero o nombre de obra.' },
       },
     },
     handler: async ({ estado, q } = {}) => {
