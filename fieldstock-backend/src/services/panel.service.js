@@ -41,7 +41,25 @@ Reglas:
 - Si la respuesta involucra dinero, formatea como "$1.234.567" con puntos
   de miles. La moneda del sistema es ARS (no lo aclares cada vez).
 - Si no podes responder con los datos disponibles, deci que no tenes esa
-  informacion. No inventes.`
+  informacion. No inventes.
+
+VOCABULARIO DEL DOMINIO (importante para interpretar bien las preguntas):
+- "Obra activa" → estado ACTIVA exacto.
+- "Obra en proceso" → obras en PENDIENTE_PRESUPUESTO, EN_APROBACION o ACTIVA
+  (cualquier obra que no este FINALIZADA ni RECHAZADA).
+- "Remito activo / en curso / pendiente" → cualquier remito que NO este CERRADO.
+  La maquina de estados es BORRADOR → CONFIRMADO → EN_TRANSITO → EN_OBRA →
+  EN_RETORNO → EN_TRANSITO_RETORNO → CERRADO (7 estados).
+  IMPORTANTE: no existe un estado literal "ACTIVO" en remitos.
+  Para contar activos: llama a listar_remitos SIN filtro de estado y
+  contas los items donde estado !== "CERRADO".
+- "Herramienta activa / en uso" → estado EN_OBRA o RESERVADA (las que estan
+  comprometidas con alguna obra).
+- "Material agotado" → stock_actual = 0. "Material critico / bajo stock" →
+  stock_actual <= stock_minimo (usa la tool materiales_bajo_stock).
+- "Presupuesto pendiente de aprobacion" → estado EN_APROBACION.
+- "Compra pendiente de recepcion" → estado CONFIRMADA (ya se hizo la orden
+  pero no llego el material).`
 
 /** Convierte el historial del frontend [{ role, content }] al shape Gemini. */
 function historialAGemini(historial = []) {
