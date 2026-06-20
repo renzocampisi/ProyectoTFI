@@ -1,0 +1,102 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FieldStock AI">
+  <title>FieldStock AI</title>
+  <defs>
+    <linearGradient id="jt" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFBE60"/>
+      <stop offset="50%" stop-color="#F47B20"/>
+      <stop offset="100%" stop-color="#C45A10"/>
+    </linearGradient>
+    <linearGradient id="ct" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFB850"/>
+      <stop offset="100%" stop-color="#D96010"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="200" height="200" rx="40" fill="#0D2440"/>
+
+  <polygon points="100,28 162.4,64 162.4,136 100,172 37.6,136 37.6,64"
+           fill="none" stroke="#2A5A8A" stroke-width="1.5" opacity="0.3"/>
+
+  <g stroke-linecap="round" fill="none">
+    <g stroke="#060F1A" stroke-width="13">
+      <line x1="37.6"  y1="64"  x2="100"   y2="28"/>
+      <line x1="100"   y1="28"  x2="162.4" y2="64"/>
+      <line x1="162.4" y1="64"  x2="162.4" y2="136"/>
+      <line x1="162.4" y1="136" x2="100"   y2="172"/>
+      <line x1="100"   y1="172" x2="37.6"  y2="136"/>
+      <line x1="37.6"  y1="136" x2="37.6"  y2="64"/>
+    </g>
+    <g stroke="#7AAAC8" stroke-width="9">
+      <line x1="37.6"  y1="64"  x2="100"   y2="28"/>
+      <line x1="100"   y1="28"  x2="162.4" y2="64"/>
+      <line x1="162.4" y1="64"  x2="162.4" y2="136"/>
+      <line x1="162.4" y1="136" x2="100"   y2="172"/>
+      <line x1="100"   y1="172" x2="37.6"  y2="136"/>
+      <line x1="37.6"  y1="136" x2="37.6"  y2="64"/>
+    </g>
+    <g stroke="#C8E0F0" stroke-width="2.5" opacity="0.55">
+      <line x1="37.6"  y1="64"  x2="100"   y2="28"/>
+      <line x1="100"   y1="28"  x2="162.4" y2="64"/>
+      <line x1="162.4" y1="64"  x2="162.4" y2="136"/>
+      <line x1="162.4" y1="136" x2="100"   y2="172"/>
+      <line x1="100"   y1="172" x2="37.6"  y2="136"/>
+      <line x1="37.6"  y1="136" x2="37.6"  y2="64"/>
+    </g>
+
+    <g stroke="#060F1A" stroke-width="10">
+      <line x1="100"   y1="28"  x2="100" y2="100"/>
+      <line x1="162.4" y1="64"  x2="100" y2="100"/>
+      <line x1="162.4" y1="136" x2="100" y2="100"/>
+      <line x1="100"   y1="172" x2="100" y2="100"/>
+      <line x1="37.6"  y1="136" x2="100" y2="100"/>
+      <line x1="37.6"  y1="64"  x2="100" y2="100"/>
+    </g>
+    <g stroke="#7AAAC8" stroke-width="7">
+      <line x1="100"   y1="28"  x2="100" y2="100"/>
+      <line x1="162.4" y1="64"  x2="100" y2="100"/>
+      <line x1="162.4" y1="136" x2="100" y2="100"/>
+      <line x1="100"   y1="172" x2="100" y2="100"/>
+      <line x1="37.6"  y1="136" x2="100" y2="100"/>
+      <line x1="37.6"  y1="64"  x2="100" y2="100"/>
+    </g>
+    <g stroke="#C8E0F0" stroke-width="2" opacity="0.5">
+      <line x1="100"   y1="28"  x2="100" y2="100"/>
+      <line x1="162.4" y1="64"  x2="100" y2="100"/>
+      <line x1="162.4" y1="136" x2="100" y2="100"/>
+      <line x1="100"   y1="172" x2="100" y2="100"/>
+      <line x1="37.6"  y1="136" x2="100" y2="100"/>
+      <line x1="37.6"  y1="64"  x2="100" y2="100"/>
+    </g>
+  </g>
+
+  <g>
+    <circle cx="100"   cy="28"  r="12" fill="#0A1E2E"/>
+    <circle cx="100"   cy="28"  r="9"  fill="url(#jt)"/>
+    <circle cx="100"   cy="28"  r="4"  fill="#FFE8B0"/>
+
+    <circle cx="162.4" cy="64"  r="12" fill="#0A1E2E"/>
+    <circle cx="162.4" cy="64"  r="9"  fill="url(#jt)"/>
+    <circle cx="162.4" cy="64"  r="4"  fill="#FFE8B0"/>
+
+    <circle cx="162.4" cy="136" r="12" fill="#0A1E2E"/>
+    <circle cx="162.4" cy="136" r="9"  fill="url(#jt)"/>
+    <circle cx="162.4" cy="136" r="4"  fill="#FFE8B0"/>
+
+    <circle cx="100"   cy="172" r="12" fill="#0A1E2E"/>
+    <circle cx="100"   cy="172" r="9"  fill="url(#jt)"/>
+    <circle cx="100"   cy="172" r="4"  fill="#FFE8B0"/>
+
+    <circle cx="37.6"  cy="136" r="12" fill="#0A1E2E"/>
+    <circle cx="37.6"  cy="136" r="9"  fill="url(#jt)"/>
+    <circle cx="37.6"  cy="136" r="4"  fill="#FFE8B0"/>
+
+    <circle cx="37.6"  cy="64"  r="12" fill="#0A1E2E"/>
+    <circle cx="37.6"  cy="64"  r="9"  fill="url(#jt)"/>
+    <circle cx="37.6"  cy="64"  r="4"  fill="#FFE8B0"/>
+  </g>
+
+  <circle cx="100" cy="100" r="22" fill="#060F1A"/>
+  <circle cx="100" cy="100" r="16" fill="url(#ct)"/>
+  <circle cx="100" cy="100" r="7"  fill="#1B3F6E"/>
+  <circle cx="100" cy="100" r="3"  fill="#FFE8B0"/>
+</svg>
