@@ -21,31 +21,37 @@
 }
 
 .sidebarHeader {
-  height: var(--topbar-height);
   display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
-  padding: 0 var(--space-5);
+  padding: var(--space-4) var(--space-3);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 
-.logo {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
-  white-space: nowrap;
+.brandIcon {
+  width: 48px;
+  height: 48px;
+  display: block;
+  flex-shrink: 0;
 }
 
-.logoTag {
-  font-size: var(--text-xs);
-  font-weight: 500;
+.brandText {
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.brandTextTag {
   color: var(--color-primary);
-  background: var(--color-primary-dim);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  letter-spacing: 0.05em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-left: 2px;
 }
 
 .nav {
@@ -164,6 +170,14 @@
   letter-spacing: -0.02em;
   color: var(--text-primary);
   display: none;
+  align-items: center;
+  gap: var(--space-2);
+}
+.topbarLogoIcon {
+  width: 28px;
+  height: 28px;
+  display: block;
+  flex-shrink: 0;
 }
 .topbarLogoTag {
   font-size: var(--text-xs);
@@ -382,11 +396,15 @@
     text-align: center;
   }
   .sidebarHeader {
-    justify-content: center;
-    padding: 0 var(--space-2);
+    padding: var(--space-3) var(--space-2);
+    gap: 4px;
   }
-  .logo {
-    font-size: var(--text-sm);
+  .brandIcon {
+    width: 36px;
+    height: 36px;
+  }
+  .brandText {
+    font-size: 11px;
   }
   .main {
     padding: var(--space-4);
@@ -570,7 +588,7 @@
   .userInfo  { display: none; }
   .userCaret { display: none; }
   /* Mostrar el logo en el topbar (en desktop lo trae el sidebar) */
-  .topbarLogo { display: inline-block; }
+  .topbarLogo { display: inline-flex; }
 
 }
 /* Los estilos del FAB se movieron a shared/components/DraggableFAB.module.css */

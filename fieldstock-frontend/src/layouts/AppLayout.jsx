@@ -159,8 +159,10 @@ export default function AppLayout() {
     <div className={`${styles.shell} ${collapsed ? styles.collapsed : ''}`}>
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
-          <span className={styles.logo}>{collapsed ? 'FS' : 'FieldStock'}</span>
-          {!collapsed && <span className={styles.logoTag}>AI</span>}
+          <img src="/favicon.svg" alt="" className={styles.brandIcon} />
+          <span className={styles.brandText}>
+            FieldStock <span className={styles.brandTextTag}>AI</span>
+          </span>
         </div>
 
         <nav className={styles.nav}>
@@ -211,7 +213,10 @@ export default function AppLayout() {
         {/* Logo en el topbar — visible en mobile (donde el sidebar
             pasa a ser una barra inferior y oculta su propio header).
             En desktop está oculto vía CSS para no duplicar con el del sidebar. */}
-        <span className={styles.topbarLogo}>FieldStock <span className={styles.topbarLogoTag}>AI</span></span>
+        <span className={styles.topbarLogo}>
+          <img src="/favicon.svg" alt="" className={styles.topbarLogoIcon} />
+          FieldStock <span className={styles.topbarLogoTag}>AI</span>
+        </span>
         <div className={styles.topbarRight}>
           <NotificacionesBell />
           <button className={styles.temaBtn} onClick={toggle}
