@@ -365,7 +365,6 @@
   .shell.collapsed {
     grid-template-columns: 88px 1fr; /* no se puede colapsar mas en tablet */
   }
-  .logoTag,
   .sidebarFooter,
   .navGroupLabel,
   .soon,
