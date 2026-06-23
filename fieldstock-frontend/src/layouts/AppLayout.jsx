@@ -43,8 +43,10 @@ const SISTEMA_ITEMS = [
 ]
 
 const ADMIN_ITEMS = [
-  { to: '/usuarios',      label: 'Usuarios',      icon: LuUsers,    activo: true },
-  { to: '/configuracion', label: 'Configuración', icon: LuSettings, activo: true },
+  { to: '/usuarios', label: 'Usuarios', icon: LuUsers, activo: true },
+  // "Configuración" del sistema (porcentaje de ganancia default) se sacó
+  // del sidebar — el % se setea en cada presupuesto, no a nivel global.
+  // La pagina /configuracion sigue accesible si se navega manualmente.
 ]
 
 function useTema() {

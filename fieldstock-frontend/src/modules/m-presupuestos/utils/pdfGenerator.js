@@ -156,12 +156,16 @@ function totales(doc, presupuesto, startY) {
   const subCostos  = Number(presupuesto.subtotal_costos)  || 0
   const pct        = Number(presupuesto.porcentaje_ganancia) || 0
   const ganancia   = subInsumos * (pct / 100)
+  // En el PDF al cliente NO mostramos la ganancia como linea separada
+  // — la disolvemos dentro de los costos extra (concretamente en los
+  // items de Mano de obra, ver aplicarGananciaEnManoDeObra). Mostrar
+  // "+ Costos extra" con el monto inflado mantiene el total cuadrado.
+  const costosVisibles = subCostos + ganancia
 
   const lines = [
-    ['Subtotal insumos',                       formatMoney(subInsumos), false],
-    [`+ Ganancia (${pct}% sobre insumos)`,     formatMoney(ganancia),   false],
-    ['+ Costos extra',                         formatMoney(subCostos),  false],
-    ['Total',                                  formatMoney(presupuesto.total), true],
+    ['Subtotal insumos',  formatMoney(subInsumos),       false],
+    ['+ Costos extra',    formatMoney(costosVisibles),   false],
+    ['Total',             formatMoney(presupuesto.total), true],
   ]
 
   // Issue 2.8: el bloque de totales (4 filas + total grande) ocupa ~30mm.
@@ -233,15 +237,71 @@ function footer(doc) {
   }
 }
 
+/**
+ * Distribuye la ganancia (subInsumos * pct/100) entre los items de
+ * categoria MANO_OBRA proporcionalmente al subtotal de cada uno. Si no
+ * hay items de MANO_OBRA, agrega una fila nueva con esa ganancia.
+ *
+ * Esto se hace SOLO en el PDF al cliente — la app interna sigue
+ * mostrando la ganancia desglosada para uso del dueno/encargado.
+ *
+ * Devuelve un array nuevo (no muta el original).
+ */
+function aplicarGananciaEnManoDeObra(costos, ganancia) {
+  if (!(ganancia > 0)) return costos || []
+  const arr = (costos || []).map(c => ({ ...c }))
+
+  const manoDeObra = arr.filter(c => c.categoria === 'MANO_OBRA')
+  const totalManoObra = manoDeObra.reduce((s, c) => s + Number(c.subtotal || 0), 0)
+
+  if (manoDeObra.length === 0) {
+    arr.push({
+      categoria:      'MANO_OBRA',
+      descripcion:    'Mano de obra',
+      cantidad:       1,
+      unidad:         '-',
+      costo_unitario: ganancia,
+      subtotal:       ganancia,
+    })
+    return arr
+  }
+
+  if (totalManoObra <= 0) {
+    // Items existen en $0 — repartir parejo
+    const porItem = ganancia / manoDeObra.length
+    for (const item of manoDeObra) {
+      item.subtotal = Number(item.subtotal || 0) + porItem
+      const cant = Number(item.cantidad) || 1
+      item.costo_unitario = item.subtotal / cant
+    }
+    return arr
+  }
+
+  for (const item of manoDeObra) {
+    const proporcion    = Number(item.subtotal) / totalManoObra
+    const gananciaItem  = ganancia * proporcion
+    item.subtotal       = Number(item.subtotal) + gananciaItem
+    const cant          = Number(item.cantidad) || 1
+    item.costo_unitario = item.subtotal / cant
+  }
+  return arr
+}
+
 // Helper interno: arma el PDF completo y devuelve { doc, fileName }.
 // Single source of truth para el layout — descargar y subir reusan esto.
 function construirPdf(presupuesto) {
   const doc = new jsPDF('p', 'mm', 'a4')
 
+  // Inflar Mano de obra con la ganancia ANTES de pasar a las tablas.
+  const subInsumos = Number(presupuesto.subtotal_insumos) || 0
+  const pct        = Number(presupuesto.porcentaje_ganancia) || 0
+  const ganancia   = subInsumos * (pct / 100)
+  const costosVisibles = aplicarGananciaEnManoDeObra(presupuesto.costos, ganancia)
+
   header(doc, presupuesto)
   let y = datosClienteObra(doc, presupuesto, 36)
   y = tablaInsumos(doc, presupuesto.insumos, y)
-  y = tablaCostosPorCategoria(doc, presupuesto.costos, y)
+  y = tablaCostosPorCategoria(doc, costosVisibles, y)
   y = totales(doc, presupuesto, y + 2)
   observaciones(doc, presupuesto, y + 6)
   footer(doc)
@@ -272,4 +332,29 @@ export function generarFilePdfPresupuesto(presupuesto) {
   const { doc, fileName } = construirPdf(presupuesto)
   const blob = doc.output('blob')
   return new File([blob], fileName, { type: 'application/pdf' })
+}
+
+/**
+ * Abre el PDF en una pestana nueva y dispara el dialogo de imprimir del
+ * browser. La pestana queda abierta para que el usuario pueda revisar
+ * antes de imprimir. Si el browser bloquea pop-ups, el llamador deberia
+ * mostrar un mensaje sugiriendo descargar e imprimir manualmente.
+ */
+export function imprimirPdfPresupuesto(presupuesto) {
+  const { doc } = construirPdf(presupuesto)
+  const blob = doc.output('blob')
+  const url  = URL.createObjectURL(blob)
+  const win  = window.open(url, '_blank')
+  if (!win) {
+    // Pop-up bloqueado: liberamos la URL y avisamos via throw.
+    URL.revokeObjectURL(url)
+    const err = new Error('El navegador bloqueó la ventana. Habilitá pop-ups para imprimir.')
+    err.code = 'POPUP_BLOCKED'
+    throw err
+  }
+  // Disparar print apenas se cargue el PDF en la pestana nueva.
+  // Pequeño delay para que el viewer del PDF arme su layout.
+  win.addEventListener('load', () => setTimeout(() => win.print(), 300))
+  // Liberar el objeto URL despues de un rato (el PDF ya esta cacheado).
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }

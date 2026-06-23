@@ -226,9 +226,15 @@ export async function updateStock(id, cantidad, operacion = 'descontar') {
 // ── Precio de referencia ──────────────────────────────────────
 // Devuelve el precio_unitario de la ULTIMA compra registrada para ese
 // material (la mas reciente por fecha_recepcion, fallback created_at).
-// Lo usa el form de Presupuestos para autocompletar el precio al elegir
-// un material. Si nunca se compro, devuelve null (el operador lo escribe
-// a mano).
+// Si nunca se compro, cae al campo `precio_referencia` de la tabla
+// `materiales` (precio orientativo cargado a mano). Si tampoco hay
+// precio_referencia, devuelve null (el operador escribe a mano en el
+// form de Presupuestos).
+//
+// Orden de prioridad:
+//   1. Ultima compra real (fuente: 'ultima_compra')
+//   2. precio_referencia de la tabla (fuente: 'referencia_material')
+//   3. null
 export async function getPrecioReferencia(materialId) {
   const { data, error } = await supabase
     .from('compras_items')
@@ -237,13 +243,24 @@ export async function getPrecioReferencia(materialId) {
     .order('created_at', { ascending: false })
     .limit(20)  // tomamos las ultimas 20 y elegimos en JS la mas reciente por fecha
   if (error) throw error
-  if (!data?.length) return null
 
-  // Ordenar por fecha_recepcion (cuando llegó) desc, fallback created_at
-  const sorted = [...data].sort((a, b) => {
-    const fa = a.compra?.fecha_recepcion || a.compra?.created_at || ''
-    const fb = b.compra?.fecha_recepcion || b.compra?.created_at || ''
-    return fb.localeCompare(fa)
-  })
-  return { precio: Number(sorted[0].precio_unitario), fuente: 'ultima_compra' }
+  if (data?.length) {
+    // Ordenar por fecha_recepcion (cuando llegó) desc, fallback created_at
+    const sorted = [...data].sort((a, b) => {
+      const fa = a.compra?.fecha_recepcion || a.compra?.created_at || ''
+      const fb = b.compra?.fecha_recepcion || b.compra?.created_at || ''
+      return fb.localeCompare(fa)
+    })
+    return { precio: Number(sorted[0].precio_unitario), fuente: 'ultima_compra' }
+  }
+
+  // Fallback: precio orientativo cargado en la ficha del material.
+  const { data: mat, error: errMat } = await supabase
+    .from('materiales').select('precio_referencia').eq('id', materialId).maybeSingle()
+  if (errMat) throw errMat
+  const precioRef = Number(mat?.precio_referencia) || 0
+  if (precioRef > 0) {
+    return { precio: precioRef, fuente: 'referencia_material' }
+  }
+  return null
 }
