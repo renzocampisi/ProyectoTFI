@@ -3,28 +3,54 @@
   display: grid;
   place-items: center;
   padding: var(--space-4);
-  background: var(--color-bg);
+  background:
+    /* Overlay oscuro encima del bg para garantizar contraste del form
+       sin importar que zona de la imagen quede detras. */
+    linear-gradient(135deg, rgba(13, 36, 64, 0.78) 0%, rgba(13, 36, 64, 0.55) 50%, rgba(6, 15, 26, 0.85) 100%),
+    url('/login-bg.jpg') center / cover no-repeat,
+    var(--color-bg);
+  position: relative;
 }
 
+/* Card frosted: fondo semitransparente + blur para que la imagen se
+   sienta detras pero el form siga legible. En modo light invertimos
+   los tonos del overlay para que no quede demasiado oscuro. */
 .card {
   width: 100%;
   max-width: 380px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: rgba(23, 27, 38, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-xl);
   padding: var(--space-8) var(--space-7);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  position: relative;
+  z-index: 1;
+}
+
+/* En modo claro el card frosted se vuelve mas opaco y luminoso para
+   no chocar con la imagen oscura. */
+:global([data-theme="light"]) .card {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 .brand {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
   align-items: center;
   margin-bottom: var(--space-3);
+}
+.brandIcon {
+  width: 56px;
+  height: 56px;
+  display: block;
+  margin-bottom: var(--space-1);
 }
 .logo {
   font-size: var(--text-xl);
@@ -61,12 +87,11 @@
 .input:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* Toggle de mostrar/ocultar password integrado dentro del input.
-   El boton flota dentro del area del input (no como elemento separado a
-   la derecha), con un fondo siempre visible para que se vea como un
-   elemento clickeable. Padding-right ajustado para que el texto del
-   input no se monte sobre el boton pero sin dejar hueco innecesario. */
+   Sin background ni border por default — se ve como parte del input.
+   El hover usa un highlight sutil para feedback. El padding-right del
+   input deja exactamente el lugar para el icono sin hueco visible. */
 .passwordWrapper { position: relative; }
-.passwordWrapper .input { padding-right: 40px; }
+.passwordWrapper .input { padding-right: 38px; }
 
 .togglePassword {
   position: absolute;
@@ -78,18 +103,17 @@
   display: grid;
   place-items: center;
   color: var(--text-secondary);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: transparent;
+  border: none;
   border-radius: var(--radius-sm);
-  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
 }
 .togglePassword:hover:not(:disabled) {
   color: var(--text-primary);
-  background: var(--color-surface-alt);
-  border-color: var(--color-border-light, var(--text-muted));
+  background: var(--color-primary-dim);
 }
 .togglePassword:active:not(:disabled) {
-  background: var(--color-primary-dim);
   color: var(--color-primary);
 }
 .togglePassword:disabled { opacity: 0.5; cursor: not-allowed; }

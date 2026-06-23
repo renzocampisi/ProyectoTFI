@@ -72,6 +72,7 @@ export default function LoginPage() {
     <div className={styles.wrapper}>
       <form className={styles.card} onSubmit={handleSubmit} noValidate>
         <div className={styles.brand}>
+          <img src="/favicon.svg" alt="" className={styles.brandIcon} />
           <span className={styles.logo}>FieldStock AI</span>
           <span className={styles.tagline}>Gestión de inventario de obra</span>
         </div>
