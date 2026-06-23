@@ -65,7 +65,7 @@ export async function getById(id) {
     { data: insumos,     error: errI },
     { data: costos,      error: errC },
   ] = await Promise.all([
-    supabase.from('presupuestos').select('*, obra:obras(id, nombre, cliente, direccion)').eq('id', id).maybeSingle(),
+    supabase.from('presupuestos').select('*, obra:obras(id, nombre, cliente, direccion, cliente_id, cliente_rel:clientes!cliente_id(email))').eq('id', id).maybeSingle(),
     supabase.from('presupuesto_insumos').select('*, material:materiales(id, nombre, unidad, marca)').eq('presupuesto_id', id).order('created_at'),
     supabase.from('presupuesto_costos').select('*').eq('presupuesto_id', id).order('created_at'),
   ])

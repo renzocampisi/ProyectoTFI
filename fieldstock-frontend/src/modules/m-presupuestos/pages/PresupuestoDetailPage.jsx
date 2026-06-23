@@ -13,11 +13,14 @@
  */
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { LuDownload } from 'react-icons/lu'
+import { LuDownload, LuPrinter, LuMail } from 'react-icons/lu'
 import { usePresupuesto } from '../hooks/usePresupuestos'
 import { PresupuestosService } from '../services/presupuestos.service'
 import EstadoPresupuestoBadge from '../components/EstadoPresupuestoBadge'
-import { descargarPdfPresupuesto, generarFilePdfPresupuesto } from '../utils/pdfGenerator'
+import {
+  descargarPdfPresupuesto,
+  imprimirPdfPresupuesto,
+} from '../utils/pdfGenerator'
 import { useAuth } from '@shared/hooks/useAuth'
 import { esDueño } from '@shared/constants/roles'
 import {
@@ -72,23 +75,30 @@ export default function PresupuestoDetailPage() {
     descargarPdfPresupuesto(presupuesto)
   }
 
-  // Issue 2.9: subir el PDF generado al bucket `presupuestos-pdf`. Esto
-  // crea una copia "oficial" del PDF tal como se mostró al cliente. Útil
-  // como audit trail si el presupuesto se edita despues. Si ya habia
-  // pdf_url previo, el backend lo reemplaza (borra el viejo antes de subir).
-  const [guardandoCopia, setGuardandoCopia] = useState(false)
-  const handleGuardarCopia = async () => {
-    if (!presupuesto || guardandoCopia) return
-    setGuardandoCopia(true); setErrAccion(null)
+  const handleImprimirPdf = () => {
+    if (!presupuesto) return
     try {
-      const file = generarFilePdfPresupuesto(presupuesto)
-      await PresupuestosService.uploadPdf(presupuesto.id, file)
-      await refetch()
+      imprimirPdfPresupuesto(presupuesto)
     } catch (err) {
-      setErrAccion(`No se pudo guardar la copia: ${err.message}`)
-    } finally {
-      setGuardandoCopia(false)
+      setErrAccion(err.message || 'No se pudo abrir la impresion.')
     }
+  }
+
+  // Enviar por mail: el estandar `mailto:` no permite adjuntar archivos,
+  // asi que descargamos el PDF y abrimos el cliente de mail con asunto
+  // y cuerpo prellenados. El usuario adjunta el PDF descargado manualmente.
+  const handleEnviarPorMail = () => {
+    if (!presupuesto) return
+    descargarPdfPresupuesto(presupuesto)
+    const emailCliente = presupuesto.obra?.cliente_rel?.email || ''
+    const obra = presupuesto.obra?.nombre || 'la obra'
+    const asunto = encodeURIComponent(`Presupuesto ${presupuesto.numero} - ${obra}`)
+    const cuerpo = encodeURIComponent(
+      `Hola,\n\nTe envio el presupuesto ${presupuesto.numero} correspondiente a "${obra}".\n\n` +
+      `Por favor adjuntar el PDF que se descargo automaticamente al disparar esta accion.\n\n` +
+      `Saludos.`
+    )
+    window.location.href = `mailto:${emailCliente}?subject=${asunto}&body=${cuerpo}`
   }
 
   if (loading) return (
@@ -137,17 +147,17 @@ export default function PresupuestoDetailPage() {
             <span className={styles.totalLabel}>Total</span>
             <span className={styles.totalValue}>{formatMoney(presupuesto.total)}</span>
             <div className={styles.pdfActions}>
-              <button type="button" className={styles.btnPdf} onClick={handleDescargarPdf}>
-                <LuDownload size={14} /> Descargar PDF
+              <button type="button" className={styles.btnPdf} onClick={handleDescargarPdf}
+                title="Descargar el PDF del presupuesto">
+                <LuDownload size={14} /> Descargar
               </button>
-              <button type="button" className={styles.btnPdfGhost}
-                onClick={handleGuardarCopia} disabled={guardandoCopia}
-                title={presupuesto.pdf_url
-                  ? 'Reemplaza la copia guardada con el PDF actual'
-                  : 'Sube el PDF generado al sistema (audit trail)'}>
-                {guardandoCopia
-                  ? 'Guardando...'
-                  : presupuesto.pdf_url ? '🔄 Actualizar copia' : '💾 Guardar copia'}
+              <button type="button" className={styles.btnPdfGhost} onClick={handleImprimirPdf}
+                title="Abrir el PDF e imprimir">
+                <LuPrinter size={14} /> Imprimir
+              </button>
+              <button type="button" className={styles.btnPdfGhost} onClick={handleEnviarPorMail}
+                title="Descarga el PDF y abre tu cliente de mail con el mensaje prellenado. El PDF hay que adjuntarlo a mano.">
+                <LuMail size={14} /> Enviar por Mail
               </button>
             </div>
           </div>
