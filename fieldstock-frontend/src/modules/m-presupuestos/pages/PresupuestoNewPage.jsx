@@ -330,7 +330,7 @@ export default function PresupuestoNewPage() {
                           className={styles.input}
                           value={c.descripcion}
                           onChange={e => updateCosto(cat, c.uid, 'descripcion', e.target.value)} />
-                        <input type="number" min="0" step="0.01" placeholder="Cant."
+                        <input type="number" min="0" step="1" placeholder="Cant."
                           className={styles.inputNum}
                           value={c.cantidad}
                           onChange={e => updateCosto(cat, c.uid, 'cantidad', e.target.value)} />

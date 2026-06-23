@@ -50,6 +50,27 @@ function withTimeout(promise, ms, label) {
   ])
 }
 
+// Lee la entrada sb-*-auth-token de localStorage y devuelve true si
+// contiene un access_token con expires_at todavía en el futuro. Usado
+// para distinguir SIGNED_OUT espurios (token sigue válido) de reales.
+function hayTokenValidoEnStorage() {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return false
+    const key = Object.keys(localStorage).find(k =>
+      k.startsWith('sb-') && k.endsWith('-auth-token')
+    )
+    if (!key) return false
+    const stored  = JSON.parse(localStorage.getItem(key))
+    const session = stored?.currentSession || stored
+    if (!session?.access_token) return false
+    // expires_at viene en segundos epoch (formato Supabase)
+    const expMs = Number(session.expires_at) * 1000
+    return Number.isFinite(expMs) && expMs > Date.now()
+  } catch {
+    return false
+  }
+}
+
 // Helper interno: GET /api/usuarios/me usando el JWT actual. No usamos `api`
 // de utils/api.js para no crear dependencia circular (api importa supabase
 // para el JWT, y este hook también lo usaría).
@@ -206,24 +227,33 @@ export function AuthProvider({ children }) {
 
     // Reactividad: si la sesión cambia (login/logout en otro tab), sincronizamos.
     //
-    // CRÍTICO: el event SIGNED_OUT se dispara en TRES casos:
+    // CRÍTICO: el event SIGNED_OUT se dispara en CUATRO casos:
     //   1. Logout manual (signOut() del user) → supabase ya limpió el storage.
     //   2. Logout en otro tab (storage event) → idem.
-    //   3. Refresh del token FALLÓ (refresh_token vencido o red caída tras
-    //      inactividad larga) → el SDK NO siempre limpia el sb-* y queda
-    //      un token podrido que rompe el próximo signIn.
+    //   3. Refresh del token FALLÓ (refresh_token vencido o red caída).
+    //   4. **Espurio**: el SDK dispara SIGNED_OUT al cambiar de tab,
+    //      volver del background o algunos eventos internos — aún cuando
+    //      el token sigue 100% válido. Esto generaba el bug del 23/06:
+    //      el usuario volvía a la pestaña tras < 1 min y era deslogueado.
     //
-    // Por eso siempre que llega SIGNED_OUT limpiamos storage defensivamente.
-    // Es idempotente — si ya estaba limpio, no hace nada. Si el SDK no
-    // alcanzó a limpiar (caso 3), arregla el bug del 01/06 donde el user
-    // tenía que borrar el sb-* a mano para poder volver a loguearse.
+    // Filtro de espurios: si llega SIGNED_OUT pero en localStorage sigue
+    // habiendo un access_token con expires_at > now(), asumimos que es
+    // espurio y NO actualizamos el estado de auth — el user mantiene
+    // su sesión. Si la limpieza era necesaria (caso 3), on401 del api.js
+    // se va a disparar en la próxima request y limpia ahí.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return
-      setUser(session?.user ?? null)
       if (event === 'SIGNED_OUT' || !session) {
+        if (hayTokenValidoEnStorage()) {
+          console.warn('[useAuth] SIGNED_OUT espurio ignorado — hay token válido en storage')
+          return
+        }
+        setUser(null)
         setProfile(null)
-        clearSupabaseStorage()
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        return
+      }
+      setUser(session?.user ?? null)
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         await cargarPerfil()
       }
     })
