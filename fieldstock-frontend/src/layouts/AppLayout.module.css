@@ -2,7 +2,12 @@
   display: grid;
   grid-template-columns: var(--sidebar-width) 1fr;
   grid-template-rows: var(--topbar-height) 1fr;
-  min-height: 100vh;
+  /* 100dvh: dynamic viewport — se ajusta cuando Chrome mobile oculta/
+     muestra la barra de URL. Antes con 100vh el viewport era el "maximo"
+     y los eventos de touch quedaban offset (bug del 24/06: "para tocar
+     un boton hay que tocar mas arriba"). dvh tiene soporte universal
+     en browsers modernos (Chrome 108+, Safari 15.4+, Firefox 101+). */
+  min-height: 100dvh;
   transition: grid-template-columns var(--transition-base);
 }
 
@@ -364,6 +369,17 @@
   }
   .shell.collapsed {
     grid-template-columns: 88px 1fr; /* no se puede colapsar mas en tablet */
+  }
+  /* Sidebar sticky: queda pegado al top del viewport aunque el contenido
+     del main scrollee largo. Antes en tablet, si la pagina superaba el
+     viewport el sidebar bajaba con el scroll del body y el usuario tenia
+     que volver arriba para tocar otro modulo (bug del 24/06). */
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    align-self: start;
+    overflow-y: auto;
   }
   .sidebarFooter,
   .navGroupLabel,
