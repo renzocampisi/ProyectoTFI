@@ -641,6 +641,25 @@
   .checkLista { max-height: 240px; }
 }
 
+/* Herramienta RESERVADA en otro borrador: borde naranja a la izquierda
+   + badge "Reservada" naranja. El user puede agregarla igual pero con
+   confirmacion (dialog HerrBuscadorModal handles it). */
+.checkItemReservada {
+  border-left: 3px solid #ed8936;
+}
+.checkReservadaBadge {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(237, 137, 54, 0.15);
+  color: #ed8936;
+  border-radius: var(--radius-full, 999px);
+  vertical-align: middle;
+}
+
 /* Bloque "Herramientas extraviadas" — al pie del listado de herramientas
    en remitos CERRADO / EN_TRANSITO_RETORNO. Resume cuántas se perdieron
    y el total estimado en dinero (suma de h.valor). */
@@ -695,4 +714,3 @@
   font-size: var(--text-xs); color: var(--text-muted); margin: 0;
   font-style: italic;
 }
-

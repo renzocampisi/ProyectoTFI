@@ -149,18 +149,25 @@ function HerrBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
   const [busqueda,     setBusqueda]     = useState('')
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState(null)
+  // Cuando addItem devuelve 409 (herramienta RESERVADA en otro borrador),
+  // guardamos los conflictos aca para mostrar un confirm dialog antes de
+  // reintentar con { forzar: true }.
+  const [conflictos, setConflictos] = useState(null)
   // Guard síncrono contra doble-click (issue #9). useState es asíncrono y
   // se cuela un 2° click antes de que React renderice disabled={saving}.
   const savingRef = useRef(false)
 
-  // Cargar herramientas disponibles al montar el modal.
-  // Antes esto estaba con `useState(() => {...}, [])` que es semánticamente
-  // incorrecto (useState ignora deps y el callback es para initial state,
-  // no para side effects). Funcionaba "de casualidad" porque el callback
-  // se ejecuta una sola vez igual, pero rompía cualquier lint estricto.
+  // Cargar herramientas que estan en el galpon: DISPONIBLE o RESERVADA
+  // (reservada por otro borrador — el usuario puede agregarla igual con
+  // confirmacion). Las EN_OBRA / EN_MANTENIMIENTO / BAJA quedan fuera.
   useEffect(() => {
-    InventarioService.getAll({ estado: 'DISPONIBLE' })
-      .then(data => setHerramientas(data.filter(h => !idsYa.includes(h.id))))
+    InventarioService.getAll()
+      .then(data => setHerramientas(
+        data.filter(h =>
+          (h.estado === 'DISPONIBLE' || h.estado === 'RESERVADA') &&
+          !idsYa.includes(h.id)
+        )
+      ))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -186,21 +193,78 @@ function HerrBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
     setSeleccionadas(next)
   }
 
+  // Agrega una a una para poder detectar 409 (RESERVADA en otro borrador)
+  // y mostrar dialog de confirmacion antes de reintentar con forzar=true.
+  const agregarConFlujo = async ({ forzar = false } = {}) => {
+    const conflictosDetectados = []
+    const okIds = []
+    for (const herramientaId of seleccionadas) {
+      try {
+        await RemitosService.addItem(remitoId, {
+          herramientaId, estadoSalida: 'BUENO',
+          ...(forzar ? { forzar: true } : {}),
+        })
+        okIds.push(herramientaId)
+      } catch (err) {
+        if (err.status === 409) {
+          conflictosDetectados.push({
+            herramientaId,
+            mensaje:  err.message,
+            herr:     herramientas.find(h => h.id === herramientaId),
+          })
+        } else {
+          // Error real: cortamos el flujo y reportamos.
+          throw err
+        }
+      }
+    }
+    return { conflictos: conflictosDetectados, okIds }
+  }
+
   const handleAgregar = async () => {
     if (!seleccionadas.size) return
     if (savingRef.current) return  // bloqueo síncrono contra doble-click
     savingRef.current = true
+    setSaving(true); setError(null); setConflictos(null)
+    try {
+      const { conflictos: confl } = await agregarConFlujo({ forzar: false })
+      if (confl.length > 0) {
+        // Hubo herramientas reservadas en otros borradores. Mostramos dialog.
+        setConflictos(confl)
+      } else {
+        onSaved()
+      }
+    } catch (err) { setError(err.message) }
+    finally { setSaving(false); savingRef.current = false }
+  }
+
+  const handleConfirmarConflictos = async () => {
+    if (savingRef.current) return
+    savingRef.current = true
     setSaving(true); setError(null)
     try {
-      // Agregar todas en paralelo
-      await Promise.all(
-        [...seleccionadas].map(herramientaId =>
-          RemitosService.addItem(remitoId, { herramientaId, estadoSalida: 'BUENO' })
-        )
-      )
+      // Reintenta solo las herramientas conflictivas con forzar=true.
+      // Las que ya se agregaron OK la primera vez no se duplican porque
+      // 'seleccionadas' filtra implicitamente — pero arriba ya las agregamos.
+      // Asi que reintentamos solo las del listado de conflictos.
+      for (const c of conflictos) {
+        await RemitosService.addItem(remitoId, {
+          herramientaId: c.herramientaId,
+          estadoSalida:  'BUENO',
+          forzar:        true,
+        })
+      }
+      setConflictos(null)
       onSaved()
     } catch (err) { setError(err.message) }
     finally { setSaving(false); savingRef.current = false }
+  }
+
+  const handleCancelarConflictos = () => {
+    // El usuario decidio NO forzar — cerramos el dialog pero igual cerramos
+    // el modal porque las herramientas no-conflictivas ya se agregaron.
+    setConflictos(null)
+    onSaved()
   }
 
   return (
@@ -243,24 +307,69 @@ function HerrBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
 
             {/* Lista */}
             <ul className={styles.checkLista}>
-              {filtradas.map(h => (
-                <li key={h.id}
-                  className={`${styles.checkItem} ${seleccionadas.has(h.id) ? styles.checkItemSelected : ''}`}
-                  onClick={() => toggle(h.id)}>
-                  <input type="checkbox" checked={seleccionadas.has(h.id)} onChange={() => toggle(h.id)}
-                    onClick={e => e.stopPropagation()} />
-                  <div className={styles.checkInfo}>
-                    <span className={styles.checkNombre}>{h.nombre}</span>
-                    <span className={styles.checkSub}>
-                      {h.codigo_qr}
-                      {h.marca && ` · ${h.marca}`}
-                      {h.importante && ' · ⭐'}
-                    </span>
-                  </div>
-                </li>
-              ))}
+              {filtradas.map(h => {
+                const reservada = h.estado === 'RESERVADA'
+                return (
+                  <li key={h.id}
+                    className={
+                      [
+                        styles.checkItem,
+                        seleccionadas.has(h.id) && styles.checkItemSelected,
+                        reservada && styles.checkItemReservada,
+                      ].filter(Boolean).join(' ')
+                    }
+                    onClick={() => toggle(h.id)}>
+                    <input type="checkbox" checked={seleccionadas.has(h.id)} onChange={() => toggle(h.id)}
+                      onClick={e => e.stopPropagation()} />
+                    <div className={styles.checkInfo}>
+                      <span className={styles.checkNombre}>
+                        {h.nombre}
+                        {reservada && (
+                          <span className={styles.checkReservadaBadge}
+                            title="Esta herramienta ya esta reservada en otro borrador. Si la agregas, vas a tener que confirmar.">
+                            Reservada
+                          </span>
+                        )}
+                      </span>
+                      <span className={styles.checkSub}>
+                        {h.codigo_qr}
+                        {h.marca && ` · ${h.marca}`}
+                        {h.importante && ' · ⭐'}
+                      </span>
+                    </div>
+                  </li>
+                )
+              })}
             </ul>
           </>
+        )}
+
+        {/* Dialog de confirmacion: herramientas reservadas en otro borrador */}
+        {conflictos && conflictos.length > 0 && (
+          <div className={styles.modalOverlay} style={{ zIndex: 300 }}>
+            <div className={styles.modalConfirm}>
+              <h3 className={styles.modalTitle}>Herramienta(s) ya reservadas</h3>
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+                Las siguientes herramientas ya estan en el borrador de otro remito:
+              </p>
+              <ul style={{ margin: '8px 0', paddingLeft: 18, fontSize: 'var(--text-sm)' }}>
+                {conflictos.map(c => (
+                  <li key={c.herramientaId}><strong>{c.herr?.nombre || c.herramientaId}</strong>: {c.mensaje}</li>
+                ))}
+              </ul>
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+                Si las agregas igual, van a quedar asociadas a ambos borradores hasta que uno confirme — el segundo no va a poder confirmar.
+              </p>
+              <div className={styles.modalActions}>
+                <button className={styles.btnGhost} onClick={handleCancelarConflictos} disabled={saving}>
+                  No, dejarlas
+                </button>
+                <button className={styles.btnPrimary} onClick={handleConfirmarConflictos} disabled={saving}>
+                  {saving ? 'Agregando...' : 'Agregar igual'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Footer */}
