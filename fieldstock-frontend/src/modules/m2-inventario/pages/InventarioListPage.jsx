@@ -104,6 +104,7 @@ export default function InventarioListPage() {
             <thead>
               <tr>
                 <th>Herramienta</th>
+                <th>Marca</th>
                 <th>Categoría</th>
                 <th>Estado</th>
                 <th>Código QR</th>
@@ -129,6 +130,10 @@ export default function InventarioListPage() {
                         ⭐
                       </span>
                     )}
+                  </td>
+
+                  <td data-label="Marca">
+                    {h.marca || <span className={styles.dash}>—</span>}
                   </td>
 
                   {/* data-label se usa en mobile para mostrar la etiqueta del campo */}
