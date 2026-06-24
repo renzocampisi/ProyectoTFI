@@ -180,13 +180,16 @@ export async function volverABorrador(id) {
     err.status = 400; throw err
   }
 
-  // Reset de herramientas: vuelven a DISPONIBLE
+  // Reset de herramientas: vuelven a RESERVADA (no DISPONIBLE), porque
+  // el remito vuelve a BORRADOR y las herramientas siguen asociadas a el.
+  // Quedaran liberadas a DISPONIBLE solo cuando se quiten del remito
+  // (removeItem) o cuando ningun otro borrador las tenga.
   const { data: items } = await supabase
     .from('remito_items').select('herramienta_id').eq('remito_id', id)
 
   if (items?.length) {
     await supabase.from('herramientas')
-      .update({ estado: 'DISPONIBLE' })
+      .update({ estado: 'RESERVADA' })
       .in('id', items.map(i => i.herramienta_id))
   }
 
@@ -208,7 +211,17 @@ export async function volverABorrador(id) {
 }
 
 // ── Agregar una herramienta al remito ─────────────────────────
-// Solo permitido en BORRADOR y solo si la herramienta está DISPONIBLE.
+// Solo permitido en BORRADOR. Reglas según estado de la herramienta:
+//   - DISPONIBLE → aceptar, item insertado + herramienta pasa a RESERVADA.
+//   - RESERVADA  → si NO se mando forzar=true, devolver 409 con info del
+//                  otro(s) borrador(es). El frontend muestra confirmacion
+//                  "ya esta en el borrador X, agregar igual?" y reintenta
+//                  con forzar=true. La herramienta queda asociada a ambos
+//                  borradores — el primero que confirme se la lleva, el
+//                  segundo va a fallar al avanzar (chequeo en avanzarEstado).
+//   - cualquier otro estado (EN_OBRA, EN_MANTENIMIENTO, RESERVADA por motivo
+//     que no sea borrador, BAJA): rechazar 400 — la herramienta no esta
+//     fisicamente en el galpon.
 export async function addItem(remitoId, body) {
   const { data: remito } = await supabase
     .from('remitos').select('estado').eq('id', remitoId).single()
@@ -221,8 +234,34 @@ export async function addItem(remitoId, body) {
   const { data: herr } = await supabase
     .from('herramientas').select('estado, nombre').eq('id', body.herramientaId).single()
 
-  if (herr?.estado !== 'DISPONIBLE') {
-    const err = new Error(`La herramienta "${herr?.nombre}" no está disponible`)
+  if (!herr) {
+    const err = new Error('Herramienta no encontrada')
+    err.status = 404; throw err
+  }
+
+  if (herr.estado === 'RESERVADA') {
+    // Si ya esta reservada en algun otro BORRADOR y no se forzo: 409 con info.
+    if (!body.forzar) {
+      const { data: otros } = await supabase
+        .from('remito_items')
+        .select('remito:remitos(id, numero, obra, estado)')
+        .eq('herramienta_id', body.herramientaId)
+      const otrosBorradores = (otros || [])
+        .map(o => o.remito)
+        .filter(r => r && r.estado === 'BORRADOR' && r.id !== remitoId)
+      if (otrosBorradores.length) {
+        const err = new Error(
+          `La herramienta "${herr.nombre}" ya esta reservada en el borrador ${otrosBorradores[0].numero}`
+        )
+        err.status = 409
+        err.data = { herramienta: herr.nombre, enUsoEn: otrosBorradores }
+        throw err
+      }
+      // Reservada pero no encontre el borrador: estado inconsistente,
+      // dejarla pasar como si fuera DISPONIBLE (la liberamos abajo).
+    }
+  } else if (herr.estado !== 'DISPONIBLE') {
+    const err = new Error(`La herramienta "${herr.nombre}" no esta disponible (estado: ${herr.estado})`)
     err.status = 400; throw err
   }
 
@@ -235,8 +274,14 @@ export async function addItem(remitoId, body) {
       observacion:    body.observacion  || null,
     })
     .select().single()
-
   if (error) throw error
+
+  // Pasar la herramienta a RESERVADA (si ya estaba RESERVADA por otro
+  // borrador, el UPDATE es idempotente — sigue RESERVADA).
+  await supabase.from('herramientas')
+    .update({ estado: 'RESERVADA' })
+    .eq('id', body.herramientaId)
+
   return data
 }
 
@@ -249,9 +294,33 @@ export async function removeItem(remitoId, itemId) {
     err.status = 400; throw err
   }
 
+  // Antes de borrar el item, capturo el herramienta_id para poder
+  // liberar el estado RESERVADA si esta herramienta no queda en ningun
+  // otro borrador.
+  const { data: itemActual } = await supabase
+    .from('remito_items').select('herramienta_id')
+    .eq('id', itemId).eq('remito_id', remitoId).maybeSingle()
+
   const { error } = await supabase
     .from('remito_items').delete().eq('id', itemId).eq('remito_id', remitoId)
   if (error) throw error
+
+  // Liberar a DISPONIBLE solo si la herramienta ya no esta en NINGUN otro
+  // remito BORRADOR. Si sigue en otros borradores, queda RESERVADA.
+  if (itemActual?.herramienta_id) {
+    const { data: otros } = await supabase
+      .from('remito_items')
+      .select('remito:remitos(id, estado)')
+      .eq('herramienta_id', itemActual.herramienta_id)
+    const sigueReservada = (otros || [])
+      .some(o => o.remito?.estado === 'BORRADOR')
+    if (!sigueReservada) {
+      await supabase.from('herramientas')
+        .update({ estado: 'DISPONIBLE' })
+        .eq('id', itemActual.herramienta_id)
+        .eq('estado', 'RESERVADA')  // proteccion contra cambio si paso a EN_OBRA
+    }
+  }
 }
 
 // ── Agregar un material al remito ─────────────────────────────
@@ -427,11 +496,28 @@ export async function avanzarEstado(id, body = {}) {
       err.status = 400; throw err
     }
 
-    // Pasar todas las herramientas a EN_OBRA en un solo UPDATE
+    // Pasar todas las herramientas a EN_OBRA en un solo UPDATE.
+    // Validacion: si alguna herramienta ya esta EN_OBRA, falla. Esto
+    // protege el caso "herramienta en 2 borradores, uno confirma, el
+    // otro tambien intenta": el segundo encuentra la herramienta ya
+    // ocupada y aborta antes de modificar nada.
     if (items?.length) {
+      const ids = items.map(i => i.herramienta_id)
+      const { data: ocupadas } = await supabase
+        .from('herramientas')
+        .select('id, nombre, estado')
+        .in('id', ids)
+        .eq('estado', 'EN_OBRA')
+      if (ocupadas?.length) {
+        const nombres = ocupadas.map(h => `"${h.nombre}"`).join(', ')
+        const err = new Error(
+          `No se puede confirmar: ${ocupadas.length} herramienta(s) ya estan EN_OBRA en otro remito: ${nombres}`
+        )
+        err.status = 409; throw err
+      }
       await supabase.from('herramientas')
         .update({ estado: 'EN_OBRA' })
-        .in('id', items.map(i => i.herramienta_id))
+        .in('id', ids)
 
       // ── Auto-registrar movimientos EGRESO (issue #1 — paso 1) ──
       // Audit trail: cada herramienta que sale a obra gana una fila

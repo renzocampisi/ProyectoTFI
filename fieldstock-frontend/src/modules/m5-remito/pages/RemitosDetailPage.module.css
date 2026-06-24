@@ -620,3 +620,22 @@
   .modalGrande { max-height: 90vh; }
   .checkLista { max-height: 240px; }
 }
+
+/* Herramienta RESERVADA en otro borrador: borde naranja a la izquierda
+   + badge "Reservada" naranja. El user puede agregarla igual pero con
+   confirmacion (dialog HerrBuscadorModal handles it). */
+.checkItemReservada {
+  border-left: 3px solid #ed8936;
+}
+.checkReservadaBadge {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(237, 137, 54, 0.15);
+  color: #ed8936;
+  border-radius: var(--radius-full, 999px);
+  vertical-align: middle;
+}
