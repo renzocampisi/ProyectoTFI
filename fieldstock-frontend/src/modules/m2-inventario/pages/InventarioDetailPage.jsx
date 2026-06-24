@@ -5,6 +5,7 @@ import { useHerramienta } from '../hooks/useInventario'
 import { InventarioService } from '../services/inventario.service'
 import EstadoBadge from '../components/EstadoBadge'
 import QRModal from '@modules/m3-qr/components/QRModal'
+import MarcaLogo from '@shared/components/MarcaLogo'
 import styles from './InventarioDetailPage.module.css'
 
 const TIPO_MOVIMIENTO = {
@@ -87,7 +88,9 @@ export default function InventarioDetailPage() {
       <div className={styles.header}>
         <button className={styles.btnBack} onClick={() => navigate('/herramientas')}>← Volver</button>
         <div className={styles.headerMain}>
-          <div className={styles.headerInfo}>
+          <div className={styles.headerInfo} style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'flex-start' }}>
+            <MarcaLogo marca={herramienta.marca} size={72} />
+            <div style={{ flex: 1, minWidth: 0 }}>
             <h1 className={styles.title}>{herramienta.nombre}</h1>
             <div className={styles.headerMeta}>
               <span className={styles.categoria}>{herramienta.categoria_nombre}</span>
@@ -102,6 +105,7 @@ export default function InventarioDetailPage() {
                   ⚠ Se elimina el {formatFecha(herramienta.fecha_eliminacion)}
                 </span>
               )}
+            </div>
             </div>
           </div>
           <div className={styles.headerActions}>
