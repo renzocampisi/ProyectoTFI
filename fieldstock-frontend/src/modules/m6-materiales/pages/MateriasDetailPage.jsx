@@ -23,6 +23,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { MaterialesService } from '../services/materiales.service'
+import MarcaLogo from '@shared/components/MarcaLogo'
 import AgregarStockModal from '../components/AgregarStockModal'
 import styles from './MateriasDetailPage.module.css'
 
@@ -142,16 +143,19 @@ export default function MateriasDetailPage() {
 
       {/* ── Header con nombre + estado de stock ──────────────── */}
       <header className={styles.header}>
-        <div className={styles.headerLeft}>
-          <h1 className={styles.nombre}>{material.nombre}</h1>
-          <div className={styles.subInfo}>
-            <span className={`${styles.estadoBadge} ${estado.cls}`}>{estado.label}</span>
-            {material.marca && (
-              <>
-                <span className={styles.subDot}>·</span>
-                <span className={styles.subText}>{material.marca}</span>
-              </>
-            )}
+        <div className={styles.headerLeft} style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'flex-start' }}>
+          <MarcaLogo marca={material.marca} size={72} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1 className={styles.nombre}>{material.nombre}</h1>
+            <div className={styles.subInfo}>
+              <span className={`${styles.estadoBadge} ${estado.cls}`}>{estado.label}</span>
+              {material.marca && (
+                <>
+                  <span className={styles.subDot}>·</span>
+                  <span className={styles.subText}>{material.marca}</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
         <div className={styles.headerRight}>
