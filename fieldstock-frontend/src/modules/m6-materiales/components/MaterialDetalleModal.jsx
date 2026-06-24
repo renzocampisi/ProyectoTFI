@@ -11,6 +11,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MaterialesService } from '../services/materiales.service'
+import MarcaLogo from '@shared/components/MarcaLogo'
 import styles from './MaterialDetalleModal.module.css'
 
 // Formato dd/mm/yyyy + hh:mm a partir de un ISO timestamp.
@@ -68,7 +69,10 @@ export default function MaterialDetalleModal({ material, onClose, onDeleted }) {
 
           {/* Encabezado con nombre y badge de estado */}
           <div className={styles.headerRow}>
-            <div className={styles.nombre}>{material.nombre}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flex: 1, minWidth: 0 }}>
+              <MarcaLogo marca={material.marca} size={56} />
+              <div className={styles.nombre}>{material.nombre}</div>
+            </div>
             <span className={`${styles.estadoBadge} ${estado.cls}`}>{estado.label}</span>
           </div>
 
