@@ -620,3 +620,59 @@
   .modalGrande { max-height: 90vh; }
   .checkLista { max-height: 240px; }
 }
+
+/* Bloque "Herramientas extraviadas" — al pie del listado de herramientas
+   en remitos CERRADO / EN_TRANSITO_RETORNO. Resume cuántas se perdieron
+   y el total estimado en dinero (suma de h.valor). */
+.extraviosBlock {
+  margin-top: var(--space-4);
+  border: 1px solid rgba(242, 95, 92, 0.35);
+  background: rgba(242, 95, 92, 0.06);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-3);
+}
+.extraviosHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: var(--space-2);
+}
+.extraviosTitulo {
+  font-size: var(--text-sm); font-weight: 600;
+  color: var(--color-danger);
+  display: inline-flex; align-items: center; gap: var(--space-2);
+}
+.extraviosCount {
+  background: var(--color-danger); color: white;
+  font-size: 11px; padding: 1px 7px; border-radius: 999px;
+}
+.extraviosTotal {
+  font-size: var(--text-sm); color: var(--text-secondary);
+}
+.extraviosTotal strong { color: var(--color-danger); font-variant-numeric: tabular-nums; }
+.extraviosLista {
+  margin: 0; padding: 0; list-style: none;
+  display: flex; flex-direction: column; gap: var(--space-1);
+  border-top: 1px dashed rgba(242, 95, 92, 0.3);
+  padding-top: var(--space-2);
+}
+.extraviosItem {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: var(--text-sm); padding: 4px 0;
+  border-bottom: 1px dashed rgba(242, 95, 92, 0.15);
+  gap: var(--space-3);
+}
+.extraviosItem:last-child { border-bottom: none; }
+.extraviosNombre { color: var(--text-primary); min-width: 0; }
+.extraviosQr {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.extraviosValor {
+  color: var(--text-primary); font-weight: 500;
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.extraviosNota {
+  font-size: var(--text-xs); color: var(--text-muted); margin: 0;
+  font-style: italic;
+}
+
