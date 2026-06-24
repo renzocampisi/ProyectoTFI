@@ -59,6 +59,66 @@ function formatFecha(iso) {
   return `${d}/${m}/${y}`
 }
 
+// Formato monetario para mostrar valores de herramientas en el bloque
+// "Herramientas extraviadas". Si no hay divisa, asume ARS.
+function formatMoneda(valor, divisa) {
+  const num = Number(valor)
+  if (!Number.isFinite(num) || num <= 0) return '— sin valor cargado'
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: divisa || 'ARS',
+    maximumFractionDigits: 0,
+  }).format(num)
+}
+
+// Bloque de resumen de extravíos para remitos CERRADO/EN_TRANSITO_RETORNO.
+// Cuenta items con extraviado=true o estado_retorno='PERDIDA', suma su
+// herramienta_valor y muestra detalle. Si no hay extravíos, no se renderiza.
+function ExtraviosBlock({ items }) {
+  const extraviados = (items || []).filter(i =>
+    i.extraviado === true || i.estado_retorno === 'PERDIDA'
+  )
+  if (!extraviados.length) return null
+
+  // Asumimos que todas las herramientas comparten divisa (default ARS).
+  // Si hubiera mezcla, mostramos la divisa de la primera con valor cargado.
+  const divisaRef = extraviados.find(i => i.herramienta_valor > 0)?.herramienta_divisa || 'ARS'
+  const totalSinValor = extraviados.filter(i => !(Number(i.herramienta_valor) > 0)).length
+  const totalEstimado = extraviados.reduce((sum, i) => sum + (Number(i.herramienta_valor) || 0), 0)
+
+  return (
+    <div className={styles.extraviosBlock}>
+      <div className={styles.extraviosHeader}>
+        <span className={styles.extraviosTitulo}>
+          ✕ Herramientas extraviadas
+          <span className={styles.extraviosCount}>{extraviados.length}</span>
+        </span>
+        <span className={styles.extraviosTotal}>
+          Total estimado: <strong>{formatMoneda(totalEstimado, divisaRef)}</strong>
+        </span>
+      </div>
+      <ul className={styles.extraviosLista}>
+        {extraviados.map(it => (
+          <li key={it.id} className={styles.extraviosItem}>
+            <span className={styles.extraviosNombre}>
+              {it.herramienta_nombre}
+              {it.herramienta_qr && <span className={styles.extraviosQr}> · {it.herramienta_qr}</span>}
+            </span>
+            <span className={styles.extraviosValor}>
+              {formatMoneda(it.herramienta_valor, it.herramienta_divisa)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {totalSinValor > 0 && (
+        <p className={styles.extraviosNota}>
+          {totalSinValor} herramienta{totalSinValor !== 1 ? 's' : ''} sin valor cargado en su ficha — el total no las incluye.
+        </p>
+      )}
+    </div>
+  )
+}
+
 function imprimirRemito(remito) {
   const el = document.getElementById('remito-print')
   if (!el) return
@@ -797,6 +857,12 @@ export default function RemitosDetailPage() {
                     </tbody>
                   </table>
                 </div>
+                {/* Bloque "Herramientas extraviadas" — solo en remito CERRADO
+                    o EN_TRANSITO_RETORNO. Cuenta items con extraviado=true
+                    o estado_retorno=PERDIDA, suma su valor (h.valor del
+                    catálogo de herramientas) y muestra detalle por item. */}
+                {(remito.estado === 'CERRADO' || remito.estado === 'EN_TRANSITO_RETORNO') &&
+                  <ExtraviosBlock items={remito.items} />}
                 </>
             }
           </div>
