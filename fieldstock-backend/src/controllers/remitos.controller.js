@@ -220,3 +220,10 @@ export async function eliminar(req, res, next) {
     res.json({ ok: true })
   } catch (err) { next(err) }
 }
+
+export async function getSugerenciasPresupuesto(req, res, next) {
+  try {
+    const data = await RemitosService.getSugerenciasPresupuesto(req.params.id)
+    res.json({ ok: true, data })
+  } catch (err) { next(err) }
+}

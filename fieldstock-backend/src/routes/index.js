@@ -115,6 +115,7 @@ router.patch ('/remitos/:id',                                RemitosCtrl.update)
 // "Volver a borrador" sí es solo DUEÑO — deshacer una confirmación es
 // decisión gerencial.
 router.post  ('/remitos/:id/avanzar',                        RemitosCtrl.avanzarEstado)
+router.get   ('/remitos/:id/sugerencias-presupuesto',        RemitosCtrl.getSugerenciasPresupuesto)
 router.post  ('/remitos/:id/volver-borrador',   requireRole(ROLES_ADMIN_LEVEL), RemitosCtrl.volverABorrador)
 router.post  ('/remitos/:id/confirmar-escaneo',              RemitosCtrl.confirmarEscaneo)
 router.post  ('/remitos/:id/reportar-problema',              RemitosCtrl.reportarProblema)

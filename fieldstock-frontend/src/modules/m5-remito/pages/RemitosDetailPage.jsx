@@ -59,6 +59,66 @@ function formatFecha(iso) {
   return `${d}/${m}/${y}`
 }
 
+// Formato monetario para mostrar valores de herramientas en el bloque
+// "Herramientas extraviadas". Si no hay divisa, asume ARS.
+function formatMoneda(valor, divisa) {
+  const num = Number(valor)
+  if (!Number.isFinite(num) || num <= 0) return '— sin valor cargado'
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: divisa || 'ARS',
+    maximumFractionDigits: 0,
+  }).format(num)
+}
+
+// Bloque de resumen de extravíos para remitos CERRADO/EN_TRANSITO_RETORNO.
+// Cuenta items con extraviado=true o estado_retorno='PERDIDA', suma su
+// herramienta_valor y muestra detalle. Si no hay extravíos, no se renderiza.
+function ExtraviosBlock({ items }) {
+  const extraviados = (items || []).filter(i =>
+    i.extraviado === true || i.estado_retorno === 'PERDIDA'
+  )
+  if (!extraviados.length) return null
+
+  // Asumimos que todas las herramientas comparten divisa (default ARS).
+  // Si hubiera mezcla, mostramos la divisa de la primera con valor cargado.
+  const divisaRef = extraviados.find(i => i.herramienta_valor > 0)?.herramienta_divisa || 'ARS'
+  const totalSinValor = extraviados.filter(i => !(Number(i.herramienta_valor) > 0)).length
+  const totalEstimado = extraviados.reduce((sum, i) => sum + (Number(i.herramienta_valor) || 0), 0)
+
+  return (
+    <div className={styles.extraviosBlock}>
+      <div className={styles.extraviosHeader}>
+        <span className={styles.extraviosTitulo}>
+          ✕ Herramientas extraviadas
+          <span className={styles.extraviosCount}>{extraviados.length}</span>
+        </span>
+        <span className={styles.extraviosTotal}>
+          Total estimado: <strong>{formatMoneda(totalEstimado, divisaRef)}</strong>
+        </span>
+      </div>
+      <ul className={styles.extraviosLista}>
+        {extraviados.map(it => (
+          <li key={it.id} className={styles.extraviosItem}>
+            <span className={styles.extraviosNombre}>
+              {it.herramienta_nombre}
+              {it.herramienta_qr && <span className={styles.extraviosQr}> · {it.herramienta_qr}</span>}
+            </span>
+            <span className={styles.extraviosValor}>
+              {formatMoneda(it.herramienta_valor, it.herramienta_divisa)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {totalSinValor > 0 && (
+        <p className={styles.extraviosNota}>
+          {totalSinValor} herramienta{totalSinValor !== 1 ? 's' : ''} sin valor cargado en su ficha — el total no las incluye.
+        </p>
+      )}
+    </div>
+  )
+}
+
 function imprimirRemito(remito) {
   const el = document.getElementById('remito-print')
   if (!el) return
@@ -344,6 +404,10 @@ function MatBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
   const [matLibre,     setMatLibre]     = useState({ descripcion: '', cantidad: '', unidad: 'unidad' })
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState(null)
+  // Sugerencias del presupuesto APROBADO de la obra (si existe).
+  // Map<materialId, cantidadSugerida>. Usado para resaltar el item en la
+  // lista y pre-cargar la cantidad al seleccionarlo.
+  const [sugerencias, setSugerencias] = useState(new Map())
   // Guard síncrono contra doble-click (issue #9). El disabled={saving} llega
   // tarde al DOM (un re-render después), un doble-click rápido lo evade y
   // genera duplicados en remito_materiales. Este ref bloquea sincrónicamente.
@@ -359,16 +423,45 @@ function MatBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const filtrados = useMemo(() =>
-    materiales.filter(m =>
+  // Cargar sugerencias del presupuesto APROBADO. Si no hay (obra sin
+  // presupuesto APROBADO o el endpoint falla), simplemente queda vacio
+  // y el modal funciona igual que antes.
+  useEffect(() => {
+    RemitosService.getSugerenciasPresupuesto(remitoId)
+      .then(data => {
+        const map = new Map()
+        for (const it of (data?.items || [])) {
+          map.set(it.materialId, Number(it.cantidad))
+        }
+        setSugerencias(map)
+      })
+      .catch(() => { /* sin sugerencias, no es un error visible */ })
+  }, [remitoId])
+
+  const filtrados = useMemo(() => {
+    // Orden: primero los sugeridos (en el orden del presupuesto), despues
+    // el resto alfabetico. Asi el usuario ve arriba lo "pre-seleccionado".
+    const matches = materiales.filter(m =>
       m.nombre.toLowerCase().includes(busqueda.toLowerCase())
-    ), [materiales, busqueda])
+    )
+    return matches.sort((a, b) => {
+      const aSug = sugerencias.has(a.id) ? 0 : 1
+      const bSug = sugerencias.has(b.id) ? 0 : 1
+      if (aSug !== bSug) return aSug - bSug
+      return a.nombre.localeCompare(b.nombre)
+    })
+  }, [materiales, busqueda, sugerencias])
 
   const toggleMat = (id) => {
     const next = new Set(seleccionados)
     next.has(id) ? next.delete(id) : next.add(id)
     setSeleccionados(next)
-    if (!cantidades[id]) setCantidades(c => ({ ...c, [id]: '' }))
+    // Si esta sugerido, pre-cargo la cantidad del presupuesto al
+    // seleccionarlo. Si el usuario quiere otra cantidad, la edita normal.
+    if (!cantidades[id]) {
+      const sugerida = sugerencias.get(id)
+      setCantidades(c => ({ ...c, [id]: sugerida != null ? String(sugerida) : '' }))
+    }
   }
 
   const setCantidad = (id, val) => {
@@ -478,13 +571,28 @@ function MatBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
               <ul className={styles.checkLista}>
                 {filtrados.map(m => {
                   const excede = excedeStock(m.id)
+                  const sugerido      = sugerencias.has(m.id)
+                  const cantSugerida  = sugerencias.get(m.id)
                   return (
                     <li key={m.id}
-                      className={`${styles.checkItem} ${seleccionados.has(m.id) ? styles.checkItemSelected : ''}`}>
+                      className={
+                        [
+                          styles.checkItem,
+                          seleccionados.has(m.id) && styles.checkItemSelected,
+                          sugerido && styles.checkItemSugerido,
+                        ].filter(Boolean).join(' ')
+                      }>
                       <input type="checkbox" checked={seleccionados.has(m.id)}
                         onChange={() => toggleMat(m.id)} />
                       <div className={styles.checkInfo} onClick={() => toggleMat(m.id)}>
-                        <span className={styles.checkNombre}>{m.nombre}</span>
+                        <span className={styles.checkNombre}>
+                          {m.nombre}
+                          {sugerido && (
+                            <span className={styles.checkBadge} title="Material del presupuesto aprobado">
+                              Presup. · {cantSugerida} {m.unidad}
+                            </span>
+                          )}
+                        </span>
                         <span className={styles.checkSub}>Stock: {m.stock_actual} {m.unidad}</span>
                       </div>
                       {seleccionados.has(m.id) && (
@@ -906,6 +1014,12 @@ export default function RemitosDetailPage() {
                     </tbody>
                   </table>
                 </div>
+                {/* Bloque "Herramientas extraviadas" — solo en remito CERRADO
+                    o EN_TRANSITO_RETORNO. Cuenta items con extraviado=true
+                    o estado_retorno=PERDIDA, suma su valor (h.valor del
+                    catálogo de herramientas) y muestra detalle por item. */}
+                {(remito.estado === 'CERRADO' || remito.estado === 'EN_TRANSITO_RETORNO') &&
+                  <ExtraviosBlock items={remito.items} />}
                 </>
             }
           </div>

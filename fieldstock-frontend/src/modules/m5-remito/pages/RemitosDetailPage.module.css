@@ -78,8 +78,8 @@
 .buscador { background: var(--color-surface-alt); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
 .buscadorHeader { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); gap: var(--space-3); }
 .buscadorTitle { font-size: var(--text-sm); font-weight: 500; color: var(--text-primary); }
-.btnClose { font-size: var(--text-sm); color: var(--text-muted); padding: 2px 6px; border-radius: var(--radius-sm); transition: color var(--transition-fast); flex-shrink: 0; }
-.btnClose:hover { color: var(--color-danger); }
+.btnClose { font-size: var(--text-base); color: var(--text-muted); width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); background: transparent; border: none; cursor: pointer; transition: color var(--transition-fast), background var(--transition-fast); flex-shrink: 0; }
+.btnClose:hover { color: var(--color-danger); background: var(--color-surface); }
 .buscadorEmpty { padding: var(--space-4); font-size: var(--text-sm); color: var(--text-muted); text-align: center; }
 .buscadorList { max-height: 240px; overflow-y: auto; }
 .buscadorItem { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); gap: var(--space-3); }
@@ -445,6 +445,26 @@
 .checkItem:hover { background: var(--color-surface-alt); }
 .checkItemSelected { background: var(--color-primary-dim) !important; }
 
+/* Material sugerido por el presupuesto APROBADO de la obra: borde
+   amarillo sutil a la izquierda + badge "Presup." junto al nombre. La
+   intencion es ayudar a no olvidar items que ya estan cotizados sin
+   forzar al usuario a usarlos. */
+.checkItemSugerido {
+  border-left: 3px solid var(--color-warning, #f5a623);
+}
+.checkBadge {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(245, 166, 35, 0.15);
+  color: var(--color-warning, #f5a623);
+  border-radius: var(--radius-full, 999px);
+  vertical-align: middle;
+}
+
 .checkItem input[type="checkbox"] {
   width: 16px;
   height: 16px;
@@ -638,4 +658,59 @@
   color: #ed8936;
   border-radius: var(--radius-full, 999px);
   vertical-align: middle;
+}
+
+/* Bloque "Herramientas extraviadas" — al pie del listado de herramientas
+   en remitos CERRADO / EN_TRANSITO_RETORNO. Resume cuántas se perdieron
+   y el total estimado en dinero (suma de h.valor). */
+.extraviosBlock {
+  margin-top: var(--space-4);
+  border: 1px solid rgba(242, 95, 92, 0.35);
+  background: rgba(242, 95, 92, 0.06);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-3);
+}
+.extraviosHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: var(--space-2);
+}
+.extraviosTitulo {
+  font-size: var(--text-sm); font-weight: 600;
+  color: var(--color-danger);
+  display: inline-flex; align-items: center; gap: var(--space-2);
+}
+.extraviosCount {
+  background: var(--color-danger); color: white;
+  font-size: 11px; padding: 1px 7px; border-radius: 999px;
+}
+.extraviosTotal {
+  font-size: var(--text-sm); color: var(--text-secondary);
+}
+.extraviosTotal strong { color: var(--color-danger); font-variant-numeric: tabular-nums; }
+.extraviosLista {
+  margin: 0; padding: 0; list-style: none;
+  display: flex; flex-direction: column; gap: var(--space-1);
+  border-top: 1px dashed rgba(242, 95, 92, 0.3);
+  padding-top: var(--space-2);
+}
+.extraviosItem {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: var(--text-sm); padding: 4px 0;
+  border-bottom: 1px dashed rgba(242, 95, 92, 0.15);
+  gap: var(--space-3);
+}
+.extraviosItem:last-child { border-bottom: none; }
+.extraviosNombre { color: var(--text-primary); min-width: 0; }
+.extraviosQr {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.extraviosValor {
+  color: var(--text-primary); font-weight: 500;
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.extraviosNota {
+  font-size: var(--text-xs); color: var(--text-muted); margin: 0;
+  font-style: italic;
 }

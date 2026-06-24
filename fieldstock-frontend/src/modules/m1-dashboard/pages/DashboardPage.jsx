@@ -140,40 +140,47 @@ export default function DashboardPage() {
         </div>
 
         {/* Materiales con stock bajo */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <span className={styles.cardTitle}><LuPackage size={14} /> Materiales con stock bajo</span>
-            <Link to="/materiales" className={styles.cardLink}>Ver catálogo →</Link>
+        {/* Cuando no hay materiales bajos, mostramos solo el titulo en
+            modo compacto (sin rectangulo del card) — el contenedor sigue
+            ocupando su slot en el grid pero queda visualmente discreto.
+            Si aparece alguno, vuelve al card completo automaticamente. */}
+        {materialesStockBajo.length === 0 ? (
+          <div className={styles.cardCompact}>
+            <span className={styles.cardTitleMuted}>
+              <LuPackage size={14} /> Materiales con stock bajo
+            </span>
           </div>
-          {materialesStockBajo.length === 0
-            ? <div className={styles.empty}>Todo el stock está por encima del mínimo.</div>
-            : (
-              <div className={styles.list}>
-                {materialesStockBajo.map(m => {
-                  const stock = Number(m.stock_actual)
-                  const min   = Number(m.stock_minimo)
-                  // Severidad: si el stock está en 0 o por debajo de la mitad
-                  // del mínimo, lo pintamos en rojo (critico); si solo está
-                  // por debajo del mínimo, en amarillo.
-                  const critico = stock === 0 || stock <= min / 2
-                  return (
-                    <Link key={m.id} to="/materiales" className={styles.listItem}>
-                      <div className={styles.listMain}>
-                        <span className={styles.listTitle}>{m.nombre}</span>
-                        <span className={styles.listSub}>
-                          {m.marca ? `${m.marca} · ` : ''}mínimo: {min} {m.unidad}
-                        </span>
-                      </div>
-                      <span className={`${styles.listMeta} ${critico ? styles.severidadCritica : styles.severidadBaja}`}>
-                        {stock} {m.unidad}
+        ) : (
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <span className={styles.cardTitle}><LuPackage size={14} /> Materiales con stock bajo</span>
+              <Link to="/materiales" className={styles.cardLink}>Ver catálogo →</Link>
+            </div>
+            <div className={styles.list}>
+              {materialesStockBajo.map(m => {
+                const stock = Number(m.stock_actual)
+                const min   = Number(m.stock_minimo)
+                // Severidad: si el stock está en 0 o por debajo de la mitad
+                // del mínimo, lo pintamos en rojo (critico); si solo está
+                // por debajo del mínimo, en amarillo.
+                const critico = stock === 0 || stock <= min / 2
+                return (
+                  <Link key={m.id} to="/materiales" className={styles.listItem}>
+                    <div className={styles.listMain}>
+                      <span className={styles.listTitle}>{m.nombre}</span>
+                      <span className={styles.listSub}>
+                        {m.marca ? `${m.marca} · ` : ''}mínimo: {min} {m.unidad}
                       </span>
-                    </Link>
-                  )
-                })}
-              </div>
-            )
-          }
-        </div>
+                    </div>
+                    <span className={`${styles.listMeta} ${critico ? styles.severidadCritica : styles.severidadBaja}`}>
+                      {stock} {m.unidad}
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
       </div>
 
