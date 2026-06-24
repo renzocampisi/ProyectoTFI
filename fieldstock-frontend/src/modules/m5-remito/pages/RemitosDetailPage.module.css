@@ -445,6 +445,26 @@
 .checkItem:hover { background: var(--color-surface-alt); }
 .checkItemSelected { background: var(--color-primary-dim) !important; }
 
+/* Material sugerido por el presupuesto APROBADO de la obra: borde
+   amarillo sutil a la izquierda + badge "Presup." junto al nombre. La
+   intencion es ayudar a no olvidar items que ya estan cotizados sin
+   forzar al usuario a usarlos. */
+.checkItemSugerido {
+  border-left: 3px solid var(--color-warning, #f5a623);
+}
+.checkBadge {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(245, 166, 35, 0.15);
+  color: var(--color-warning, #f5a623);
+  border-radius: var(--radius-full, 999px);
+  vertical-align: middle;
+}
+
 .checkItem input[type="checkbox"] {
   width: 16px;
   height: 16px;

@@ -923,3 +923,68 @@ export async function confirmarEscaneo(id, body = {}) {
   const data = await avanzarEstado(id, { observacionRetorno })
   return { data, accion }
 }
+
+// ── Sugerencias de items del presupuesto APROBADO para esta obra ──
+// Si la obra del remito tiene un presupuesto APROBADO, devuelve sus insumos
+// (material_id + cantidad). Sirve al frontend para marcar visualmente esos
+// materiales en el selector y pre-cargar la cantidad sugerida.
+//
+// Resolucion de la obra: la tabla `remitos` guarda la obra como texto +
+// cliente_id (no como FK a `obras`). Hacemos match por nombre dentro del
+// mismo cliente — es razonablemente unico en la practica.
+//
+// Si no hay presupuesto APROBADO (o no se puede resolver la obra), devuelve
+// { items: [] } sin error — para el caller es "no hay sugerencias".
+export async function getSugerenciasPresupuesto(remitoId) {
+  // 1. Datos del remito (obra + cliente_id)
+  const { data: remito, error: errR } = await supabase
+    .from('remitos')
+    .select('obra, cliente_id, estado')
+    .eq('id', remitoId)
+    .maybeSingle()
+  if (errR) throw errR
+  if (!remito) return { items: [] }
+
+  // Solo tiene sentido sugerir mientras se pueden editar items (BORRADOR).
+  if (remito.estado !== 'BORRADOR') return { items: [] }
+  if (!remito.obra || !remito.cliente_id) return { items: [] }
+
+  // 2. Buscar la obra por nombre + cliente_id
+  const { data: obra, error: errO } = await supabase
+    .from('obras')
+    .select('id')
+    .eq('nombre', remito.obra)
+    .eq('cliente_id', remito.cliente_id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (errO) throw errO
+  if (!obra) return { items: [] }
+
+  // 3. Ultimo presupuesto APROBADO de esa obra
+  const { data: presupuesto, error: errP } = await supabase
+    .from('presupuestos')
+    .select('id')
+    .eq('obra_id', obra.id)
+    .eq('estado', 'APROBADO')
+    .order('fecha_aprobacion', { ascending: false, nullsLast: true })
+    .limit(1)
+    .maybeSingle()
+  if (errP) throw errP
+  if (!presupuesto) return { items: [] }
+
+  // 4. Insumos del presupuesto
+  const { data: insumos, error: errI } = await supabase
+    .from('presupuesto_insumos')
+    .select('material_id, cantidad')
+    .eq('presupuesto_id', presupuesto.id)
+  if (errI) throw errI
+
+  return {
+    presupuestoId: presupuesto.id,
+    items: (insumos || []).map(i => ({
+      materialId: i.material_id,
+      cantidad:   Number(i.cantidad),
+    })),
+  }
+}

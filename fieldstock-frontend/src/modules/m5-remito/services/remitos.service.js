@@ -40,4 +40,10 @@ export const RemitosService = {
   addMaterial:           (id, body)         => api.post(`/remitos/${id}/materiales`, body),
   removeMaterial:        (id, matItemId)    => api.delete(`/remitos/${id}/materiales/${matItemId}`),
   updateMaterialRetorno: (id, matItemId, body) => api.patch(`/remitos/${id}/materiales/${matItemId}/retorno`, body),
+
+  // Sugerencias de items para un remito en BORRADOR: devuelve los insumos
+  // del ultimo presupuesto APROBADO de la obra del remito. Si no hay,
+  // devuelve { items: [] }. Sirve para resaltar materiales en el modal
+  // selector y pre-cargar la cantidad sugerida.
+  getSugerenciasPresupuesto: (id) => api.get(`/remitos/${id}/sugerencias-presupuesto`),
 }
