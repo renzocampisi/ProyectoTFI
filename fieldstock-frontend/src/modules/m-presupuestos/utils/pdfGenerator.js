@@ -178,8 +178,13 @@ function totales(doc, presupuesto, startY) {
   let y = startY + 5
   for (const [label, value, bold] of lines) {
     if (bold) {
+      // Padding extra antes del bold + linea separadora bien arriba del
+      // texto, para que no quede tachando el numero del total (bug del 25/06:
+      // con fontSize 12 bold el texto ocupa ~4-5mm hacia arriba desde y,
+      // antes la linea en y-2 caia adentro del texto y lo tapaba).
+      y += 3
       doc.setDrawColor(...COLOR_TEXT).setLineWidth(0.6)
-      doc.line(xLabel, y - 2, xVal, y - 2)
+      doc.line(xLabel, y - 6, xVal, y - 6)
       doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(...COLOR_PRIMARY)
     } else {
       doc.setFontSize(10).setFont('helvetica', 'normal').setTextColor(...COLOR_TEXT)

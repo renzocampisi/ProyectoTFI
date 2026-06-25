@@ -52,12 +52,44 @@
 
 /* ── Modal ── */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: grid; place-items: center; z-index: 200; padding: var(--space-4); }
-.modal { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-6); max-width: 460px; width: 100%; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: var(--space-4); max-height: 90vh; overflow-y: auto; }
-.modalHeader { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+/* Modal: layout en grid de 3 filas (header sticky, body scrollable, footer
+   sticky). Antes era un solo flex con overflow-y auto en el contenedor,
+   lo que hacia que el header y los botones (Cancelar/Guardar) se fueran
+   fuera de vista al scrollear con 10 campos (Proveedores) — bug del 25/06. */
+.modal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  max-width: 460px; width: 100%;
+  box-shadow: var(--shadow-lg);
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  max-height: 90dvh;
+  overflow: hidden;
+}
+.modalHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-5) var(--space-6) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
 .modalTitle  { font-size: var(--text-lg); font-weight: 600; color: var(--text-primary); }
-.btnClose    { font-size: var(--text-base); color: var(--text-muted); padding: 2px 6px; border-radius: var(--radius-sm); transition: color var(--transition-fast); }
-.btnClose:hover { color: var(--color-danger); }
-.fields    { display: flex; flex-direction: column; gap: var(--space-3); }
+/* Area tactil 44x44 (WCAG) para que la X sea facil de tocar en mobile —
+   antes con padding 2px 6px medía ~16x20 y se acertaba al 3er intento. */
+.btnClose {
+  font-size: var(--text-lg); color: var(--text-muted);
+  width: 44px; height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  background: transparent; border: none; cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+.btnClose:hover { color: var(--color-danger); background: var(--color-surface-alt); }
+.fields {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  overflow-y: auto;
+}
 .field     { display: flex; flex-direction: column; gap: var(--space-2); }
 .label     { font-size: var(--text-sm); font-weight: 500; color: var(--text-secondary); }
 .req       { color: var(--color-danger); margin-left: 2px; }
@@ -65,9 +97,21 @@
 .input     { background: var(--color-surface-alt); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); color: var(--text-primary); font-size: var(--text-sm); outline: none; width: 100%; transition: border-color var(--transition-fast); }
 .input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-dim); }
 .input::placeholder { color: var(--text-muted); }
-.error       { font-size: var(--text-sm); color: var(--color-danger); background: rgba(242,95,92,0.1); border: 1px solid rgba(242,95,92,0.3); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); }
+.error {
+  font-size: var(--text-sm); color: var(--color-danger);
+  background: rgba(242,95,92,0.1);
+  border: 1px solid rgba(242,95,92,0.3);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  margin: 0 var(--space-6) var(--space-2);
+}
 .confirmText { font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.6; }
-.modalActions { display: flex; gap: var(--space-3); justify-content: flex-end; flex-shrink: 0; }
+.modalActions {
+  display: flex; gap: var(--space-3); justify-content: flex-end;
+  padding: var(--space-3) var(--space-6) var(--space-5);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
 
 /* ── CUIT / Teléfono ── */
 .cuitCell { display: inline-flex; align-items: center; gap: var(--space-2); font-family: var(--font-mono); font-size: var(--text-xs); cursor: pointer; user-select: none; }
@@ -199,9 +243,16 @@
   /* Valores alineados a la derecha */
   .celda { text-align: right; }
 
-  /* Modal full width en mobile */
-  .modal { max-width: 100%; padding: var(--space-4); }
-  .modalActions { flex-direction: column-reverse; gap: var(--space-2); }
+  /* Modal full width en mobile. Padding interno se controla por
+     subseccion (header/fields/actions) — no por el contenedor */
+  .modal { max-width: 100%; }
+  .modalHeader { padding: var(--space-3) var(--space-4) var(--space-2); }
+  .fields { padding: var(--space-3) var(--space-4); }
+  .modalActions {
+    flex-direction: column-reverse; gap: var(--space-2);
+    padding: var(--space-3) var(--space-4) var(--space-4);
+  }
+  .error { margin: 0 var(--space-4) var(--space-2); }
   .modalActions .btnPrimary,
   .modalActions .btnGhost { width: 100%; text-align: center; }
 
