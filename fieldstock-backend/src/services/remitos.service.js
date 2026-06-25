@@ -537,12 +537,54 @@ export async function avanzarEstado(id, body = {}) {
     }
 
     // Descontar stock material por material (no es batch porque cada uno
-    // requiere validar stock vía updateStock)
+    // requiere validar stock vía updateStock).
     const { data: matsConId } = await supabase
       .from('remito_materiales')
       .select('material_id, cantidad_egreso')
       .eq('remito_id', id)
       .not('material_id', 'is', null)
+
+    // PASADA PREVIA: chequear TODOS los stocks antes de descontar ninguno.
+    // Antes solo se cortaba en el primer faltante y el mensaje generico
+    // ("Stock insuficiente. Disponible: 495") no decia que material era.
+    // Ahora si hay >= 1 faltante, devolvemos lista completa con detalle
+    // (nombre, pedido, disponible, faltante) para que el usuario sepa
+    // exactamente que tiene que comprar/ajustar.
+    if (matsConId?.length) {
+      const ids = matsConId.map(m => m.material_id)
+      const { data: cat } = await supabase
+        .from('materiales').select('id, nombre, unidad, stock_actual').in('id', ids)
+      const byId = Object.fromEntries((cat || []).map(m => [m.id, m]))
+      const faltantes = []
+      for (const m of matsConId) {
+        const info = byId[m.material_id]
+        if (!info) continue
+        const pedido = Number(m.cantidad_egreso)
+        const disp   = Number(info.stock_actual)
+        if (pedido > disp) {
+          faltantes.push({
+            materialId: m.material_id,
+            nombre:     info.nombre,
+            unidad:     info.unidad,
+            pedido,
+            disponible: disp,
+            faltante:   pedido - disp,
+          })
+        }
+      }
+      if (faltantes.length > 0) {
+        const lines = faltantes.map(f =>
+          `· ${f.nombre}: pediste ${f.pedido} ${f.unidad}, hay ${f.disponible} ` +
+          `(faltan ${f.faltante})`
+        ).join('\n')
+        const err = new Error(
+          `No alcanza el stock de ${faltantes.length} material(es):\n${lines}`
+        )
+        err.status = 400
+        err.data = { faltantes }
+        throw err
+      }
+    }
 
     for (const m of (matsConId ?? [])) {
       await updateStock(m.material_id, m.cantidad_egreso, 'descontar')

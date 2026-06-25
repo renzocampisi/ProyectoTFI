@@ -203,7 +203,7 @@ export async function remove(id) {
  */
 export async function updateStock(id, cantidad, operacion = 'descontar') {
   const { data: mat, error: errM } = await supabase
-    .from('materiales').select('stock_actual').eq('id', id).single()
+    .from('materiales').select('nombre, unidad, stock_actual').eq('id', id).single()
   if (errM) throw errM
 
   const nuevoStock = operacion === 'descontar'
@@ -211,8 +211,22 @@ export async function updateStock(id, cantidad, operacion = 'descontar') {
     : mat.stock_actual + cantidad
 
   if (nuevoStock < 0) {
-    const err = new Error(`Stock insuficiente. Disponible: ${mat.stock_actual}`)
-    err.status = 400; throw err
+    // Mensaje con nombre + unidad para que el usuario sepa exactamente
+    // que material falto. Antes decia "Stock insuficiente. Disponible: 495"
+    // sin contexto y el usuario tenia que adivinar de que material.
+    const err = new Error(
+      `Stock insuficiente de "${mat.nombre}": pediste ${cantidad} ${mat.unidad}, ` +
+      `hay ${mat.stock_actual} ${mat.unidad}.`
+    )
+    err.status = 400
+    err.data = {
+      materialId: id,
+      nombre:     mat.nombre,
+      unidad:     mat.unidad,
+      pedido:     Number(cantidad),
+      disponible: Number(mat.stock_actual),
+    }
+    throw err
   }
 
   const { data, error } = await supabase
