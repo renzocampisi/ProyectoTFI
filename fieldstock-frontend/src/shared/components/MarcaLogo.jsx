@@ -31,12 +31,30 @@ export function marcaSlug(marca) {
     .replace(/(^-|-$)/g, '')                           // trim hyphens
 }
 
+// Orden de extensiones a probar si la primera no existe. Asi el usuario
+// puede cargar logos en cualquier formato sin tener que especificarlo.
+const EXT_FALLBACK = ['png', 'svg', 'jpg']
+
 export default function MarcaLogo({ marca, size = 64, ext = 'png', className = '' }) {
+  // index de la extension actualmente intentada en EXT_FALLBACK.
+  // Empieza en la que el caller paso por prop (default 'png').
+  const startIdx = Math.max(0, EXT_FALLBACK.indexOf(ext))
+  const [extIdx, setExtIdx] = useState(startIdx)
   const [hidden, setHidden] = useState(false)
   if (!marca || hidden) return null
   const slug = marcaSlug(marca)
   if (!slug) return null
 
+  const onImgError = () => {
+    // Si quedan extensiones por probar, paso a la siguiente. Si no, oculto.
+    if (extIdx + 1 < EXT_FALLBACK.length) {
+      setExtIdx(extIdx + 1)
+    } else {
+      setHidden(true)
+    }
+  }
+
+  const currentExt = EXT_FALLBACK[extIdx] || 'png'
   const wrapperStyle = {
     width: size,
     height: size,
@@ -57,9 +75,9 @@ export default function MarcaLogo({ marca, size = 64, ext = 'png', className = '
   }
   return (
     <div className={className} style={wrapperStyle} title={marca}>
-      <img src={`/marcas/${slug}.${ext}`} alt={marca}
+      <img src={`/marcas/${slug}.${currentExt}`} alt={marca}
         style={imgStyle}
-        onError={() => setHidden(true)} />
+        onError={onImgError} />
     </div>
   )
 }
