@@ -19,7 +19,18 @@ export const CATEGORIA_INFO = {
   OTROS:          { label: 'Otros',          icon: '📋' },
 }
 
+// Todas las categorías validas (DB constraint).
 export const CATEGORIAS = Object.keys(CATEGORIA_INFO)
+
+// Categoría reservada para el bloque "Mano de obra" — se carga aparte
+// con campos especificos (rubro, cantidad, costo unitario) sin unidad.
+export const CATEGORIA_MANO_OBRA = 'MANO_OBRA'
+
+// Categorías disponibles para el bloque "Costos extras" (todas menos
+// mano de obra). El form de costos extras usa esta lista para popular
+// el select — mano de obra NO aparece como opción porque tiene su
+// propio bloque dedicado arriba.
+export const CATEGORIAS_EXTRA = CATEGORIAS.filter(c => c !== CATEGORIA_MANO_OBRA)
 
 // Helpers de formato. Mismos patrones que m-compras/constants.js.
 export function formatMoney(n) {

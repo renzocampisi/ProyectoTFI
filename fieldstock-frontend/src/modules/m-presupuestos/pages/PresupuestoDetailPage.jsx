@@ -24,7 +24,8 @@ import {
 import { useAuth } from '@shared/hooks/useAuth'
 import { esDueño } from '@shared/constants/roles'
 import {
-  CATEGORIA_INFO, formatMoney, formatCantidad, formatFechaHora,
+  CATEGORIA_INFO, CATEGORIA_MANO_OBRA,
+  formatMoney, formatCantidad, formatFechaHora,
 } from '../constants'
 import styles from './PresupuestoDetailPage.module.css'
 
@@ -237,45 +238,89 @@ export default function PresupuestoDetailPage() {
       </section>
 
       {/* Costos extra */}
-      <section className={styles.card}>
-        <h2 className={styles.cardTitle}>
-          Costos extra
-          <span className={styles.cardCount}>{presupuesto.costos?.length ?? 0}</span>
-        </h2>
-        {(!presupuesto.costos?.length) ? (
-          <div className={styles.empty}>Sin costos extra cargados.</div>
-        ) : (
-          Object.entries(costosPorCategoria).map(([cat, items]) => (
-            <div key={cat} className={styles.categoriaBlock}>
-              <h3 className={styles.categoriaTitle}>
-                {CATEGORIA_INFO[cat]?.icon} {CATEGORIA_INFO[cat]?.label || cat}
-              </h3>
-              <div className={styles.tableWrapper}>
-                <table className={styles.table}>
-                  <thead><tr>
-                    <th>Descripción</th>
-                    <th className={styles.tdNum}>Cantidad</th>
-                    <th>Unidad</th>
-                    <th className={styles.tdNum}>Costo unit.</th>
-                    <th className={styles.tdNum}>Subtotal</th>
-                  </tr></thead>
-                  <tbody>
-                    {items.map(c => (
-                      <tr key={c.id}>
-                        <td>{c.descripcion}</td>
-                        <td className={styles.tdNum}>{formatCantidad(c.cantidad)}</td>
-                        <td>{c.unidad || '—'}</td>
-                        <td className={styles.tdNum}>{formatMoney(c.costo_unitario)}</td>
-                        <td className={styles.tdNum}>{formatMoney(c.subtotal)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))
-        )}
-      </section>
+      {/* Mano de obra (bloque separado, sin columna unidad) y
+          Costos extras (todas las demas categorias, con unidad).
+          Antes era un solo "Costos extra" que mezclaba todo. */}
+      {(() => {
+        const manoObra = costosPorCategoria[CATEGORIA_MANO_OBRA] || []
+        const costosExtraEntries = Object.entries(costosPorCategoria)
+          .filter(([cat]) => cat !== CATEGORIA_MANO_OBRA)
+        const totalExtras = costosExtraEntries.reduce((s, [, it]) => s + it.length, 0)
+        return (
+          <>
+            <section className={styles.card}>
+              <h2 className={styles.cardTitle}>
+                {CATEGORIA_INFO[CATEGORIA_MANO_OBRA]?.icon} Mano de obra
+                <span className={styles.cardCount}>{manoObra.length}</span>
+              </h2>
+              {manoObra.length === 0 ? (
+                <div className={styles.empty}>Sin items de mano de obra.</div>
+              ) : (
+                <div className={styles.tableWrapper}>
+                  <table className={styles.table}>
+                    <thead><tr>
+                      <th>Rubro</th>
+                      <th className={styles.tdNum}>Cantidad</th>
+                      <th className={styles.tdNum}>Costo unit.</th>
+                      <th className={styles.tdNum}>Subtotal</th>
+                    </tr></thead>
+                    <tbody>
+                      {manoObra.map(c => (
+                        <tr key={c.id}>
+                          <td>{c.descripcion}</td>
+                          <td className={styles.tdNum}>{formatCantidad(c.cantidad)}</td>
+                          <td className={styles.tdNum}>{formatMoney(c.costo_unitario)}</td>
+                          <td className={styles.tdNum}>{formatMoney(c.subtotal)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            <section className={styles.card}>
+              <h2 className={styles.cardTitle}>
+                Costos extra
+                <span className={styles.cardCount}>{totalExtras}</span>
+              </h2>
+              {totalExtras === 0 ? (
+                <div className={styles.empty}>Sin costos extra cargados.</div>
+              ) : (
+                costosExtraEntries.map(([cat, items]) => (
+                  <div key={cat} className={styles.categoriaBlock}>
+                    <h3 className={styles.categoriaTitle}>
+                      {CATEGORIA_INFO[cat]?.icon} {CATEGORIA_INFO[cat]?.label || cat}
+                    </h3>
+                    <div className={styles.tableWrapper}>
+                      <table className={styles.table}>
+                        <thead><tr>
+                          <th>Descripción</th>
+                          <th className={styles.tdNum}>Cantidad</th>
+                          <th>Unidad</th>
+                          <th className={styles.tdNum}>Costo unit.</th>
+                          <th className={styles.tdNum}>Subtotal</th>
+                        </tr></thead>
+                        <tbody>
+                          {items.map(c => (
+                            <tr key={c.id}>
+                              <td>{c.descripcion}</td>
+                              <td className={styles.tdNum}>{formatCantidad(c.cantidad)}</td>
+                              <td>{c.unidad || '—'}</td>
+                              <td className={styles.tdNum}>{formatMoney(c.costo_unitario)}</td>
+                              <td className={styles.tdNum}>{formatMoney(c.subtotal)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))
+              )}
+            </section>
+          </>
+        )
+      })()}
 
       {/* Totales */}
       <section className={styles.card}>
