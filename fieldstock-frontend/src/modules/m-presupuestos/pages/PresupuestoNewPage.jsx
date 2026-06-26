@@ -25,7 +25,9 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { PresupuestosService, ConfigService } from '../services/presupuestos.service'
 import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
 import { ObrasService } from '@modules/m4-obra/services/obras.service'
-import { CATEGORIAS, CATEGORIA_INFO, formatMoney } from '../constants'
+import {
+  CATEGORIAS, CATEGORIAS_EXTRA, CATEGORIA_MANO_OBRA, CATEGORIA_INFO, formatMoney,
+} from '../constants'
 import styles from './PresupuestoNewPage.module.css'
 
 const UNIDADES_COSTO = ['horas', 'días', 'km', 'global', 'unidad', 'mes']
@@ -305,8 +307,61 @@ export default function PresupuestoNewPage() {
           </div>
         </section>
 
-        {/* ── 5 secciones de costos ────────────────────────── */}
-        {CATEGORIAS.map(cat => {
+        {/* ── Mano de obra (bloque dedicado, sin unidad) ───────
+            Antes era una categoria mas del loop de costos extras, lo que
+            forzaba al usuario a elegir "unidad" (mes/km/...) que no
+            tiene sentido para personal. Ahora es su propio bloque con
+            campos solo: rubro / cantidad / costo unitario. */}
+        {(() => {
+          const cat  = CATEGORIA_MANO_OBRA
+          const rows = costos[cat]
+          const info = CATEGORIA_INFO[cat]
+          return (
+            <section className={styles.card}>
+              <div className={styles.cardHeaderRow}>
+                <h2 className={styles.cardTitle}>
+                  {info.icon} {info.label}
+                  <span className={styles.opcional}>(opcional)</span>
+                </h2>
+                <button type="button" className={styles.btnLink} onClick={() => addCosto(cat)}>+ Agregar</button>
+              </div>
+              {rows.length === 0 ? (
+                <p className={styles.emptyCat}>Sin items. Ej: 1 Electricista $20.000 · 3 Ayudantes $350.000.</p>
+              ) : (
+                <div className={styles.itemsList}>
+                  {rows.map((c, idx) => (
+                    <div key={c.uid} className={styles.itemRow}>
+                      <div className={styles.itemNum}>{idx + 1}</div>
+                      <div className={styles.itemFields}>
+                        <input type="text" placeholder="Rubro (ej. Electricista, Ayudante)"
+                          className={styles.input}
+                          value={c.descripcion}
+                          onChange={e => updateCosto(cat, c.uid, 'descripcion', e.target.value)} />
+                        <input type="number" min="0" step="1" placeholder="Cant."
+                          className={styles.inputNum}
+                          value={c.cantidad}
+                          onChange={e => updateCosto(cat, c.uid, 'cantidad', e.target.value)} />
+                        <input type="number" min="0" step="0.01" placeholder="Costo unit."
+                          className={styles.inputNum}
+                          value={c.costo}
+                          onChange={e => updateCosto(cat, c.uid, 'costo', e.target.value)} />
+                        <div className={styles.subtotal}>
+                          {formatMoney((Number(c.cantidad) || 0) * (Number(c.costo) || 0))}
+                        </div>
+                        <button type="button" className={styles.btnRemove}
+                          onClick={() => removeCosto(cat, c.uid)} title="Quitar">🗑</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )
+        })()}
+
+        {/* ── Costos extras (las 4 categorias restantes: viaticos,
+            seguros, personal extra, otros) ────────────────────── */}
+        {CATEGORIAS_EXTRA.map(cat => {
           const rows = costos[cat]
           const info = CATEGORIA_INFO[cat]
           return (
@@ -326,7 +381,7 @@ export default function PresupuestoNewPage() {
                     <div key={c.uid} className={styles.itemRow}>
                       <div className={styles.itemNum}>{idx + 1}</div>
                       <div className={styles.itemFields}>
-                        <input type="text" placeholder="Descripción (ej. Electricista a domicilio)"
+                        <input type="text" placeholder="Descripción"
                           className={styles.input}
                           value={c.descripcion}
                           onChange={e => updateCosto(cat, c.uid, 'descripcion', e.target.value)} />
