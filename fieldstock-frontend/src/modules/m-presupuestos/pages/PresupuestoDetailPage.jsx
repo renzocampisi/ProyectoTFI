@@ -17,6 +17,7 @@ import { LuDownload, LuPrinter, LuMail } from 'react-icons/lu'
 import { usePresupuesto } from '../hooks/usePresupuestos'
 import { PresupuestosService } from '../services/presupuestos.service'
 import EstadoPresupuestoBadge from '../components/EstadoPresupuestoBadge'
+import ConfigurarRemitoModal from '../components/ConfigurarRemitoModal'
 import {
   descargarPdfPresupuesto,
   imprimirPdfPresupuesto,
@@ -47,6 +48,9 @@ export default function PresupuestoDetailPage() {
   const [accionando,   setAccionando]   = useState(false)
   const [errAccion,    setErrAccion]    = useState(null)
   const [motivoRechazo, setMotivoRechazo] = useState('')
+  // remito generado por aprobar() — si la RPC creo uno, abrimos el
+  // modal de "configurar transporte y responsable" sobre ese remito.
+  const [remitoConfigId, setRemitoConfigId] = useState(null)
 
   const puedeAprobar = esDueño(profile?.role)
 
@@ -64,7 +68,25 @@ export default function PresupuestoDetailPage() {
 
   const handleEnviar    = () => ejecutar(() => PresupuestosService.enviarAprobacion(id))
   const handleVolver    = () => ejecutar(() => PresupuestosService.volverABorrador(id))
-  const handleAprobar   = () => ejecutar(() => PresupuestosService.aprobar(id))
+  // aprobar(): el response incluye `remitoGeneradoId` si la RPC creo
+  // un remito (puede ser null si el presupuesto no tenia insumos).
+  // Cuando hay remito, abrimos el modal post-aprobacion para asignar
+  // transporte + responsable. Si no, flujo normal (refetch y cerrar).
+  const handleAprobar = async () => {
+    setAccionando(true); setErrAccion(null)
+    try {
+      const res = await PresupuestosService.aprobar(id)
+      await refetch()
+      cerrarModal()
+      if (res?.remitoGeneradoId) {
+        setRemitoConfigId(res.remitoGeneradoId)
+      }
+    } catch (err) {
+      setErrAccion(err.message)
+    } finally {
+      setAccionando(false)
+    }
+  }
   const handleRechazar  = () => ejecutar(() => PresupuestosService.rechazar(id, motivoRechazo))
   const handleEliminar  = () => ejecutar(
     () => PresupuestosService.remove(id),
@@ -517,6 +539,15 @@ export default function PresupuestoDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal post-aprobacion: configurar transporte + responsable
+          del remito generado por la RPC. Se abre solo si aprobar()
+          devolvio un remitoGeneradoId no nulo. */}
+      {remitoConfigId && (
+        <ConfigurarRemitoModal
+          remitoId={remitoConfigId}
+          onClose={() => setRemitoConfigId(null)} />
       )}
     </div>
   )

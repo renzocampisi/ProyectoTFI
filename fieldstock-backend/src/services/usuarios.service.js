@@ -205,3 +205,38 @@ export async function updateMe(id, { nombre, telefono }) {
   if (error) throw error
   return data
 }
+
+// ── Encargados con flag de disponibilidad ──────────────────────
+// Devuelve users con rol ENCARGADO / DUEÑO / ADMIN activos (en empresas
+// chicas un mismo user cumple varios roles operativos; OPERARIO queda
+// excluido). Cada uno con `ocupado: true` si es responsable de algun
+// remito en estado distinto a CERRADO — indicador de "tiene un envio
+// en curso", proxy de la idea "obra activa asignada" hasta que el
+// schema soporte la relacion obra↔encargado directamente.
+//
+// Usado por el modal post-aprobacion de presupuesto: lista todos, marca
+// los ocupados con badge pero NO bloquea la seleccion (decision de UX
+// para no frustrar casos legitimos como "fulano va con dos remitos a
+// la misma obra").
+export async function getEncargadosDisponibles() {
+  const { data: candidatos, error: errC } = await supabase
+    .from('usuarios')
+    .select('id, nombre, email, role, telefono')
+    .eq('activo', true)
+    .in('role', ['ENCARGADO', 'DUEÑO', 'ADMIN'])
+    .order('nombre')
+  if (errC) throw errC
+
+  const { data: ocupados, error: errO } = await supabase
+    .from('remitos')
+    .select('responsable_user_id')
+    .neq('estado', 'CERRADO')
+    .not('responsable_user_id', 'is', null)
+  if (errO) throw errO
+
+  const idsOcupados = new Set((ocupados || []).map(r => r.responsable_user_id))
+  return (candidatos || []).map(u => ({
+    ...u,
+    ocupado: idsOcupados.has(u.id),
+  }))
+}

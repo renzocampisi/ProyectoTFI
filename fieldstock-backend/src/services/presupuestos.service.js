@@ -388,7 +388,10 @@ export async function volverABorrador(id) {
 // Adicional: la RPC NO crea un remito si el presupuesto no tiene insumos
 // (evita remitos vacíos que confunden al operador — issue 2.4).
 export async function aprobar(id, userId) {
-  const { error: errRpc } = await supabase.rpc('aprobar_presupuesto', {
+  // La RPC devuelve el uuid del remito generado (o NULL si el presupuesto
+  // no tenia insumos). Lo usamos para que el frontend pueda abrir el
+  // modal "configurar transporte y responsable" sobre ese remito.
+  const { data: remitoId, error: errRpc } = await supabase.rpc('aprobar_presupuesto', {
     p_id:      id,
     p_user_id: userId || null,
   })
@@ -398,8 +401,10 @@ export async function aprobar(id, userId) {
     throw bad(errRpc.message, errRpc.code === 'P0002' ? 404 : 400)
   }
 
-  // Re-leer el presupuesto ya actualizado por la RPC.
-  return await getCabecera(id)
+  // Re-leer el presupuesto + adjuntar el remitoGeneradoId (puede ser null
+  // si el presupuesto no tenia insumos — no se genera remito en ese caso).
+  const cabecera = await getCabecera(id)
+  return { ...cabecera, remitoGeneradoId: remitoId || null }
 }
 
 // EN_APROBACION → RECHAZADO

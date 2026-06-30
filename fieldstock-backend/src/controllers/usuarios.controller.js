@@ -82,3 +82,10 @@ export async function desactivar(req, res, next) {
     res.json({ ok: true })
   } catch (err) { next(err) }
 }
+
+export async function getEncargadosDisponibles(req, res, next) {
+  try {
+    const data = await UsuariosService.getEncargadosDisponibles()
+    res.json({ ok: true, data })
+  } catch (err) { next(err) }
+}
