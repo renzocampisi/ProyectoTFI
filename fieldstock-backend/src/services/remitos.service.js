@@ -150,11 +150,13 @@ export async function update(id, body) {
 
   // Solo se mandan al UPDATE los campos que vinieron en el body (undefined-safe)
   const campos = {}
-  if (body.obra              !== undefined) campos.obra               = body.obra
-  if (body.responsable       !== undefined) campos.responsable        = body.responsable
-  if (body.empresaTransporte !== undefined) campos.empresa_transporte = body.empresaTransporte || null
-  if (body.fechaEgreso       !== undefined) campos.fecha_egreso       = body.fechaEgreso
-  if (body.observacion       !== undefined) campos.observacion        = body.observacion || null
+  if (body.obra               !== undefined) campos.obra                = body.obra
+  if (body.responsable        !== undefined) campos.responsable         = body.responsable
+  if (body.responsableUserId  !== undefined) campos.responsable_user_id = body.responsableUserId || null
+  if (body.transporteId       !== undefined) campos.transporte_id       = body.transporteId      || null
+  if (body.empresaTransporte  !== undefined) campos.empresa_transporte  = body.empresaTransporte || null
+  if (body.fechaEgreso        !== undefined) campos.fecha_egreso        = body.fechaEgreso
+  if (body.observacion        !== undefined) campos.observacion         = body.observacion       || null
 
   if (!Object.keys(campos).length) {
     const err = new Error('No hay campos para actualizar')

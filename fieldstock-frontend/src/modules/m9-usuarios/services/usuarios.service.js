@@ -20,4 +20,9 @@ export const UsuariosService = {
   // usa esa custom (mínimo 8 chars validado en backend). Devuelve
   // { passwordPlano } UNA SOLA VEZ — mostrar en PasswordRevealModal.
   resetPassword: (id, password) => api.post(`/usuarios/${id}/reset-password`, password ? { password } : {}),
+
+  // Lista de candidatos a responsable de remito (ENCARGADO / DUEÑO / ADMIN
+  // activos) con flag `ocupado: true` si tienen al menos un remito en
+  // estado distinto a CERRADO. Usado por el modal post-aprobacion.
+  getEncargadosDisponibles: () => api.get('/usuarios/encargados-disponibles'),
 }

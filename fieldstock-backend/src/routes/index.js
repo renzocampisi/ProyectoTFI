@@ -58,6 +58,10 @@ router.get('/dashboard', DashboardCtrl.getResumen)
 // Express no las capture como id.
 router.get  ('/usuarios/me', UsuariosCtrl.getMe)
 router.patch('/usuarios/me', UsuariosCtrl.updateMe)
+// Lista de candidatos a "responsable de remito" con flag ocupado.
+// Accesible para cualquier autenticado — es solo lectura, lo usa el
+// modal post-aprobacion de presupuesto y el form de nuevo remito.
+router.get  ('/usuarios/encargados-disponibles', UsuariosCtrl.getEncargadosDisponibles)
 router.get   ('/usuarios',     requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.getAll)
 router.post  ('/usuarios',     requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.create)
 router.get   ('/usuarios/:id', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.getById)
