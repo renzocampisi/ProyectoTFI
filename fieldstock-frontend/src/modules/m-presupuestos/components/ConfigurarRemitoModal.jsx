@@ -54,7 +54,15 @@ export default function ConfigurarRemitoModal({ remitoId, onClose }) {
     setSaving(true); setError(null)
     try {
       const body = {}
-      if (transporteId) body.transporteId = transporteId
+      if (transporteId) {
+        body.transporteId = transporteId
+        // El detalle del remito y el PDF muestran el transporte via el
+        // campo de texto `empresa_transporte`, no via el join transporte_id.
+        // Seteamos ambos (igual que RemitosNewPage) para que el transporte
+        // elegido aparezca efectivamente en el remito.
+        const transporte = transportes.find(t => t.id === transporteId)
+        body.empresaTransporte = transporte?.nombre || null
+      }
       if (responsableSeleccionado) {
         body.responsableUserId = responsableSeleccionado.id
         body.responsable       = responsableSeleccionado.nombre
