@@ -424,7 +424,7 @@ export default function PresupuestoNewPage() {
             <span>{formatMoney(totales.ganancia)}</span>
           </div>
           <div className={styles.totalRow}>
-            <span>+ Costos extra</span>
+            <span>+ Mano de obra y costos extra</span>
             <span>{formatMoney(totales.subCostos)}</span>
           </div>
           <div className={`${styles.totalRow} ${styles.totalFinal}`}>
