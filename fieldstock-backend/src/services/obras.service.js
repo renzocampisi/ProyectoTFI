@@ -112,6 +112,33 @@ export async function update(id, body) {
 }
 
 export async function finalizar(id) {
+  // Guard de robustez: no finalizar una obra que todavia tiene remitos
+  // abiertos (cualquier estado != CERRADO). Finalizar dejaria herramientas
+  // EN_OBRA "colgadas" contra una obra terminada. Mismo espiritu que el
+  // guard de remitos.eliminar() para herramientas EN_OBRA.
+  //
+  // Los remitos referencian la obra por NOMBRE (no por UUID), asi que
+  // primero resolvemos el nombre y despues contamos.
+  const { data: obraBase, error: errO } = await supabase
+    .from('obras').select('nombre').eq('id', id).single()
+  if (errO) throw errO
+
+  const { count, error: errCount } = await supabase
+    .from('remitos')
+    .select('id', { count: 'exact', head: true })
+    .eq('obra', obraBase.nombre)
+    .neq('estado', 'CERRADO')
+  if (errCount) throw errCount
+
+  if (count && count > 0) {
+    const err = new Error(
+      `No se puede finalizar: la obra tiene ${count} remito(s) abierto(s). ` +
+      `Cerralos primero (las herramientas tienen que volver del galpon).`
+    )
+    err.status = 409
+    throw err
+  }
+
   const { data, error } = await supabase
     .from('obras')
     .update({ estado: 'FINALIZADA', fecha_fin: new Date().toISOString().split('T')[0] })
