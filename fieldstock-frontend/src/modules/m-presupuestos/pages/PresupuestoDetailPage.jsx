@@ -1,8 +1,10 @@
 // src/modules/m-presupuestos/pages/PresupuestoDetailPage.jsx
 /**
- * Página de detalle del presupuesto. Por ahora **read-only** — el form
- * de edición de cabecera/items + las acciones (enviar/aprobar/rechazar/
- * PDF) vienen en partes 4-5 de la feature.
+ * Página de detalle del presupuesto. Los items (insumos/costos) son
+ * read-only acá — se editan solo mientras está en BORRADOR desde el form
+ * de creación. Esta página cubre las transiciones de estado (enviar a
+ * aprobación, aprobar/rechazar, volver a borrador, eliminar) y las
+ * acciones de PDF (descargar/imprimir/enviar por mail).
  *
  * Layout:
  *   - Header con número, badge de estado, link a la obra, total grande.

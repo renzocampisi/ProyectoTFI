@@ -3,9 +3,6 @@
  * Sección de Presupuestos que se renderiza dentro de la página de una
  * obra (ObrasDetailPage). Muestra la lista de presupuestos asociados
  * con badge de estado, total y link al detalle.
- *
- * En esta parte 3 el botón "+ Nuevo presupuesto" todavía no navega a
- * ningún form (eso llega en parte 4) — queda con un placeholder.
  */
 import { useNavigate } from 'react-router-dom'
 import { usePresupuestos } from '../hooks/usePresupuestos'
@@ -27,8 +24,7 @@ export default function PresupuestosObraSection({ obraId }) {
           )}
         </h2>
         <button className={styles.btnSecondary}
-          onClick={() => navigate(`/presupuestos/nuevo?obraId=${obraId}`)}
-          title="Próximamente disponible en parte 4">
+          onClick={() => navigate(`/presupuestos/nuevo?obraId=${obraId}`)}>
           + Nuevo presupuesto
         </button>
       </div>
