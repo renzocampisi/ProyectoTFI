@@ -23,25 +23,14 @@
 // frontend se sirve sobre HTTPS (issue #12) — todas las requests son
 // same-origin desde el browser y el proxy hace el hop a HTTP plano
 // server-to-server, donde la regla no aplica.
-import { supabase, clearSupabaseStorage } from './supabaseClient.js'
+import { supabase, clearSupabaseStorage, getCachedAccessToken, leerTokenDeStorage } from './supabaseClient.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 const BASE_URL = `${API_BASE}/api`
 
-// Timeouts defensivos: previenen que la UI quede "esperando" para siempre
-// cuando el browser estuvo inactivo y la sesión Supabase quedó en estado
-// raro (refresh hangueado, network cortado, etc.). Si después de N segundos
-// no hay respuesta, abortamos y dejamos que el caller decida qué hacer.
-const SESSION_TIMEOUT_MS = 5_000   // getSession debería ser instantáneo (localStorage)
-const FETCH_TIMEOUT_MS   = 15_000  // backend tiene que responder en este tiempo
-
-// Promesa que rechaza después de N ms — para race contra operaciones que
-// pueden colgar (típicamente getSession cuando intenta refrescar un token).
-function timeout(ms, label) {
-  return new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`Timeout (${label}) tras ${ms}ms`)), ms)
-  )
-}
+// Timeout defensivo: previene que la UI quede "esperando" para siempre si
+// el backend no responde (proxy roto, backend caído, red intermitente).
+const FETCH_TIMEOUT_MS = 15_000
 
 // Cuando el backend responde 401 (sesión inválida o expirada), limpiamos
 // la sesión local y redirigimos a /login. Fire-and-forget el signOut
@@ -63,50 +52,20 @@ function on401() {
   }
 }
 
-// Lee el access_token directamente del localStorage cuando getSession() se
-// cuelga (SDK Supabase en lock interno tras un reload). Usa el mismo formato
-// estable del SDK v2: la key empieza con `sb-` y termina con `-auth-token`,
-// el valor es JSON con { access_token, refresh_token, user, expires_at, ... }.
-// Mismo patrón que el fallback del boot del AuthProvider — el storage es
-// la fuente de verdad cuando el SDK no responde.
-function leerTokenDeStorage() {
-  try {
-    if (typeof window === 'undefined' || !window.localStorage) return null
-    const key = Object.keys(localStorage).find(k =>
-      k.startsWith('sb-') && k.endsWith('-auth-token')
-    )
-    if (!key) return null
-    const stored = JSON.parse(localStorage.getItem(key))
-    return stored?.access_token || stored?.currentSession?.access_token || null
-  } catch {
-    return null
-  }
-}
-
 async function request(path, options = {}) {
   // Timeout custom por request (default FETCH_TIMEOUT_MS). El panel IA lo
   // sube a ~60s porque Gemini con tool chaining puede pasarse de 15s.
   const reqTimeout = options.timeoutMs ?? FETCH_TIMEOUT_MS
-  // Inyectar el JWT actual de Supabase Auth en cada request. Hacemos un
-  // getSession() por request porque Supabase maneja el refresh automático
-  // internamente y devuelve el token vigente. Si la llamada se cuelga
-  // (caso edge: tab estuvo idle y el refresh quedó pendiente), abortamos
-  // y caemos al fallback de leer storage directo.
-  let token
-  try {
-    const result = await Promise.race([
-      supabase.auth.getSession(),
-      timeout(SESSION_TIMEOUT_MS, 'getSession'),
-    ])
-    token = result?.data?.session?.access_token ?? null
-  } catch {
-    // getSession timeout: el SDK Supabase está colgado en su lock interno.
-    // Antes mandábamos la request sin Authorization → backend 401 → on401()
-    // limpiaba storage y echaba al user al login (bug del 03/06 con CRUD
-    // de Proveedores). Ahora intentamos leer el token directo del storage,
-    // que es donde el SDK lo persiste de forma estable.
-    token = leerTokenDeStorage()
-  }
+  // Inyectar el JWT actual de Supabase Auth en cada request. Leemos el token
+  // cacheado en memoria (actualizado por el listener de auth state en
+  // supabaseClient.js) en vez de llamar supabase.auth.getSession() acá —
+  // esa llamada es async y compite por el lock interno del SDK; con varios
+  // hooks poleando en paralelo, decenas de getSession() concurrentes podían
+  // apilarse detrás de un refresh colgado y quedar TODAS timeouteando para
+  // siempre (bug del 04/07). Leer una variable en memoria es instantáneo y
+  // no compite por nada. Fallback a leer storage directo por si el cache
+  // todavía no se hidrató (boot muy temprano, antes del primer evento).
+  const token = getCachedAccessToken() ?? leerTokenDeStorage()
 
   // Si el body es FormData (multipart), NO seteamos Content-Type: el browser
   // lo arma con el boundary correcto. Forzar application/json acá rompe el

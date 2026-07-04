@@ -12,9 +12,12 @@
  * - `loading`  : true SOLO durante la primera carga (incluye fetch del perfil).
  *
  * Flujo:
- * 1. Al montar, lee la sesión con getSession() + carga el perfil del backend.
- * 2. Se suscribe a onAuthStateChange — si llega un SIGNED_IN/SIGNED_OUT,
- *    recarga (o limpia) el perfil acordemente.
+ * 1. Al montar, lee la sesión con getSession() (única vez — ver
+ *    supabaseClient.js para el resto de la app) y carga el perfil del
+ *    backend pasándole el access_token de esa sesión directo.
+ * 2. Se suscribe a onAuthStateChange — si llega un SIGNED_IN/SIGNED_OUT/
+ *    TOKEN_REFRESHED, recarga (o limpia) el perfil acordemente, usando el
+ *    token que trae el propio evento (sin volver a pedírselo al SDK).
  * 3. Desuscribe en el cleanup.
  *
  * Errores al cargar el perfil: limpian la sesión y dejan al user en estado
@@ -22,7 +25,7 @@
  * pero no tenga fila en usuarios (típico: olvidaste el INSERT del seed).
  */
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { supabase, clearSupabaseStorage } from '@shared/utils/supabaseClient'
+import { supabase, clearSupabaseStorage, getCachedAccessToken, leerTokenDeStorage } from '@shared/utils/supabaseClient'
 
 const AuthContext = createContext(null)
 
@@ -75,28 +78,26 @@ function hayTokenValidoEnStorage() {
 // de utils/api.js para no crear dependencia circular (api importa supabase
 // para el JWT, y este hook también lo usaría).
 //
+// Recibe el accessToken como parámetro en vez de llamar
+// supabase.auth.getSession() acá adentro: todos los callers (boot,
+// onAuthStateChange) YA tienen el session/token a mano en ese momento
+// (session viene como parámetro del propio evento), así que volver a
+// pedírselo al SDK era una llamada async redundante — y otra fuente más de
+// contención sobre el lock interno del SDK (bug del 04/07, ver
+// supabaseClient.js). Si no hay token, no hay nada que buscar.
+//
 // CRÍTICO: esta función NUNCA debe lanzar. Si lo hace, el await en el boot
 // del AuthProvider rompe el flujo y `loading` se queda en true → pantalla
 // en negro. Atrapamos todo error internamente y devolvemos un objeto:
 //   - { data: <perfil> }            → perfil cargado OK
 //   - { data: null }                → perfil realmente faltante (HTTP 404 o data null)
-//   - { data: null, timeout: true } → falla transitoria (getSession colgado,
-//                                     fetch abort, network down). El caller
-//                                     NO debe signOut en este caso — sería
-//                                     desloguear al user por un problema
-//                                     pasajero.
-async function fetchPerfil() {
+//   - { data: null, timeout: true } → falla transitoria (fetch abort, network
+//                                     down). El caller NO debe signOut en
+//                                     este caso — sería desloguear al user
+//                                     por un problema pasajero.
+async function fetchPerfil(accessToken) {
+  if (!accessToken) return { data: null }
   try {
-    // getSession con timeout — si Supabase queda colgada refrescando el token
-    // tras inactividad larga, no esperamos para siempre.
-    const sessionResult = await withTimeout(
-      supabase.auth.getSession(),
-      SESSION_TIMEOUT_MS,
-      'getSession'
-    )
-    const session = sessionResult?.data?.session
-    if (!session?.access_token) return { data: null }
-
     // fetch con AbortController + timeout — si el backend no responde
     // (proxy roto, backend caído, red intermitente), abortamos.
     const controller = new AbortController()
@@ -104,7 +105,7 @@ async function fetchPerfil() {
 
     const apiBase = import.meta.env.VITE_API_URL || ''
     const res = await fetch(`${apiBase}/api/usuarios/me`, {
-      headers: { Authorization: `Bearer ${session.access_token}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
       signal: controller.signal,
     }).finally(() => clearTimeout(tid))
 
@@ -131,18 +132,26 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   // Carga del perfil — se llama desde varios lados (mount, signIn, refresh).
-  const cargarPerfil = useCallback(async () => {
-    const result = await fetchPerfil()
+  // accessToken es OPCIONAL: los callers internos (boot, onAuthStateChange)
+  // ya tienen el token a mano y lo pasan directo; refrescarPerfil() expuesto
+  // al resto de la app se llama sin argumentos, así que cae al token
+  // cacheado en memoria (sincrónico, ver supabaseClient.js) y, en último
+  // caso, a leerlo de storage — mismo fallback que usa api.js, por si
+  // refrescarPerfil() se invoca en la ventana angosta antes del primer
+  // callback de onAuthStateChange.
+  const cargarPerfil = useCallback(async (accessToken) => {
+    const token = accessToken ?? getCachedAccessToken() ?? leerTokenDeStorage()
+    const result = await fetchPerfil(token)
     setProfile(result.data)
     // CRÍTICO: distinguir "perfil faltante real" vs "timeout/network error":
-    //  - Si result.timeout: fue una falla transitoria (SDK colgado, fetch
-    //    abortado). NO signOut — el user mantiene su sesión, el perfil se
-    //    cargará en el próximo refetch (cuando el SDK se desbloquee).
+    //  - Si result.timeout: fue una falla transitoria (fetch abortado). NO
+    //    signOut — el user mantiene su sesión, el perfil se carga en el
+    //    próximo refetch.
     //  - Si !data y NO timeout: el perfil realmente no existe (HTTP 404 o
-    //    cuenta desactivada). Deslogueamos.
+    //    cuenta desactivada) — pero solo si efectivamente había un token
+    //    (si no lo había, no hay sesión que cerrar). Deslogueamos.
     if (!result.data && !result.timeout) {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
+      if (token) {
         await supabase.auth.signOut()
         // signOut() debería limpiar storage pero a veces falla en silencio.
         // clearSupabaseStorage como red de seguridad para no dejar sb-*
@@ -174,7 +183,7 @@ export function AuthProvider({ children }) {
         if (!mounted) return
         const session = sessionResult?.data?.session ?? null
         setUser(session?.user ?? null)
-        if (session) await cargarPerfil()
+        if (session) await cargarPerfil(session.access_token)
       } catch (err) {
         console.error('[AuthProvider] error en boot:', err)
         if (/Timeout/i.test(err?.message || '')) {
@@ -195,15 +204,14 @@ export function AuthProvider({ children }) {
               if (session?.user && session?.access_token) {
                 console.warn('[AuthProvider] boot timeout — fallback a token de localStorage')
                 if (mounted) setUser(session.user)
-                // NO awaiteamos cargarPerfil — el SDK Supabase está colgado
-                // y cargarPerfil → fetchPerfil → getSession() volvería a
-                // colgarse, manteniendo setLoading(true) indefinidamente
-                // (body vacío, app sin renderear). Lo disparamos en background;
-                // cuando el SDK se desbloquee (o el próximo reload), el perfil
-                // termina cargando. Mientras tanto el user está "logueado"
+                // NO awaiteamos cargarPerfil: aunque ya no dependa de
+                // getSession() (le pasamos el token directo), seguimos en la
+                // rama de "boot colgado" y preferimos no bloquear
+                // setLoading(false) por un fetch más. Lo disparamos en
+                // background — mientras tanto el user está "logueado"
                 // (RequireAuth pasa por user!=null) y los fetch del backend
-                // funcionan porque api.js lee el token del mismo localStorage.
-                cargarPerfil().catch(perfErr => {
+                // funcionan porque api.js lee el mismo token cacheado.
+                cargarPerfil(session.access_token).catch(perfErr => {
                   console.warn('[AuthProvider] cargarPerfil background failed:', perfErr?.message)
                 })
               } else {
@@ -254,7 +262,7 @@ export function AuthProvider({ children }) {
       }
       setUser(session?.user ?? null)
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        await cargarPerfil()
+        await cargarPerfil(session?.access_token)
       }
     })
 
