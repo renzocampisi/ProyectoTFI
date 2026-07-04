@@ -36,6 +36,61 @@ export const supabase = createClient(supabaseUrl, supabaseAnon, {
   },
 })
 
+// Cache en memoria del access_token vigente, mantenido al día por un único
+// listener de auth state (vive acá, a nivel de módulo, para no depender del
+// ciclo de vida de ningún componente React).
+//
+// api.js y useAuth.jsx lo leen de forma SINCRÓNICA en vez de llamar
+// supabase.auth.getSession() en cada request — esa llamada es async y
+// compite por el lock interno del SDK (usado para serializar el refresh
+// del token). Con varios hooks poleando en paralelo (useRemito cada 3s,
+// useNotificaciones cada 30s, dashboard, etc.) se disparaban decenas de
+// getSession() concurrentes; si UNA se colgaba refrescando el token, el
+// lock nunca se liberaba y TODAS las siguientes quedaban timeouteando para
+// siempre, deslogueando al user sin motivo real (bug reportado el 04/07).
+// Leer de una variable en memoria elimina la contención de raíz.
+//
+// Nota de orden: este listener se registra al importar el módulo (antes de
+// que monte cualquier componente), así que siempre corre ANTES que el
+// listener propio de useAuth.jsx (registrado en un useEffect, después del
+// primer render) — el cache queda al día antes de que cualquier código de
+// AuthProvider intente leerlo. Si algún día se agrega otro consumer que
+// dependa del orden inverso, este comentario es la referencia.
+let cachedAccessToken = null
+supabase.auth.onAuthStateChange((_event, session) => {
+  cachedAccessToken = session?.access_token ?? null
+})
+
+export function getCachedAccessToken() {
+  return cachedAccessToken
+}
+
+/**
+ * Lee el access_token directamente del localStorage. Fallback para el
+ * único hueco real del cache: la ventana entre el import de este módulo y
+ * el primer callback de onAuthStateChange (que es async — Supabase no lo
+ * dispara sincrónicamente). Usa el mismo formato estable del SDK v2: la key
+ * empieza con `sb-` y termina con `-auth-token`, el valor es JSON con
+ * { access_token, refresh_token, user, expires_at, ... }.
+ *
+ * Centralizado acá (en vez de duplicado en api.js y useAuth.jsx) para que
+ * cualquier cambio futuro en el formato de storage del SDK se actualice en
+ * un solo lugar.
+ */
+export function leerTokenDeStorage() {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return null
+    const key = Object.keys(localStorage).find(k =>
+      k.startsWith('sb-') && k.endsWith('-auth-token')
+    )
+    if (!key) return null
+    const stored = JSON.parse(localStorage.getItem(key))
+    return stored?.access_token || stored?.currentSession?.access_token || null
+  } catch {
+    return null
+  }
+}
+
 /**
  * Limpia TODAS las entradas de localStorage que pertenecen a Supabase
  * (cualquier key que empieza con "sb-"). Sirve como reset duro cuando
