@@ -1,10 +1,7 @@
 // src/modules/m-compras/pages/ComprasListPage.jsx
 /**
- * Listado de órdenes de compra a proveedores.
- *
- * PARTE 1/6 del módulo Compras — read-only por ahora. La creación está
- * en la parte 2 (botón "+ Nueva compra" funciona pero todavía no hay form).
- * Los filtros por estado y proveedor llegan en la parte 6.
+ * Listado de órdenes de compra a proveedores, con filtros por estado
+ * (chips) y proveedor (select).
  *
  * Inspirado en RemitosListPage para mantener consistencia visual.
  */
@@ -83,8 +80,6 @@ export default function ComprasListPage() {
               : `${compras.length} orden${compras.length !== 1 ? 'es' : ''} de compra${filtroEstado !== 'TODOS' || filtroProveedor ? ' (filtradas)' : ''}`}
           </p>
         </div>
-        {/* Botón apunta a la ruta del form, que se implementa en la parte 2.
-            Por ahora si la clickeás te lleva a una ruta inexistente. */}
         <button className={styles.btnPrimary} onClick={() => navigate('/compras/nuevo')}>
           + Nueva compra
         </button>

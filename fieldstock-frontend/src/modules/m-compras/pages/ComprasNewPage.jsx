@@ -134,9 +134,7 @@ export default function ComprasNewPage() {
           precioUnitario: Number(it.precio_unitario),
         })),
       })
-      // El backend devuelve la compra creada con su id. Redirigimos al
-      // detalle (parte 3 todavía no implementada → cae a ComingSoon
-      // pero el id queda en la URL).
+      // El backend devuelve la compra creada con su id — redirigimos al detalle.
       const id = compra?.id || compra?.data?.id
       if (id) navigate(`/compras/${id}`)
       else navigate('/compras')

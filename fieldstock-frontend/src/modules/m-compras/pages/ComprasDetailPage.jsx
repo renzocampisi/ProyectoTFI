@@ -1,8 +1,8 @@
 // src/modules/m-compras/pages/ComprasDetailPage.jsx
 /**
- * Vista de detalle de una orden de compra. Read-only en esta parte —
- * los botones de acción (confirmar, recibir, cancelar) llegan en partes
- * 4 y 5. La edición de items en BORRADOR llega en parte 6.
+ * Vista de detalle de una orden de compra: transiciones de estado
+ * (confirmar/cancelar/recibir) y edición de items mientras está en
+ * BORRADOR (agregar, editar cantidad/precio inline con debounce, quitar).
  *
  * Layout inspirado en RemitosDetailPage para consistencia visual:
  *   - Header: número OC-XXXXX grande + badge de estado
@@ -186,6 +186,16 @@ export default function ComprasDetailPage() {
       } catch (err) { setErrItems(err.message) }
     }, 500))
   }
+  // Cancela un PATCH pendiente para un item sin programar uno nuevo. Se usa
+  // cuando el usuario deja el campo en un valor inválido (vacío, negativo):
+  // si no cancelamos, el timeout de la última edición VÁLIDA seguía en pie
+  // y terminaba aplicando ese valor viejo 500ms después, mientras el input
+  // ya mostraba otra cosa — el usuario veía el campo desincronizado del
+  // backend hasta editarlo de nuevo o recargar la página.
+  const cancelPending = (itemId) => {
+    const map = debounceMapRef.current
+    if (map.has(itemId)) { clearTimeout(map.get(itemId)); map.delete(itemId) }
+  }
 
   // State local del valor "en el aire" mientras el debounce no disparó.
   // Sin esto, cada keystroke causaría un render con el valor viejo del
@@ -198,13 +208,13 @@ export default function ComprasDetailPage() {
   const handleEditCantidad = (itemId, valor) => {
     setLocal(itemId, 'cantidad', valor)
     const num = Number(valor)
-    if (!Number.isFinite(num) || num <= 0) return // sin disparar PATCH con valor inválido
+    if (!Number.isFinite(num) || num <= 0) { cancelPending(itemId); return } // valor inválido: no hay nada que guardar
     debouncedUpdate(itemId, { cantidad: num })
   }
   const handleEditPrecio = (itemId, valor) => {
     setLocal(itemId, 'precio_unitario', valor)
     const num = Number(valor)
-    if (!Number.isFinite(num) || num < 0) return
+    if (!Number.isFinite(num) || num < 0) { cancelPending(itemId); return }
     debouncedUpdate(itemId, { precioUnitario: num })
   }
 
@@ -476,8 +486,7 @@ export default function ComprasDetailPage() {
 
       {/* ── Card de acciones ─────────────────────────────────
           Renderizada solo si el estado actual habilita al menos una
-          acción. RECIBIDA y CANCELADA son terminales — no aparece nada.
-          Recibir va en parte 5. */}
+          acción. RECIBIDA y CANCELADA son terminales — no aparece nada. */}
       {(() => {
         const acciones = ACCIONES_POR_ESTADO[compra.estado] || {}
         const hayAlguna = acciones.confirmar || acciones.cancelar || acciones.recibir
