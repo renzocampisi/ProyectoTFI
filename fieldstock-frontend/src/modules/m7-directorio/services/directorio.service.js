@@ -11,22 +11,30 @@
  */
 import { api } from '@shared/utils/api.js'
 
+// Arma el query string con URLSearchParams (encodea `q`) en vez de
+// concatenar a mano — un valor con `&`, `#` o `+` (ej. "Juan & Cía")
+// rompía la URL y mandaba una búsqueda distinta a la tipeada.
+const qs = (q) => {
+  if (!q) return ''
+  return `?${new URLSearchParams({ q }).toString()}`
+}
+
 export const TransportesService = {
-  getAll:  ({ q } = {}) => api.get(`/transportes${q ? `?q=${q}` : ''}`),
+  getAll:  ({ q } = {}) => api.get(`/transportes${qs(q)}`),
   create:  (body)        => api.post('/transportes', body),
   update:  (id, body)    => api.put(`/transportes/${id}`, body),
   delete:  (id)          => api.delete(`/transportes/${id}`),
 }
 
 export const ClientesService = {
-  getAll:  ({ q } = {}) => api.get(`/clientes${q ? `?q=${q}` : ''}`),
+  getAll:  ({ q } = {}) => api.get(`/clientes${qs(q)}`),
   create:  (body)        => api.post('/clientes', body),
   update:  (id, body)    => api.put(`/clientes/${id}`, body),
   delete:  (id)          => api.delete(`/clientes/${id}`),
 }
 
 export const ProveedoresService = {
-  getAll:  ({ q } = {}) => api.get(`/proveedores${q ? `?q=${q}` : ''}`),
+  getAll:  ({ q } = {}) => api.get(`/proveedores${qs(q)}`),
   create:  (body)        => api.post('/proveedores', body),
   update:  (id, body)    => api.put(`/proveedores/${id}`, body),
   delete:  (id)          => api.delete(`/proveedores/${id}`),
