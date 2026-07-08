@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useObra } from '../hooks/useObras'
 import { ObrasService } from '../services/obras.service'
 import PresupuestosObraSection from '@modules/m-presupuestos/components/PresupuestosObraSection'
+import EstadoRemitoBadge from '@modules/m5-remito/components/EstadoRemitoBadge'
 import { ESTADO_INFO } from '../constants'
 import styles from './ObrasDetailPage.module.css'
 
@@ -19,18 +20,6 @@ function EstadoBadge({ estado }) {
   // CSS Module local con styles[].
   const info = ESTADO_INFO[estado] ?? { label: estado, cls: '' }
   return <span className={`${styles.badge} ${styles[info.cls] || ''}`}>{info.label}</span>
-}
-
-function EstadoRemitoBadge({ estado }) {
-  const MAP = {
-    BORRADOR:         { label: 'Borrador',        cls: 'borrador'  },
-    CONFIRMADO:       { label: 'Confirmado',       cls: 'confirmado'},
-    EN_TRANSITO:      { label: 'En tránsito',      cls: 'transito'  },
-    RECIBIDO_EN_OBRA: { label: 'Recibido en obra', cls: 'recibido'  },
-    CERRADO:          { label: 'Cerrado',          cls: 'cerrado'   },
-  }
-  const { label, cls } = MAP[estado] ?? { label: estado, cls: 'borrador' }
-  return <span className={`${styles.remitoBadge} ${styles[cls]}`}>{label}</span>
 }
 
 export default function ObrasDetailPage() {
@@ -147,7 +136,6 @@ export default function ObrasDetailPage() {
                   <thead>
                     <tr>
                       <th>Número</th>
-                      <th>Tipo</th>
                       <th>Fecha</th>
                       <th>Herramientas</th>
                       <th>Insumos</th>
@@ -159,12 +147,7 @@ export default function ObrasDetailPage() {
                     {obra.remitos.map(r => (
                       <tr key={r.id} className={styles.row} onClick={() => navigate(`/remitos/${r.id}`)}>
                         <td className={styles.numero}>{r.numero}</td>
-                        <td>
-                          <span className={`${styles.tipoBadge} ${r.tipo === 'EGRESO' ? styles.egreso : styles.ingreso}`}>
-                            {r.tipo === 'EGRESO' ? '↑ Egreso' : '↓ Ingreso'}
-                          </span>
-                        </td>
-                        <td className={styles.fecha}>{formatFecha(r.fecha)}</td>
+                        <td className={styles.fecha}>{formatFecha(r.fecha_egreso)}</td>
                         <td className={styles.cant}>{r.cantidad_herramientas}</td>
                         <td className={styles.cant}>{r.cantidad_materiales}</td>
                         <td><EstadoRemitoBadge estado={r.estado} /></td>
