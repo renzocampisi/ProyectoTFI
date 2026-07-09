@@ -20,4 +20,13 @@ export const PanelService = {
    */
   chat: (mensaje, historial = []) =>
     api.post('/panel/chat', { mensaje, historial }, { timeoutMs: 60_000 }),
+
+  /**
+   * Confirma y ejecuta una accion propuesta (campo `accionPendiente` de chat()).
+   * @param {string} tool
+   * @param {object} args
+   * @returns {Promise<{ resumen: string, detalle: object }>}
+   */
+  ejecutarAccion: (tool, args) =>
+    api.post('/panel/ejecutar-accion', { tool, args }, { timeoutMs: 30_000 }),
 }

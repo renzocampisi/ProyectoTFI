@@ -238,6 +238,9 @@ router.put   ('/config/:key',    requireRole(ROLES_ADMIN_LEVEL), ConfigCtrl.set)
 // Asistente conversacional con tool use sobre Gemini. Read-only,
 // vision total — cualquier usuario autenticado puede usarlo.
 router.post('/panel/chat', PanelCtrl.chat)
+// Ejecuta una accion de escritura propuesta por /panel/chat (accionPendiente),
+// tras confirmación explícita del usuario en la UI — nunca se dispara sola.
+router.post('/panel/ejecutar-accion', PanelCtrl.ejecutarAccion)
 
 // ── Notificaciones ────────────────────────────────────────────
 router.get  ('/notificaciones',              NotificacionesCtrl.getAll)

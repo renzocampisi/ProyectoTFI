@@ -5,18 +5,29 @@
  *   - pensando: true muestra los tres puntitos animados
  *   - traza: array opcional de tools que el LLM uso para responder
  *           (toggle "Ver datos consultados")
+ *   - accionPendiente + accionEstado: cuando el LLM propuso una accion de
+ *     escritura (ej. sumar stock), se muestra una tarjeta con el resumen
+ *     y botones Confirmar/Cancelar. Ninguna escritura se dispara sin el
+ *     click explicito de "Confirmar" — onConfirmarAccion/onCancelarAccion
+ *     los pasa el parent (usePanel.confirmarAccion/cancelarAccion).
  *
  * El texto se renderiza con `white-space: pre-wrap` — preserva saltos
  * de linea y bullets que mande el LLM sin parsear markdown.
  */
 import { useState } from 'react'
-import { LuSparkles, LuUser, LuChevronDown } from 'react-icons/lu'
+import { LuSparkles, LuUser, LuChevronDown, LuCheck, LuX } from 'react-icons/lu'
 import styles from './ChatMessage.module.css'
 
-export default function ChatMessage({ mensaje }) {
+export default function ChatMessage({ mensaje, onConfirmarAccion, onCancelarAccion }) {
   const [verTraza, setVerTraza] = useState(false)
+  // Deshabilita los botones apenas se clickean, sin esperar al re-render del
+  // parent (usePanel) — la fuente de verdad real contra el doble-click sigue
+  // siendo el guard atómico en confirmarAccion, esto es solo feedback visual
+  // inmediato para que el segundo click ni siquiera intente disparar.
+  const [disparando, setDisparando] = useState(false)
   const esUser = mensaje.role === 'user'
   const hayTraza = !esUser && Array.isArray(mensaje.traza) && mensaje.traza.length > 0
+  const hayAccion = !esUser && Boolean(mensaje.accionPendiente)
 
   return (
     <div className={`${styles.row} ${esUser ? styles.user : styles.assistant}`}>
@@ -54,6 +65,31 @@ export default function ChatMessage({ mensaje }) {
               </li>
             ))}
           </ul>
+        )}
+
+        {hayAccion && mensaje.accionEstado === 'pendiente' && (
+          <div className={styles.accionCard}>
+            <p className={styles.accionAviso}>⚠ Esto va a modificar datos del sistema.</p>
+            <div className={styles.accionBotones}>
+              <button type="button" className={styles.btnAccionCancelar} disabled={disparando}
+                onClick={() => { setDisparando(true); onCancelarAccion?.() }}>
+                <LuX /> Cancelar
+              </button>
+              <button type="button" className={styles.btnAccionConfirmar} disabled={disparando}
+                onClick={() => { setDisparando(true); onConfirmarAccion?.() }}>
+                <LuCheck /> Confirmar
+              </button>
+            </div>
+          </div>
+        )}
+        {hayAccion && mensaje.accionEstado === 'confirmando' && (
+          <p className={styles.accionEstado}>Aplicando...</p>
+        )}
+        {hayAccion && mensaje.accionEstado === 'cancelada' && (
+          <p className={styles.accionEstado}>Acción cancelada.</p>
+        )}
+        {hayAccion && mensaje.accionEstado === 'error' && (
+          <p className={styles.accionErrorMsg}>⚠ {mensaje.accionError}</p>
         )}
       </div>
     </div>
