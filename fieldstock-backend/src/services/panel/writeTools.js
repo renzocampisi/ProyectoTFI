@@ -25,9 +25,13 @@
  *              después de la confirmación del usuario.
  *   }
  */
-import * as Materiales   from '../materiales.service.js'
-import * as Directorio   from '../directorio.service.js'
+import * as Materiales    from '../materiales.service.js'
+import * as Directorio    from '../directorio.service.js'
 import * as Notificaciones from '../notificaciones.service.js'
+import * as Herramientas  from '../herramientas.service.js'
+import * as Obras         from '../obras.service.js'
+
+const ESTADOS_HERRAMIENTA_VALIDOS = ['DISPONIBLE', 'EN_MANTENIMIENTO', 'RESERVADA']
 
 export const WRITE_TOOLS = [
   {
@@ -209,6 +213,139 @@ export const WRITE_TOOLS = [
     execute: async (args) => {
       const data = await Directorio.createTransporte(args)
       return { resumen: `Listo — transporte "${data.nombre}" creado.`, detalle: data }
+    },
+  },
+
+  {
+    name: 'crear_material',
+    description:
+      'Propone dar de alta un material nuevo en el stock (insumo fungible: cemento, ladrillos, etc.) ' +
+      'con su stock inicial. Antes de proponerla, si no estás seguro de que no existe ya, ' +
+      'llamá a listar_materiales para chequear — si ya existe, usá sumar_stock_material en vez de ' +
+      'duplicarlo. Es una ACCION — requiere confirmación explícita del usuario antes de aplicarse.',
+    parameters: {
+      type: 'object',
+      properties: {
+        nombre:       { type: 'string', description: 'Nombre del material.' },
+        marca:        { type: 'string' },
+        descripcion:  { type: 'string' },
+        unidad:       { type: 'string', description: 'Unidad de medida, ej. "bolsa", "kg", "unidad". Default "unidad".' },
+        stockActual:  { type: 'number', description: 'Stock inicial. Default 0.' },
+        stockMinimo:  { type: 'number', description: 'Umbral de reposición. Default 0.' },
+      },
+      required: ['nombre'],
+    },
+    preview: async (args = {}) => {
+      if (!args.nombre?.trim()) return { error: 'El nombre del material es obligatorio.' }
+
+      // Mismo chequeo de duplicados que usa el frontend antes de crear —
+      // evita que el LLM proponga un alta cuando en realidad correspondía
+      // sumar_stock_material sobre el material ya existente.
+      const existente = await Materiales.findDuplicate({ nombre: args.nombre, marca: args.marca })
+      if (existente) {
+        return {
+          error:
+            `Ya existe un material "${existente.nombre}"` +
+            (existente.marca ? ` (${existente.marca})` : '') +
+            ` con stock ${existente.stock_actual} ${existente.unidad}. ` +
+            'Usá sumar_stock_material para sumarle stock en vez de crear uno nuevo.',
+        }
+      }
+
+      const stockActual  = Number(args.stockActual)  || 0
+      const stockMinimo  = Number(args.stockMinimo)  || 0
+      const unidad = args.unidad || 'unidad'
+      return {
+        resumen:
+          `Crear el material "${args.nombre.trim()}"` +
+          (args.marca ? ` (${args.marca})` : '') +
+          ` con stock inicial ${stockActual} ${unidad} (mínimo ${stockMinimo} ${unidad}).`,
+        detalle: { ...args, stockActual, stockMinimo, unidad },
+      }
+    },
+    execute: async (args) => {
+      const data = await Materiales.create(args)
+      return { resumen: `Listo — material "${data.nombre}" creado con stock ${data.stock_actual} ${data.unidad}.`, detalle: data }
+    },
+  },
+
+  {
+    name: 'cambiar_estado_herramienta',
+    description:
+      'Propone cambiar el estado de una herramienta entre DISPONIBLE, EN_MANTENIMIENTO y RESERVADA ' +
+      '(ej: "mandá el taladro a mantenimiento", "la amoladora ya está disponible de nuevo"). ' +
+      'NO sirve para EN_OBRA (eso se maneja con remitos) ni para BAJA (eso requiere un motivo y ' +
+      'todavía no tiene tool — decile al usuario que la dé de baja desde el módulo de Herramientas). ' +
+      'Es una ACCION — requiere confirmación explícita del usuario antes de aplicarse.',
+    parameters: {
+      type: 'object',
+      properties: {
+        herramientaId: { type: 'string', description: 'UUID de la herramienta (obtenido con listar_herramientas).' },
+        estado: {
+          type: 'string',
+          enum: ESTADOS_HERRAMIENTA_VALIDOS,
+          description: 'Nuevo estado. Solo DISPONIBLE, EN_MANTENIMIENTO o RESERVADA.',
+        },
+      },
+      required: ['herramientaId', 'estado'],
+    },
+    preview: async ({ herramientaId, estado } = {}) => {
+      if (!ESTADOS_HERRAMIENTA_VALIDOS.includes(estado)) {
+        return { error: `Estado inválido para esta acción: ${estado}. Válidos: ${ESTADOS_HERRAMIENTA_VALIDOS.join(', ')}.` }
+      }
+      const h = await Herramientas.getById(herramientaId)
+      if (!h) return { error: 'Herramienta no encontrada.' }
+      if (h.estado === 'BAJA') {
+        return { error: `"${h.nombre}" está de BAJA — hay que reactivarla desde el módulo de Herramientas, no desde acá.` }
+      }
+      if (h.estado === estado) {
+        return { error: `"${h.nombre}" ya está en estado ${estado}.` }
+      }
+      return {
+        resumen: `Cambiar el estado de "${h.nombre}" de ${h.estado} a ${estado}.`,
+        detalle: { herramientaId, nombre: h.nombre, estadoActual: h.estado, estadoNuevo: estado },
+      }
+    },
+    execute: async ({ herramientaId, estado }) => {
+      const data = await Herramientas.updateEstado(herramientaId, estado)
+      return { resumen: `Listo — "${data.nombre}" ahora está ${data.estado}.`, detalle: data }
+    },
+  },
+
+  {
+    name: 'crear_obra',
+    description:
+      'Propone dar de alta una obra nueva. Necesita el cliente ya existente — si no sabés su ' +
+      'clienteId, llamá primero a listar_clientes para resolverlo por nombre. ' +
+      'Es una ACCION — requiere confirmación explícita del usuario antes de aplicarse.',
+    parameters: {
+      type: 'object',
+      properties: {
+        nombre:      { type: 'string', description: 'Nombre de la obra.' },
+        direccion:   { type: 'string', description: 'Dirección de la obra.' },
+        clienteId:   { type: 'string', description: 'UUID del cliente (obtenido con listar_clientes).' },
+        fechaInicio: { type: 'string', description: 'Fecha de inicio, formato YYYY-MM-DD. Si el usuario no la da, usá la fecha de hoy.' },
+      },
+      required: ['nombre', 'direccion', 'clienteId', 'fechaInicio'],
+    },
+    preview: async (args = {}) => {
+      if (!args.nombre?.trim())      return { error: 'El nombre de la obra es obligatorio.' }
+      if (!args.direccion?.trim())   return { error: 'La dirección es obligatoria.' }
+      if (!args.clienteId)           return { error: 'Falta el cliente — resolvé el clienteId con listar_clientes primero.' }
+      if (!args.fechaInicio)         return { error: 'Falta la fecha de inicio.' }
+
+      const clientes = await Directorio.getAllClientes({})
+      const cliente = clientes.find(c => c.id === args.clienteId)
+      if (!cliente) return { error: 'Cliente no encontrado — verificá el clienteId con listar_clientes.' }
+
+      return {
+        resumen: `Crear la obra "${args.nombre.trim()}" para ${cliente.nombre}, en ${args.direccion.trim()}, inicio ${args.fechaInicio}.`,
+        detalle: { ...args, clienteNombre: cliente.nombre },
+      }
+    },
+    execute: async (args) => {
+      const data = await Obras.create(args)
+      return { resumen: `Listo — obra "${data.nombre}" creada.`, detalle: data }
     },
   },
 

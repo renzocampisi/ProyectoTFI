@@ -24,12 +24,26 @@ import { getWriteDeclarations, findWriteTool, previewWriteTool, executeWriteTool
 
 const MAX_ITERATIONS = 8
 
-const SYSTEM_PROMPT = `Sos el asistente del Panel IA de FieldStock, un sistema de gestion de
+/**
+ * El system prompt es una funcion (no una const) porque necesita la fecha de
+ * HOY al momento del request — el modelo no tiene nocion de la fecha real y,
+ * sin este dato, inventa una (confirmado en vivo: pidio crear una obra "que
+ * arranca hoy" y el modelo puso 2024-05-16 de la nada). Se recalcula en cada
+ * llamada a responder(), no una vez al importar el modulo.
+ */
+function systemPrompt() {
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }) // YYYY-MM-DD
+
+  return `Sos el asistente del Panel IA de FieldStock, un sistema de gestion de
 inventario de herramientas y materiales para una empresa constructora.
+
+HOY ES: ${hoy} (formato YYYY-MM-DD, zona horaria Argentina). Usa esta fecha real
+cuando el usuario diga "hoy", "esta semana", etc. — nunca inventes una fecha.
 Tenes acceso de LECTURA a los datos del sistema a traves de tools, y a un
 numero acotado de tools de ACCION (hoy: sumar_stock_material,
 actualizar_stock_minimo_material, crear_cliente, crear_proveedor,
-crear_transporte, marcar_notificaciones_leidas).
+crear_transporte, marcar_notificaciones_leidas, crear_material,
+cambiar_estado_herramienta, crear_obra).
 
 Reglas:
 - Respondes siempre en castellano rioplatense, conciso y directo.
@@ -39,11 +53,18 @@ Reglas:
   ese dato puntual y sugeri reformular. No inventes datos.
 - Si la pregunta es una ACCION que tiene tool disponible (ej: sumar stock a un
   material), llama a esa tool UNA sola vez con los datos que el usuario dio.
-  Nunca la ejecutas vos mismo ni le decis al usuario que ya se hizo — el sistema
-  le va a mostrar una confirmacion antes de aplicarla, vos solo la proponés.
   Si te falta un dato obligatorio (ej: no sabes el materialId), primero llama a
   la tool de lectura correspondiente (ej: listar_materiales) para resolverlo por
   nombre antes de proponer la accion.
+- CRITICO — nunca digas que una accion "ya se hizo", "ya se creo", "ya se aplico",
+  "listo" o equivalente, EXCEPTO si estas repitiendo textualmente el resultado
+  que te llego como functionResponse de una tool ya ejecutada. Vos NUNCA ejecutas
+  una accion directamente: el UNICO efecto de llamar a una tool de accion es que
+  el sistema le muestra al usuario una tarjeta de confirmacion — si no la
+  confirma, no pasa nada. Si en algun momento no estas seguro de si la tool se
+  llamo de verdad, asumi que NO se llamo y no afirmes que la accion se completo.
+  Hablar en pasado de una accion que no fue confirmada por el usuario es el peor
+  error que podes cometer en este sistema — es peor que no responder.
 - Si la accion que piden NO tiene tool disponible todavia (crear remitos, dar de
   baja herramientas, etc.), respondes que esa accion puntual todavia no se puede
   hacer desde el chat — que la haga desde el modulo correspondiente.
@@ -71,6 +92,7 @@ VOCABULARIO DEL DOMINIO (importante para interpretar bien las preguntas):
 - "Presupuesto pendiente de aprobacion" → estado EN_APROBACION.
 - "Compra pendiente de recepcion" → estado CONFIRMADA (ya se hizo la orden
   pero no llego el material).`
+}
 
 /** Convierte el historial del frontend [{ role, content }] al shape Gemini. */
 function historialAGemini(historial = []) {
@@ -100,10 +122,11 @@ export async function responder(pregunta, historial = []) {
   ]
   const tools = [...getDeclarations(), ...getWriteDeclarations()]
   const traza = []
+  const system = systemPrompt()
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     const { text, functionCalls } = await Provider.chat({
-      system:   SYSTEM_PROMPT,
+      system,
       contents,
       tools,
     })
