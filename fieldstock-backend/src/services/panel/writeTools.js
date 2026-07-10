@@ -30,6 +30,7 @@ import * as Directorio    from '../directorio.service.js'
 import * as Notificaciones from '../notificaciones.service.js'
 import * as Herramientas  from '../herramientas.service.js'
 import * as Obras         from '../obras.service.js'
+import * as Presupuestos  from '../presupuestos.service.js'
 
 const ESTADOS_HERRAMIENTA_VALIDOS = ['DISPONIBLE', 'EN_MANTENIMIENTO', 'RESERVADA']
 
@@ -54,7 +55,11 @@ export const WRITE_TOOLS = [
       if (!Number.isFinite(num) || num <= 0) {
         return { error: 'La cantidad a sumar debe ser un número mayor a 0.' }
       }
-      const mat = await Materiales.getById(materialId)
+      // .getById() usa .single() y TIRA (no devuelve null) si el id no
+      // existe — sin el .catch() acá, un materialId invalido/alucinado
+      // por el modelo devolvia el error crudo de Postgrest en vez de
+      // este mensaje legible (confirmado en vivo).
+      const mat = await Materiales.getById(materialId).catch(() => null)
       if (!mat) return { error: 'Material no encontrado.' }
 
       const stockNuevo = Number(mat.stock_actual) + num
@@ -97,7 +102,11 @@ export const WRITE_TOOLS = [
       if (!Number.isFinite(num) || num < 0) {
         return { error: 'El stock mínimo debe ser un número mayor o igual a 0.' }
       }
-      const mat = await Materiales.getById(materialId)
+      // .getById() usa .single() y TIRA (no devuelve null) si el id no
+      // existe — sin el .catch() acá, un materialId invalido/alucinado
+      // por el modelo devolvia el error crudo de Postgrest en vez de
+      // este mensaje legible (confirmado en vivo).
+      const mat = await Materiales.getById(materialId).catch(() => null)
       if (!mat) return { error: 'Material no encontrado.' }
       return {
         resumen:
@@ -293,7 +302,8 @@ export const WRITE_TOOLS = [
       if (!ESTADOS_HERRAMIENTA_VALIDOS.includes(estado)) {
         return { error: `Estado inválido para esta acción: ${estado}. Válidos: ${ESTADOS_HERRAMIENTA_VALIDOS.join(', ')}.` }
       }
-      const h = await Herramientas.getById(herramientaId)
+      // Mismo caso que Materiales.getById: .single() tira si no existe.
+      const h = await Herramientas.getById(herramientaId).catch(() => null)
       if (!h) return { error: 'Herramienta no encontrada.' }
       if (h.estado === 'BAJA') {
         return { error: `"${h.nombre}" está de BAJA — hay que reactivarla desde el módulo de Herramientas, no desde acá.` }
@@ -346,6 +356,151 @@ export const WRITE_TOOLS = [
     execute: async (args) => {
       const data = await Obras.create(args)
       return { resumen: `Listo — obra "${data.nombre}" creada.`, detalle: data }
+    },
+  },
+
+  {
+    name: 'crear_presupuesto_guiado',
+    description:
+      'Propone crear un presupuesto completo (materiales + mano de obra) para una obra, armado a lo ' +
+      'largo de la conversación: primero se resuelve la obra, despues se van juntando materiales ' +
+      'confirmados uno por uno via listar_materiales (nunca inventes un materialId), y por ultimo se ' +
+      'preguntan los datos de mano de obra. Llamá a esta tool UNA sola vez, al final, con TODO ya ' +
+      'confirmado por el usuario — nunca antes de tener obra + al menos un material + los 3 datos de ' +
+      'mano de obra. Es una ACCION — requiere confirmación explícita del usuario antes de aplicarse.',
+    parameters: {
+      type: 'object',
+      properties: {
+        obraId: { type: 'string', description: 'UUID de la obra (existente, o recien creada en este mismo turno).' },
+        materiales: {
+          type: 'array',
+          description: 'Lista de materiales a incluir. Cada uno YA resuelto contra el catálogo real (via listar_materiales) o marcado como nuevo si no existe.',
+          items: {
+            type: 'object',
+            properties: {
+              materialId: { type: 'string', description: 'UUID si el material ya existe en el catálogo.' },
+              materialNuevoNombre:  { type: 'string', description: 'Nombre, solo si el material NO existe y hay que crearlo.' },
+              materialNuevoMarca:   { type: 'string' },
+              materialNuevoUnidad:  { type: 'string', description: 'Default "unidad".' },
+              cantidad: { type: 'number', description: 'Cantidad de este material. Debe ser mayor a 0.' },
+            },
+            required: ['cantidad'],
+          },
+        },
+        empleados:            { type: 'number', description: 'Cantidad de empleados asignados.' },
+        diasEstimados:        { type: 'number', description: 'Cantidad de días de trabajo estimados.' },
+        costoPorEmpleadoDia:  { type: 'number', description: 'Costo por empleado por día, en ARS.' },
+      },
+      required: ['obraId', 'materiales', 'empleados', 'diasEstimados', 'costoPorEmpleadoDia'],
+    },
+    preview: async ({ obraId, materiales, empleados, diasEstimados, costoPorEmpleadoDia } = {}) => {
+      if (!obraId) return { error: 'Falta la obra.' }
+      // Igual que Materiales.getById: usa .single() y TIRA si el id no existe
+      // en vez de devolver null — capturamos para dar un mensaje legible.
+      const obra = await Obras.getById(obraId).catch(() => null)
+      if (!obra) return { error: 'Obra no encontrada — verificá el obraId con listar_obras.' }
+
+      if (!Array.isArray(materiales) || materiales.length === 0) {
+        return { error: 'El presupuesto necesita al menos un material.' }
+      }
+      const emp  = Number(empleados)
+      const dias = Number(diasEstimados)
+      const costoDia = Number(costoPorEmpleadoDia)
+      if (!Number.isFinite(emp) || emp <= 0)      return { error: 'La cantidad de empleados debe ser mayor a 0.' }
+      if (!Number.isFinite(dias) || dias <= 0)    return { error: 'La cantidad de días debe ser mayor a 0.' }
+      if (!Number.isFinite(costoDia) || costoDia < 0) return { error: 'El costo por empleado/día debe ser 0 o mayor.' }
+
+      const items = []
+      for (const m of materiales) {
+        const cantidad = Number(m?.cantidad)
+        if (!Number.isFinite(cantidad) || cantidad <= 0) {
+          return { error: `Cantidad inválida para un material: ${m?.cantidad}. Debe ser mayor a 0.` }
+        }
+
+        if (m.materialId) {
+          // Materiales.getById usa .single() — TIRA (no devuelve null) si el id
+          // no existe. Confirmado en vivo: un materialId invalido/alucinado por
+          // el modelo hacia explotar esto con el error crudo de Postgrest
+          // ("Cannot coerce the result to a single JSON object") en vez de un
+          // mensaje legible.
+          const mat = await Materiales.getById(m.materialId).catch(() => null)
+          if (!mat) return { error: `Material no encontrado (id: ${m.materialId}). Volvé a buscarlo con listar_materiales.` }
+          const precioRef = await Materiales.getPrecioReferencia(m.materialId).catch(() => null)
+          items.push({
+            materialId: m.materialId, esNuevo: false,
+            nombre: mat.nombre, marca: mat.marca, unidad: mat.unidad,
+            cantidad, precioUnitario: precioRef?.precio ?? 0,
+            sinPrecioReferencia: !precioRef,
+          })
+        } else if (m.materialNuevoNombre?.trim()) {
+          const existente = await Materiales.findDuplicate({ nombre: m.materialNuevoNombre, marca: m.materialNuevoMarca })
+          if (existente) {
+            return {
+              error: `Ya existe un material "${existente.nombre}"` +
+                (existente.marca ? ` (${existente.marca})` : '') +
+                ` — usá materialId: "${existente.id}" en vez de crear uno nuevo.`,
+            }
+          }
+          items.push({
+            materialId: null, esNuevo: true,
+            nombre: m.materialNuevoNombre.trim(), marca: m.materialNuevoMarca || null,
+            unidad: m.materialNuevoUnidad || 'unidad',
+            cantidad, precioUnitario: 0, sinPrecioReferencia: true,
+          })
+        } else {
+          return { error: 'Cada material necesita materialId (si existe) o materialNuevoNombre (si hay que crearlo).' }
+        }
+      }
+
+      const costoManoObra = emp * dias * costoDia
+      const lineasMateriales = items.map(i =>
+        `· ${i.cantidad} ${i.unidad} de "${i.nombre}"${i.marca ? ` (${i.marca})` : ''}` +
+        (i.esNuevo ? ' [material nuevo]' : '') +
+        (i.sinPrecioReferencia ? ' — sin precio de referencia, se carga en $0' : ` — $${i.precioUnitario}/u`)
+      ).join('\n')
+
+      return {
+        resumen:
+          `Crear presupuesto para "${obra.nombre}":\n${lineasMateriales}\n` +
+          `· Mano de obra: ${emp} empleado${emp === 1 ? '' : 's'} x ${dias} día${dias === 1 ? '' : 's'} ` +
+          `x $${costoDia}/día = $${costoManoObra}.`,
+        detalle: { obraId, obraNombre: obra.nombre, items, empleados: emp, diasEstimados: dias, costoPorEmpleadoDia: costoDia, costoManoObra },
+      }
+    },
+    execute: async ({ obraId, materiales, empleados, diasEstimados, costoPorEmpleadoDia }) => {
+      const presupuesto = await Presupuestos.create({ obraId })
+
+      // Sin transacción: si algo falla a mitad de camino, el presupuesto
+      // BORRADOR ya creado (con lo que se haya alcanzado a cargar) queda
+      // completamente editable a mano en la UI — no hace falta rollback.
+      for (const m of materiales) {
+        let materialId = m.materialId
+        if (!materialId) {
+          const nuevo = await Materiales.create({
+            nombre: m.materialNuevoNombre, marca: m.materialNuevoMarca,
+            unidad: m.materialNuevoUnidad || 'unidad',
+          })
+          materialId = nuevo.id
+        }
+        const precioRef = await Materiales.getPrecioReferencia(materialId).catch(() => null)
+        await Presupuestos.addInsumo(presupuesto.id, {
+          materialId, cantidad: Number(m.cantidad), precioUnitario: precioRef?.precio ?? 0,
+        })
+      }
+
+      const emp = Number(empleados), dias = Number(diasEstimados), costoDia = Number(costoPorEmpleadoDia)
+      await Presupuestos.addCosto(presupuesto.id, {
+        categoria: 'MANO_OBRA',
+        descripcion: `Mano de obra (${emp} empleado${emp === 1 ? '' : 's'} x ${dias} día${dias === 1 ? '' : 's'})`,
+        cantidad: emp * dias,
+        unidad: 'jornal',
+        costoUnitario: costoDia,
+      })
+
+      return {
+        resumen: `Listo — presupuesto Nº ${presupuesto.numero} creado con ${materiales.length} insumo${materiales.length === 1 ? '' : 's'} y mano de obra por $${emp * dias * costoDia}.`,
+        detalle: presupuesto,
+      }
     },
   },
 

@@ -79,7 +79,10 @@ export function usePanel() {
   // React) y dispararían la escritura dos veces.
   const confirmarAccion = useCallback(async (index) => {
     const turno = mensajesRef.current[index]
-    if (!turno?.accionPendiente || turno.accionEstado !== 'pendiente') return
+    // 'error' se permite acá a propósito: es el "Reintentar" tras un fallo
+    // (ej. timeout) — el accionPendiente sigue siendo el mismo, no hace
+    // falta que el usuario reconstruya el pedido desde cero.
+    if (!turno?.accionPendiente || !['pendiente', 'error'].includes(turno.accionEstado)) return
 
     const conConfirmando = mensajesRef.current.map((m, i) =>
       i === index ? { ...m, accionEstado: 'confirmando' } : m)

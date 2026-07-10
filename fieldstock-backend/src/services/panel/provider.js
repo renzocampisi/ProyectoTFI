@@ -95,5 +95,17 @@ export async function chat({ system, contents, tools }) {
     }
   }
   const text = textPieces.length ? textPieces.join('') : null
+
+  // Diagnostico: si Gemini no devolvio ni texto ni function calls, panel.service
+  // cae al "Caso 3" (fallback generico) sin ninguna pista de por que. Logueamos
+  // el finishReason acá — de otra forma es imposible saber si fue un corte por
+  // MAX_TOKENS, un bloqueo de SAFETY, o un parts vacio legitimo.
+  if (!text && functionCalls.length === 0) {
+    console.warn('[panel/provider] Respuesta vacia de Gemini.', {
+      finishReason: response?.candidates?.[0]?.finishReason,
+      safetyRatings: response?.candidates?.[0]?.safetyRatings,
+    })
+  }
+
   return { text, functionCalls }
 }

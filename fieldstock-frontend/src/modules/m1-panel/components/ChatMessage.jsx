@@ -89,7 +89,19 @@ export default function ChatMessage({ mensaje, onConfirmarAccion, onCancelarAcci
           <p className={styles.accionEstado}>Acción cancelada.</p>
         )}
         {hayAccion && mensaje.accionEstado === 'error' && (
-          <p className={styles.accionErrorMsg}>⚠ {mensaje.accionError}</p>
+          <div className={styles.accionCard}>
+            <p className={styles.accionErrorMsg}>⚠ {mensaje.accionError}</p>
+            <div className={styles.accionBotones}>
+              <button type="button" className={styles.btnAccionCancelar}
+                onClick={() => onCancelarAccion?.()}>
+                <LuX /> Cancelar
+              </button>
+              <button type="button" className={styles.btnAccionConfirmar}
+                onClick={() => onConfirmarAccion?.()}>
+                <LuCheck /> Reintentar
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
