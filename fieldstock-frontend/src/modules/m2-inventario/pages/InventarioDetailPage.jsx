@@ -25,6 +25,13 @@ function formatValor(v) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v)
 }
 
+// Comparación de solo fecha (sin hora) — timezone-safe, mismo criterio que
+// formatFecha: partir el string ISO en vez de instanciar un Date.
+function garantiaVencida(fechaGarantia) {
+  const hoy = new Date().toISOString().split('T')[0]
+  return fechaGarantia.split('T')[0] < hoy
+}
+
 function Campo({ label, value }) {
   return (
     <div className={styles.campo}>
@@ -182,6 +189,15 @@ export default function InventarioDetailPage() {
             <div className={styles.campos}>
               <Campo label="Año de compra" value={herramienta.anio_compra} />
               <Campo label="Valor"         value={formatValor(herramienta.valor)} />
+              <Campo
+                label="Vencimiento de garantía"
+                value={herramienta.fecha_garantia ? (
+                  <span className={garantiaVencida(herramienta.fecha_garantia) ? styles.garantiaVencida : undefined}>
+                    {formatFecha(herramienta.fecha_garantia)}
+                    {garantiaVencida(herramienta.fecha_garantia) && ' ⚠ vencida'}
+                  </span>
+                ) : null}
+              />
             </div>
           </section>
 

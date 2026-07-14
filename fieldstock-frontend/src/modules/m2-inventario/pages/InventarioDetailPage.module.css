@@ -13,6 +13,8 @@
 .categoria { font-size: var(--text-sm); color: var(--text-secondary); }
 .eliminacionWarning { font-size: var(--text-xs); color: var(--color-danger); background: rgba(242,95,92,0.1); border: 1px solid rgba(242,95,92,0.3); padding: 2px 8px; border-radius: var(--radius-full); }
 
+.garantiaVencida { color: var(--color-danger); font-weight: 500; }
+
 /* Pill "Importante — lleva rastreador GPS". Mismo tono de warning que el form. */
 .importanteBadge { font-size: var(--text-xs); color: var(--color-warning); background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.3); padding: 2px 8px; border-radius: var(--radius-full); font-weight: 500; white-space: nowrap; }
 

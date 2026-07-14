@@ -75,6 +75,7 @@ export async function create(body) {
       estado:       body.estadoInicial || 'DISPONIBLE',
       importante:   body.importante === true,
       codigo_qr:    codigoQR,
+      fecha_garantia: body.fechaGarantia || null,
     })
     .select()
     .single()
@@ -95,6 +96,7 @@ export async function update(id, body) {
   if (body.valor       !== undefined) campos.valor        = body.valor        || null
   if (body.divisa      !== undefined) campos.divisa       = body.divisa       || 'ARS'
   if (body.importante  !== undefined) campos.importante   = body.importante === true
+  if (body.fechaGarantia !== undefined) campos.fecha_garantia = body.fechaGarantia || null
 
   const { data, error } = await supabase
     .from('herramientas').update(campos).eq('id', id).select().single()

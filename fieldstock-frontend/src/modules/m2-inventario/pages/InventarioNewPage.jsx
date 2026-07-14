@@ -80,6 +80,7 @@ export default function InventarioNewPage() {
     anioCompra:    '',
     valor:         '',
     divisa:        'ARS',
+    fechaGarantia: '',
     descripcion:   '',
     estadoInicial: 'DISPONIBLE',
     importante:    false,
@@ -134,6 +135,7 @@ export default function InventarioNewPage() {
         anioCompra:    form.anioCompra   || null,
         valor:         form.valor        ? Number(form.valor) : null,
         divisa:        form.divisa,
+        fechaGarantia: form.fechaGarantia || null,
         descripcion:   form.descripcion  || null,
         estadoInicial: form.estadoInicial,
         importante:    form.importante,
@@ -146,7 +148,7 @@ export default function InventarioNewPage() {
 
   const resetForm = () => {
     setForm({ nombre:'',categoriaId:'',marcaNombre:'',modelo:'',numeroSerie:'',
-      anioCompra:'',valor:'',divisa:'ARS',descripcion:'',estadoInicial:'DISPONIBLE',importante:false })
+      anioCompra:'',valor:'',divisa:'ARS',fechaGarantia:'',descripcion:'',estadoInicial:'DISPONIBLE',importante:false })
     setGuardado(null)
   }
 
@@ -274,6 +276,11 @@ export default function InventarioNewPage() {
                   placeholder="0.00" min="0" step="0.01"
                   value={form.valor} onChange={e => set('valor', e.target.value)} />
               </div>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Vencimiento de garantía</label>
+              <input type="date" className={styles.input}
+                value={form.fechaGarantia} onChange={e => set('fechaGarantia', e.target.value)} />
             </div>
           </div>
         </fieldset>
