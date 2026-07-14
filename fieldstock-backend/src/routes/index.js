@@ -24,6 +24,7 @@ import * as CategoriasCtrl      from '../controllers/categorias.controller.js'
 import * as MarcasCtrl          from '../controllers/marcas.controller.js'
 import * as HerramientasCtrl    from '../controllers/herramientas.controller.js'
 import * as MovimientosCtrl     from '../controllers/movimientos.controller.js'
+import * as ReservasCtrl        from '../controllers/reservas.controller.js'
 import * as RemitosCtrl         from '../controllers/remitos.controller.js'
 import * as MateriasCtrl        from '../controllers/materiales.controller.js'
 import * as ObrasCtrl           from '../controllers/obras.controller.js'
@@ -89,6 +90,12 @@ router.post  ('/herramientas/:id/reactivar', HerramientasCtrl.reactivar)
 // ── Movimientos ───────────────────────────────────────────────
 router.get ('/herramientas/:id/movimientos', MovimientosCtrl.getByHerramienta)
 router.post('/herramientas/:id/movimientos', MovimientosCtrl.create)
+
+// ── Reservas (herramienta atada a obra + fecha) ─────────────────
+router.get   ('/herramientas/:id/reservas',           ReservasCtrl.listarPorHerramienta)
+router.post  ('/herramientas/:id/reservas',           ReservasCtrl.crear)
+router.delete('/herramientas/:id/reservas/:reservaId', ReservasCtrl.eliminar)
+router.get   ('/obras/:id/reservas',                  ReservasCtrl.listarPorObra)
 
 // ── Materiales ────────────────────────────────────────────────
 // IMPORTANTE: rutas literales antes de las paramétricas (ej. /marcas

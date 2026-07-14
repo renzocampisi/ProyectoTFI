@@ -48,4 +48,13 @@ export const InventarioService = {
 
   getCategorias: () =>
     api.get('/categorias'),
+
+  getReservas: (herramientaId) =>
+    api.get(`/herramientas/${herramientaId}/reservas`),
+
+  crearReserva: (herramientaId, body) =>
+    api.post(`/herramientas/${herramientaId}/reservas`, body),
+
+  eliminarReserva: (herramientaId, reservaId) =>
+    api.delete(`/herramientas/${herramientaId}/reservas/${reservaId}`),
 }

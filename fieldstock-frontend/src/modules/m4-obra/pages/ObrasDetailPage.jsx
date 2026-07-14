@@ -1,5 +1,5 @@
 // src/modules/m4-obra/pages/ObrasDetailPage.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useObra } from '../hooks/useObras'
 import { ObrasService } from '../services/obras.service'
@@ -29,6 +29,15 @@ export default function ObrasDetailPage() {
 
   const [loadingAction, setLoadingAction] = useState(false)
   const [errAction,     setErrAction]     = useState(null)
+
+  // Herramientas reservadas para esta obra (reserva con fecha, separada del
+  // estado RESERVADA transitorio de un remito en BORRADOR). Pedido aparte,
+  // no bloquea el render principal.
+  const [reservas, setReservas] = useState([])
+  useEffect(() => {
+    if (!id) return
+    ObrasService.getReservas(id).then(setReservas).catch(() => setReservas([]))
+  }, [id])
 
   const action = async (fn) => {
     setLoadingAction(true); setErrAction(null)
@@ -164,6 +173,34 @@ export default function ObrasDetailPage() {
               </div>
             )}
           </section>
+
+          {reservas.length > 0 && (
+            <section className={styles.card}>
+              <h2 className={styles.cardTitle}>
+                Herramientas reservadas
+                <span className={styles.cardCount}>{reservas.length}</span>
+              </h2>
+              <div className={styles.tableWrapper}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Herramienta</th>
+                      <th>Fecha reservada</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reservas.map(r => (
+                      <tr key={r.id} className={styles.row}
+                        onClick={() => navigate(`/herramientas/${r.herramienta_id}`)}>
+                        <td>{r.herramienta?.nombre}</td>
+                        <td className={styles.fecha}>{formatFecha(r.fecha_reserva)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
         </div>
 
       </div>

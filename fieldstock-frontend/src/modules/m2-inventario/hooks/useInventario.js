@@ -69,6 +69,7 @@ export function useInventario() {
 export function useHerramienta(id) {
   const [herramienta, setHerramienta] = useState(null)
   const [movimientos, setMovimientos] = useState([])
+  const [reservas,    setReservas]    = useState([])
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState(null)
 
@@ -76,12 +77,14 @@ export function useHerramienta(id) {
     if (!id) return
     setLoading(true)
     try {
-      const [h, m] = await Promise.all([
+      const [h, m, r] = await Promise.all([
         InventarioService.getById(id),
         InventarioService.getMovimientos(id),
+        InventarioService.getReservas(id),
       ])
       setHerramienta(h)
       setMovimientos(m)
+      setReservas(r)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -91,5 +94,5 @@ export function useHerramienta(id) {
 
   useEffect(() => { cargar() }, [cargar])
 
-  return { herramienta, movimientos, loading, error, refetch: cargar }
+  return { herramienta, movimientos, reservas, loading, error, refetch: cargar }
 }
