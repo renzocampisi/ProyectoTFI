@@ -82,7 +82,8 @@ export async function confirmarEscaneo(req, res, next) {
     // `accion` arriba del objeto para no romper a la app mobile.
     // Pasamos los campos relevantes del body al service: conductor para SALIDA;
     // items + materiales para SALIDA_OBRA / LLEGADA_GALPON; observacionRetorno
-    // para LLEGADA_GALPON. Hasta el PR #33 solo se pasaba `conductor`, lo que
+    // para LLEGADA_GALPON; latitud/longitud (geolocalización simple) para
+    // LLEGADA_GALPON. Hasta el PR #33 solo se pasaba `conductor`, lo que
     // hacía que los items del retorno cargados desde el QR nunca llegaran al
     // service (los descartaba silenciosamente).
     const b = req.body || {}
@@ -93,6 +94,8 @@ export async function confirmarEscaneo(req, res, next) {
         items:              b.items,
         materiales:         b.materiales,
         observacionRetorno: b.observacionRetorno,
+        latitud:            b.latitud,
+        longitud:           b.longitud,
       }
     )
     res.json({ ok: true, data, accion })

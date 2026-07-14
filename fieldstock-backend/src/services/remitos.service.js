@@ -484,6 +484,13 @@ export async function avanzarEstado(id, body = {}) {
   // transición (steps del issue #1). Una sola lectura del clock por avance.
   const fechaHoy = new Date().toISOString().split('T')[0]
 
+  // Geolocalización simple (opcional): si el escaneo QR mobile la mandó,
+  // queda en el/los movimiento(s) que dispare esta transición. Null si no
+  // vino o si el avance se hizo desde la web (no tiene sentido geolocalizar
+  // un click de escritorio).
+  const latitud  = body.latitud  ?? null
+  const longitud = body.longitud ?? null
+
   // ── Transición BORRADOR → CONFIRMADO ──────────────────────────
   // Valida que el remito tenga al menos un item; bloquea las herramientas
   // (EN_OBRA) y descuenta stock de los materiales del catálogo.
@@ -534,6 +541,7 @@ export async function avanzarEstado(id, body = {}) {
           obra:           remito.obra,
           responsable:    remito.responsable,
           observacion:    `Auto-generado desde remito ${remito.numero}`,
+          latitud, longitud,
         }))
       )
     }
@@ -646,6 +654,7 @@ export async function avanzarEstado(id, body = {}) {
           obra:           remito.obra,
           responsable:    remito.responsable,
           observacion:    `Devolución desde remito ${remito.numero}`,
+          latitud, longitud,
         })
       } else if (item.estado_retorno === 'ROTA') {
         await supabase.from('herramientas')
@@ -661,6 +670,7 @@ export async function avanzarEstado(id, body = {}) {
           obra:           remito.obra,
           responsable:    remito.responsable,
           observacion:    `Devolución rota desde remito ${remito.numero}`,
+          latitud, longitud,
         })
       } else if (item.estado_retorno === 'PERDIDA') {
         // BAJA va vía RPC porque es una transición terminal con auditoría
@@ -928,7 +938,7 @@ const ESTADOS_QR_ACCION = {
 const ESTADOS_RETORNO_VALIDOS = new Set(['VUELVE', 'ROTA', 'PERDIDA', 'QUEDA_EN_OBRA'])
 
 export async function confirmarEscaneo(id, body = {}) {
-  const { conductor, items = [], materiales = [], observacionRetorno } = body
+  const { conductor, items = [], materiales = [], observacionRetorno, latitud, longitud } = body
 
   const { data: remito, error: errR } = await supabase
     .from('remitos').select('estado').eq('id', id).single()
@@ -1049,8 +1059,10 @@ export async function confirmarEscaneo(id, body = {}) {
   }
 
   // avanzarEstado acepta `observacionRetorno` y lo persiste en la cabecera
-  // del remito durante la transición EN_TRANSITO_RETORNO → CERRADO.
-  const data = await avanzarEstado(id, { observacionRetorno })
+  // del remito durante la transición EN_TRANSITO_RETORNO → CERRADO. También
+  // acepta latitud/longitud (geolocalización simple del escaneo mobile) y
+  // las mete en el/los movimiento(s) que dispare esa transición.
+  const data = await avanzarEstado(id, { observacionRetorno, latitud, longitud })
   return { data, accion }
 }
 
