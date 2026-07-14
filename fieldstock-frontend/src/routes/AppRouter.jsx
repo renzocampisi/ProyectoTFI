@@ -31,6 +31,9 @@ import MateriasListPage   from '@modules/m6-materiales/pages/MateriasListPage'
 import MateriasNewPage    from '@modules/m6-materiales/pages/MateriasNewPage'
 import MateriasDetailPage from '@modules/m6-materiales/pages/MateriasDetailPage'
 import MateriasEditPage   from '@modules/m6-materiales/pages/MateriasEditPage'
+import KitsListPage       from '@modules/m-kits/pages/KitsListPage'
+import KitsNewPage        from '@modules/m-kits/pages/KitsNewPage'
+import KitsDetailPage     from '@modules/m-kits/pages/KitsDetailPage'
 
 import TransportesPage from '@modules/m7-directorio/pages/TransportesPage'
 import ClientesPage    from '@modules/m7-directorio/pages/ClientesPage'
@@ -118,6 +121,12 @@ export default function AppRouter() {
             <Route path="nuevo"      element={<MateriasNewPage />} />
             <Route path=":id"        element={<MateriasDetailPage />} />
             <Route path=":id/editar" element={<MateriasEditPage />} />
+          </Route>
+
+          <Route path="kits">
+            <Route index        element={<KitsListPage />} />
+            <Route path="nuevo" element={<KitsNewPage />} />
+            <Route path=":id"   element={<KitsDetailPage />} />
           </Route>
 
           <Route path="directorio">

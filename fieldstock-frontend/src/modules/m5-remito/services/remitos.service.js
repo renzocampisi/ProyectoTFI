@@ -41,6 +41,11 @@ export const RemitosService = {
   removeMaterial:        (id, matItemId)    => api.delete(`/remitos/${id}/materiales/${matItemId}`),
   updateMaterialRetorno: (id, matItemId, body) => api.patch(`/remitos/${id}/materiales/${matItemId}/retorno`, body),
 
+  // Agrega de una vez todas las herramientas + materiales de un kit
+  // (ver m-kits). Todo o nada: si algún componente del kit no está
+  // disponible, el backend rechaza sin agregar nada.
+  agregarKit: (id, kitId) => api.post(`/remitos/${id}/kits/${kitId}`, {}),
+
   // Sugerencias de items para un remito en BORRADOR: devuelve los insumos
   // del ultimo presupuesto APROBADO de la obra del remito. Si no hay,
   // devuelve { items: [] }. Sirve para resaltar materiales en el modal

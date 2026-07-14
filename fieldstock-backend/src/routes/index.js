@@ -25,6 +25,7 @@ import * as MarcasCtrl          from '../controllers/marcas.controller.js'
 import * as HerramientasCtrl    from '../controllers/herramientas.controller.js'
 import * as MovimientosCtrl     from '../controllers/movimientos.controller.js'
 import * as ReservasCtrl        from '../controllers/reservas.controller.js'
+import * as KitsCtrl            from '../controllers/kits.controller.js'
 import * as RemitosCtrl         from '../controllers/remitos.controller.js'
 import * as MateriasCtrl        from '../controllers/materiales.controller.js'
 import * as ObrasCtrl           from '../controllers/obras.controller.js'
@@ -96,6 +97,14 @@ router.get   ('/herramientas/:id/reservas',           ReservasCtrl.listarPorHerr
 router.post  ('/herramientas/:id/reservas',           ReservasCtrl.crear)
 router.delete('/herramientas/:id/reservas/:reservaId', ReservasCtrl.eliminar)
 router.get   ('/obras/:id/reservas',                  ReservasCtrl.listarPorObra)
+
+// ── Kits (herramientas + materiales que se usan juntos) ─────────
+router.get   ('/kits',     KitsCtrl.getAll)
+router.post  ('/kits',     KitsCtrl.create)
+router.get   ('/kits/:id', KitsCtrl.getById)
+router.put   ('/kits/:id', KitsCtrl.update)
+router.delete('/kits/:id', KitsCtrl.remove)
+router.post  ('/remitos/:remitoId/kits/:kitId', KitsCtrl.agregarARemito)
 
 // ── Materiales ────────────────────────────────────────────────
 // IMPORTANTE: rutas literales antes de las paramétricas (ej. /marcas
