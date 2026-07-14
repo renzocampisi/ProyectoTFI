@@ -102,6 +102,7 @@ router.put   ('/materiales/:id',            MateriasCtrl.update)
 router.delete('/materiales/:id',            MateriasCtrl.remove)
 router.post  ('/materiales/:id/agregar-stock', MateriasCtrl.agregarStock)
 router.get   ('/materiales/:id/precio-referencia', MateriasCtrl.getPrecioReferencia)
+router.get   ('/materiales/:id/sugerencia-reposicion', MateriasCtrl.getSugerenciaReposicion)
 
 // ── Remitos ───────────────────────────────────────────────────
 router.get   ('/remitos',                                    RemitosCtrl.getAll)

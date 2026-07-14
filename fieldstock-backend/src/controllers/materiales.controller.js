@@ -77,6 +77,16 @@ export async function agregarStock(req, res, next) {
   } catch (err) { next(err) }
 }
 
+// Sugerencia de reposición basada en el consumo real reciente (remitos de
+// los ultimos 90 dias). Devuelve null (200, data:null) si no hay historial
+// suficiente — no es un error, es "todavia no tenemos con que estimar".
+export async function getSugerenciaReposicion(req, res, next) {
+  try {
+    const data = await MateriasService.getSugerenciaReposicion(req.params.id)
+    res.json({ ok: true, data })
+  } catch (err) { next(err) }
+}
+
 // Devuelve el precio_unitario de la ultima compra registrada para este
 // material. Lo usa el form de Presupuestos para autocompletar precio.
 // 404 si nunca se compro.
