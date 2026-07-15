@@ -40,11 +40,12 @@ export async function getById(id) {
   const { data: obraBase } = await supabase
     .from('obras').select('nombre').eq('id', id).single()
 
-  const { data: remitos } = await supabase
+  const { data: remitos, error: errR } = await supabase
     .from('remitos_resumen')
     .select('*')
     .eq('obra', obraBase?.nombre)
-    .order('fecha', { ascending: false })
+    .order('fecha_egreso', { ascending: false })
+  if (errR) throw errR
 
   return { ...obra, remitos: remitos ?? [] }
 }

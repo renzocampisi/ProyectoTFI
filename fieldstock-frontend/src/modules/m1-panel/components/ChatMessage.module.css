@@ -128,3 +128,59 @@
 .trazaErr code {
   color: var(--color-danger);
 }
+
+/* ── Tarjeta de confirmación de acción ────────────────────────── */
+.accionCard {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--color-border);
+}
+
+.accionAviso {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.accionBotones {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.accionBotones button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btnAccionCancelar {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--text-secondary);
+}
+
+.btnAccionConfirmar {
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary-contrast, #fff);
+}
+
+.accionEstado {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--color-border);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.accionErrorMsg {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--color-border);
+  font-size: var(--text-xs);
+  color: var(--color-danger);
+}

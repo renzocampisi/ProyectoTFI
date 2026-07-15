@@ -149,6 +149,19 @@
   margin: var(--space-1) 0 0;
 }
 
+.btnLink {
+  font-size: var(--text-sm);
+  color: var(--color-primary);
+  text-align: center;
+  background: transparent;
+  border: none;
+  padding: var(--space-1);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+.btnLink:hover:not(:disabled) { color: var(--color-primary-hover); }
+.btnLink:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* Botón "Limpiar sesión y reintentar" — discreto al pie. Auto-servicio
    para el bug recurrente del 29/05: localStorage con tokens corruptos
    que impedían loguearse aún con credenciales correctas. */

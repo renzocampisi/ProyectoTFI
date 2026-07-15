@@ -6,6 +6,7 @@ import { useRemito } from '../hooks/useRemitos'
 import { RemitosService } from '../services/remitos.service'
 import { InventarioService } from '@modules/m2-inventario/services/inventario.service'
 import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
+import { KitsService } from '@modules/m-kits/services/kits.service'
 import { useAuth } from '@shared/hooks/useAuth'
 import { ROLES, esDueño as esDueñoOAdmin } from '@shared/constants/roles'
 import EstadoRemitoBadge from '../components/EstadoRemitoBadge'
@@ -671,6 +672,91 @@ function MatBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
   )
 }
 
+// ── Modal para agregar un kit completo al remito ────────────────
+// A diferencia de HerrBuscadorModal/MatBuscadorModal, acá cada kit se
+// agrega con un click directo (no hay selección múltiple + confirmar):
+// agregar un kit es una operación atómica del lado del backend (todo o
+// nada), así que no tiene sentido acumular varios kits en un "carrito"
+// antes de guardar.
+function KitBuscadorModal({ remitoId, onClose, onSaved }) {
+  const [kits,      setKits]      = useState([])
+  const [loading,   setLoading]   = useState(true)
+  const [error,     setError]     = useState(null)
+  const [aplicando, setAplicando] = useState(null) // kitId en curso, o null
+  const [resultado, setResultado] = useState(null) // último kit agregado OK
+
+  useEffect(() => {
+    KitsService.getAll()
+      .then(setKits)
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleAgregar = async (kit) => {
+    setAplicando(kit.id); setError(null); setResultado(null)
+    try {
+      const data = await RemitosService.agregarKit(remitoId, kit.id)
+      setResultado(data)
+      await onSaved() // refetch del remito, pero el modal sigue abierto
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setAplicando(null)
+    }
+  }
+
+  return (
+    <div className={styles.modalOverlay}>
+      <div className={styles.modalGrande}>
+        <div className={styles.modalHeader}>
+          <h3 className={styles.modalTitle}>Agregar kit</h3>
+          <button className={styles.btnClose} onClick={onClose}>✕</button>
+        </div>
+
+        {resultado && (
+          <p className={styles.modalSuccess}>
+            ✓ Se agregó el kit "{resultado.kit}": {resultado.herramientasAgregadas} herramienta(s) y {resultado.materialesAgregados} material(es).
+          </p>
+        )}
+        {error && <p className={styles.modalError}>⚠ {error}</p>}
+
+        {loading ? (
+          <div className={styles.loadingWrapper}><span className={styles.spinner} />Cargando...</div>
+        ) : kits.length === 0 ? (
+          <p className={styles.buscadorEmpty}>
+            No hay kits armados todavía. Creá uno desde la sección "Kits" del menú.
+          </p>
+        ) : (
+          <ul className={styles.checkLista}>
+            {kits.map(k => (
+              <li key={k.id} className={styles.checkItem}>
+                <div className={styles.checkInfo}>
+                  <span className={styles.checkNombre}>{k.nombre}</span>
+                  <span className={styles.checkSub}>
+                    {k.cantidadHerramientas} herramienta(s) · {k.cantidadMateriales} material(es)
+                  </span>
+                </div>
+                <button className={styles.btnSecondary}
+                  onClick={() => handleAgregar(k)}
+                  disabled={aplicando !== null}>
+                  {aplicando === k.id ? 'Agregando...' : 'Agregar'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className={styles.modalFooter}>
+          <span />
+          <div className={styles.modalActions}>
+            <button className={styles.btnGhost} onClick={onClose}>Listo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Detecta si el viewport actual está en modo mobile (<= 768px).
 // Usado en la sección "Acción" para decidir si mostrar el QR inline
 // (PC: el usuario lo escanea con el celular del responsable) o un botón
@@ -711,6 +797,7 @@ export default function RemitosDetailPage() {
   const [confirmVolver, setConfirmVolver] = useState(false)
   const [showHerrModal, setShowHerrModal] = useState(false)
   const [showMatModal,  setShowMatModal]  = useState(false)
+  const [showKitModal,  setShowKitModal]  = useState(false)
 
   // ── Optimistic UI para marcas de retorno (issue #4) ──
   // Cada marca de retorno antes hacía un refetch del remito completo, lo
@@ -840,6 +927,14 @@ export default function RemitosDetailPage() {
         />
       )}
 
+      {showKitModal && (
+        <KitBuscadorModal
+          remitoId={id}
+          onClose={() => setShowKitModal(false)}
+          onSaved={refetch}
+        />
+      )}
+
       {confirmVolver && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalConfirm}>
@@ -909,9 +1004,14 @@ export default function RemitosDetailPage() {
                 Herramientas <span className={styles.cardCount}>{remito.items?.length ?? 0}</span>
               </h2>
               {esBorrador && (
-                <button className={styles.btnSecondary} onClick={() => setShowHerrModal(true)}>
-                  + Agregar
-                </button>
+                <div className={styles.sectionHeaderBotones}>
+                  <button className={styles.btnSecondary} onClick={() => setShowKitModal(true)}>
+                    + Agregar kit
+                  </button>
+                  <button className={styles.btnSecondary} onClick={() => setShowHerrModal(true)}>
+                    + Agregar
+                  </button>
+                </div>
               )}
             </div>
 

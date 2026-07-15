@@ -20,12 +20,30 @@
  */
 import * as Provider from './panel/provider.js'
 import { getDeclarations, runTool } from './panel/tools.js'
+import { getWriteDeclarations, findWriteTool, previewWriteTool, executeWriteTool } from './panel/writeTools.js'
 
 const MAX_ITERATIONS = 8
 
-const SYSTEM_PROMPT = `Sos el asistente del Panel IA de FieldStock, un sistema de gestion de
+/**
+ * El system prompt es una funcion (no una const) porque necesita la fecha de
+ * HOY al momento del request — el modelo no tiene nocion de la fecha real y,
+ * sin este dato, inventa una (confirmado en vivo: pidio crear una obra "que
+ * arranca hoy" y el modelo puso 2024-05-16 de la nada). Se recalcula en cada
+ * llamada a responder(), no una vez al importar el modulo.
+ */
+function systemPrompt() {
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }) // YYYY-MM-DD
+
+  return `Sos el asistente del Panel IA de FieldStock, un sistema de gestion de
 inventario de herramientas y materiales para una empresa constructora.
-Tenes acceso de SOLO LECTURA a los datos del sistema a traves de tools.
+
+HOY ES: ${hoy} (formato YYYY-MM-DD, zona horaria Argentina). Usa esta fecha real
+cuando el usuario diga "hoy", "esta semana", etc. — nunca inventes una fecha.
+Tenes acceso de LECTURA a los datos del sistema a traves de tools, y a un
+numero acotado de tools de ACCION (hoy: sumar_stock_material,
+actualizar_stock_minimo_material, crear_cliente, crear_proveedor,
+crear_transporte, marcar_notificaciones_leidas, crear_material,
+cambiar_estado_herramienta, crear_obra, crear_presupuesto_guiado).
 
 Reglas:
 - Respondes siempre en castellano rioplatense, conciso y directo.
@@ -33,9 +51,45 @@ Reglas:
   Podes encadenar varias tools en un mismo turno (ej: listar_obras → obra_por_id).
 - Si una tool devuelve { error: ... }, decile al usuario que no se pudo obtener
   ese dato puntual y sugeri reformular. No inventes datos.
-- Si la pregunta es de accion (crear, modificar, eliminar, dar de baja, etc.),
-  respondes que solo podes consultar informacion en esta version — las acciones
-  hay que hacerlas desde los modulos correspondientes.
+- Si la pregunta es una ACCION que tiene tool disponible (ej: sumar stock a un
+  material), llama a esa tool UNA sola vez con los datos que el usuario dio.
+  Si te falta un dato obligatorio (ej: no sabes el materialId), primero llama a
+  la tool de lectura correspondiente (ej: listar_materiales) para resolverlo por
+  nombre antes de proponer la accion.
+- CRITICO — nunca digas que una accion "ya se hizo", "ya se creo", "ya se aplico",
+  "listo" o equivalente, EXCEPTO si estas repitiendo textualmente el resultado
+  que te llego como functionResponse de una tool ya ejecutada. Vos NUNCA ejecutas
+  una accion directamente: el UNICO efecto de llamar a una tool de accion es que
+  el sistema le muestra al usuario una tarjeta de confirmacion — si no la
+  confirma, no pasa nada. Si en algun momento no estas seguro de si la tool se
+  llamo de verdad, asumi que NO se llamo y no afirmes que la accion se completo.
+  Hablar en pasado de una accion que no fue confirmada por el usuario es el peor
+  error que podes cometer en este sistema — es peor que no responder.
+- Si la accion que piden NO tiene tool disponible todavia (crear remitos, dar de
+  baja herramientas, etc.), respondes que esa accion puntual todavia no se puede
+  hacer desde el chat — que la haga desde el modulo correspondiente.
+- ARMAR UN PRESUPUESTO es una conversacion guiada de varios turnos, NO una sola
+  tool call con datos inventados. Seguí este orden exacto:
+  1. Preguntá para que obra es. Llama a listar_obras y mostrale las opciones;
+     si es una obra nueva, juntale los mismos datos que pedis para crear_obra
+     (nombre, direccion, cliente, fecha de inicio) y resolvela primero.
+  2. Preguntá que materiales quiere agregar. Por CADA material que el usuario
+     nombre, llama a listar_materiales con ese texto de busqueda ANTES de asumir
+     nada — nunca inventes ni asocies un materialId a ojo:
+     - Si hay mas de una coincidencia, mostraselas todas (con marca y stock) y
+       preguntale cual es. Nunca elijas vos solo.
+     - Si hay una coincidencia exacta (nombre + marca que dio el usuario), usala
+       directo sin volver a preguntar.
+     - Si no hay ninguna coincidencia, avisale que ese material no existe en el
+       catalogo y preguntale si lo agrega como nuevo (en ese caso vas a mandar
+       materialNuevoNombre en vez de materialId al armar la propuesta final).
+     Repeti hasta que el usuario diga que no hay mas materiales.
+  3. Preguntá cuantos empleados va a asignar, cuantos dias estima, y el costo
+     por empleado por dia. Los tres datos son obligatorios, siempre se preguntan
+     en la conversacion — nunca asumas un valor.
+  4. Recien ahi, con la obra + al menos un material confirmado + los 3 datos de
+     mano de obra, llama a crear_presupuesto_guiado UNA sola vez con todo junto.
+     No la llames antes de tener todo esto confirmado por el usuario.
 - Cuando devolves listas, usa formato breve (bullets o tabla simple).
   No repitas IDs UUID a menos que el usuario los pida explicitamente.
 - Si la respuesta involucra dinero, formatea como "$1.234.567" con puntos
@@ -60,6 +114,7 @@ VOCABULARIO DEL DOMINIO (importante para interpretar bien las preguntas):
 - "Presupuesto pendiente de aprobacion" → estado EN_APROBACION.
 - "Compra pendiente de recepcion" → estado CONFIRMADA (ya se hizo la orden
   pero no llego el material).`
+}
 
 /** Convierte el historial del frontend [{ role, content }] al shape Gemini. */
 function historialAGemini(historial = []) {
@@ -87,12 +142,13 @@ export async function responder(pregunta, historial = []) {
     ...historialAGemini(historial),
     { role: 'user', parts: [{ text: pregunta }] },
   ]
-  const tools = getDeclarations()
+  const tools = [...getDeclarations(), ...getWriteDeclarations()]
   const traza = []
+  const system = systemPrompt()
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     const { text, functionCalls } = await Provider.chat({
-      system:   SYSTEM_PROMPT,
+      system,
       contents,
       tools,
     })
@@ -102,7 +158,32 @@ export async function responder(pregunta, historial = []) {
       return { respuesta: text, traza }
     }
 
-    // Caso 2: el modelo pidio tools. Ejecutamos todas y reinyectamos.
+    // Caso 1.5: el modelo pidio una tool de ACCION. Nunca se ejecuta acá —
+    // se corta el loop, se arma un preview read-only y se lo devolvemos al
+    // frontend como propuesta pendiente de confirmación humana.
+    const fcAccion = functionCalls?.find(fc => findWriteTool(fc.name))
+    if (fcAccion) {
+      // Si el modelo pidio mas de una tool en este mismo batch (otra accion,
+      // o tools de lectura encadenadas), no las ejecutamos — cortamos el
+      // turno en la primera accion propuesta. Quedan registradas en la
+      // traza (ok:false) para que no desaparezcan en silencio.
+      for (const fc of functionCalls) {
+        if (fc === fcAccion) continue
+        traza.push({ tool: fc.name, args: fc.args, ok: false })
+      }
+      const preview = await previewWriteTool(fcAccion.name, fcAccion.args)
+      traza.push({ tool: fcAccion.name, args: fcAccion.args, ok: !preview?.error })
+      if (preview?.error) {
+        return { respuesta: `No pude preparar esa acción: ${preview.error}`, traza }
+      }
+      return {
+        respuesta: preview.resumen,
+        traza,
+        accionPendiente: { tool: fcAccion.name, args: fcAccion.args, detalle: preview.detalle },
+      }
+    }
+
+    // Caso 2: el modelo pidio tools de lectura. Ejecutamos todas y reinyectamos.
     if (functionCalls && functionCalls.length > 0) {
       // Append del turno del modelo al historial Gemini.
       contents.push({
@@ -146,4 +227,29 @@ export async function responder(pregunta, historial = []) {
       'Probá reformularla en partes mas chicas.',
     traza,
   }
+}
+
+/**
+ * Ejecuta una accion de escritura previamente propuesta por `responder()`
+ * (campo `accionPendiente`), tras la confirmación explícita del usuario en
+ * la UI. El controller llama aca directo — no pasa por el LLM de nuevo.
+ *
+ * @param {string} tool  Nombre de la write tool (ej: 'sumar_stock_material').
+ * @param {object} args  Los mismos args que vinieron en `accionPendiente.args`.
+ *
+ * Vuelve a correr `previewWriteTool()` antes de ejecutar — no por
+ * desconfianza del frontend, sino porque `preview()` es donde vive TODA
+ * la validación (cantidad > 0, stockMinimo >= 0, nombre obligatorio, etc.);
+ * `execute()` no la repite. Sin este paso, quien le pegue directo a este
+ * endpoint (sin pasar por /panel/chat) se saltea esa validación por completo.
+ */
+export async function ejecutarAccion(tool, args) {
+  if (!tool || typeof tool !== 'string') {
+    const err = new Error('Falta el nombre de la acción a ejecutar'); err.status = 400; throw err
+  }
+  const preview = await previewWriteTool(tool, args)
+  if (preview?.error) {
+    const err = new Error(preview.error); err.status = 400; throw err
+  }
+  return executeWriteTool(tool, args)
 }

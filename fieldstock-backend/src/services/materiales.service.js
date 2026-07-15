@@ -237,6 +237,51 @@ export async function updateStock(id, cantidad, operacion = 'descontar') {
   return data
 }
 
+// ── Reposición predictiva ───────────────────────────────────────
+// Estima cuánto conviene reponer de un material según su consumo real
+// reciente (no es una fórmula mágica: mide cuánto salió menos cuánto
+// volvió en remito_materiales de los últimos VENTANA_DIAS días, saca un
+// promedio diario, y sugiere cubrir COBERTURA_DIAS de esa demanda por
+// encima del stock actual). Si no hay historial de consumo, no hay nada
+// que sugerir — se devuelve null en vez de inventar un número.
+const VENTANA_DIAS   = 90
+const COBERTURA_DIAS = 30
+
+export async function getSugerenciaReposicion(materialId) {
+  const mat = await getById(materialId)
+
+  const desde = new Date()
+  desde.setDate(desde.getDate() - VENTANA_DIAS)
+  const desdeStr = desde.toISOString().split('T')[0]
+
+  const { data, error } = await supabase
+    .from('remito_materiales')
+    .select('cantidad_egreso, cantidad_retorno, remitos!inner(fecha_egreso)')
+    .eq('material_id', materialId)
+    .gte('remitos.fecha_egreso', desdeStr)
+  if (error) throw error
+
+  if (!data?.length) return null
+
+  const consumoTotal = data.reduce((acc, r) =>
+    acc + (Number(r.cantidad_egreso) - Number(r.cantidad_retorno || 0)), 0)
+
+  if (consumoTotal <= 0) return null
+
+  const consumoDiario = consumoTotal / VENTANA_DIAS
+  const objetivoStock = consumoDiario * COBERTURA_DIAS
+  const cantidadSugerida = Math.max(0, Math.ceil(objetivoStock - Number(mat.stock_actual)))
+
+  return {
+    consumoTotal:      Number(consumoTotal.toFixed(2)),
+    consumoDiario:      Number(consumoDiario.toFixed(2)),
+    ventanaDias:        VENTANA_DIAS,
+    coberturaDias:      COBERTURA_DIAS,
+    stockActual:        Number(mat.stock_actual),
+    cantidadSugerida,
+  }
+}
+
 // ── Precio de referencia ──────────────────────────────────────
 // Devuelve el precio_unitario de la ULTIMA compra registrada para ese
 // material (la mas reciente por fecha_recepcion, fallback created_at).

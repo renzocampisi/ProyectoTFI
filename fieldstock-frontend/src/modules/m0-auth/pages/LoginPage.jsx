@@ -112,6 +112,12 @@ export default function LoginPage() {
           {submitting ? 'Ingresando...' : 'Ingresar'}
         </button>
 
+        <button type="button" className={styles.btnLink}
+          onClick={() => navigate('/recuperar-password')}
+          disabled={submitting}>
+          ¿Olvidaste tu contraseña?
+        </button>
+
         <p className={styles.hint}>
           Si no tenés cuenta, pedile al dueño que te cree una.
         </p>

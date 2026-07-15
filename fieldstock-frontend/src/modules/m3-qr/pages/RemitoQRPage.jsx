@@ -123,6 +123,19 @@ export default function RemitoQRPage() {
       .finally(() => setLoading(false))
   }, [id])
 
+  // Geolocalización simple: solo tiene sentido en LLEGADA_GALPON, que es la
+  // única acción de QR que genera movimientos (INGRESO/MANTENIMIENTO) —
+  // el resto de las acciones no auditan geo. Best-effort: si no hay
+  // permiso, soporte, o tarda más de 5s, seguimos sin lat/lng.
+  const obtenerGeolocalizacion = () => new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve({ latitud: null, longitud: null })
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ latitud: pos.coords.latitude, longitud: pos.coords.longitude }),
+      () => resolve({ latitud: null, longitud: null }),
+      { timeout: 5000 }
+    )
+  })
+
   const handleConfirmar = async () => {
     // En SALIDA el conductor es obligatorio. Doble guarda: el botón ya
     // queda disabled, pero validamos también acá por si llega un click
@@ -134,9 +147,8 @@ export default function RemitoQRPage() {
 
     // Armar body según la acción. SALIDA_OBRA lleva los retornos definidos
     // arriba; el resto de acciones van vacías o solo con conductor.
-    // LLEGADA_GALPON solo manda body cuando viene desde la pantalla de
-    // "reportar problema" (showProblemaGalpon) — el botón "Todo OK" cierra
-    // con lo que ya estaba sin tocar nada.
+    // LLEGADA_GALPON siempre manda body (aunque venga vacío desde "Todo OK")
+    // porque necesita ir con la geolocalización del escaneo.
     let body = {}
     if (accion === 'SALIDA') {
       body = { conductor: conductor.trim() }
@@ -149,8 +161,8 @@ export default function RemitoQRPage() {
           remitoMaterialId, cantidadRetorno,
         })),
       }
-    } else if (accion === 'LLEGADA_GALPON' && showProblemaGalpon) {
-      body = {
+    } else if (accion === 'LLEGADA_GALPON') {
+      body = showProblemaGalpon ? {
         items: Object.entries(retornoItems).map(([remitoItemId, estadoRetorno]) => ({
           remitoItemId, estadoRetorno,
         })),
@@ -158,7 +170,10 @@ export default function RemitoQRPage() {
           remitoMaterialId, cantidadRetorno,
         })),
         observacionRetorno: obsRetornoGeneral.trim() || null,
-      }
+      } : {}
+      const { latitud, longitud } = await obtenerGeolocalizacion()
+      body.latitud = latitud
+      body.longitud = longitud
     }
 
     setProcesando(true)

@@ -20,4 +20,17 @@ export const PanelService = {
    */
   chat: (mensaje, historial = []) =>
     api.post('/panel/chat', { mensaje, historial }, { timeoutMs: 60_000 }),
+
+  /**
+   * Confirma y ejecuta una accion propuesta (campo `accionPendiente` de chat()).
+   * 45s (no 15s default) porque `crear_presupuesto_guiado` encadena varias
+   * escrituras secuenciales (materiales nuevos + insumos + costo) y re-valida
+   * todo via preview() antes de ejecutar — más lento que una acción de un
+   * solo campo.
+   * @param {string} tool
+   * @param {object} args
+   * @returns {Promise<{ resumen: string, detalle: object }>}
+   */
+  ejecutarAccion: (tool, args) =>
+    api.post('/panel/ejecutar-accion', { tool, args }, { timeoutMs: 45_000 }),
 }

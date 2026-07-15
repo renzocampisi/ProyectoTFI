@@ -157,8 +157,13 @@ export default function PresupuestoNewPage() {
     const costosValidos = []
     for (const [cat, rows] of Object.entries(costos)) {
       for (const [idx, c] of rows.entries()) {
-        if (!c.descripcion?.trim() && !c.cantidad && !c.costo) continue
-        if (!c.descripcion?.trim()) return `${CATEGORIA_INFO[cat].label} #${idx + 1}: falta descripción.`
+        // Fila sin descripción = fila no tocada (nuevaFilaCosto precarga
+        // cantidad:'1' de entrada, así que NO alcanza con chequear las 3
+        // columnas para detectar "vacía" — la descripción es el único
+        // campo que arranca realmente vacío). Mismo criterio que el
+        // filtro de handleSubmit más abajo, para no bloquear el submit
+        // por una fila agregada de más y nunca completada.
+        if (!c.descripcion?.trim()) continue
         const cant = Number(c.cantidad), cu = Number(c.costo)
         if (!Number.isFinite(cant) || cant <= 0) return `${CATEGORIA_INFO[cat].label} #${idx + 1}: cantidad debe ser > 0.`
         if (!Number.isFinite(cu)   || cu   <  0) return `${CATEGORIA_INFO[cat].label} #${idx + 1}: costo no puede ser negativo.`

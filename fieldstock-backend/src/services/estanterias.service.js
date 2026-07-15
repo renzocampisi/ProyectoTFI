@@ -42,11 +42,17 @@ export async function getById(id) {
 }
 
 // ── Buscar por QR ─────────────────────────────────────────────
+// Match EXACTO — el código QR es un valor fijo tipo "FS-EST-001", no un
+// término de búsqueda parcial. Un ILIKE con comodines acá matchearía
+// cualquier código que lo contenga como substring (ej. "FS-EST-1"
+// matchearía "FS-EST-001", "FS-EST-010", "FS-EST-100", etc.), rompiendo
+// .single() con múltiples resultados o devolviendo la estantería
+// equivocada.
 export async function getByQR(codigoQR) {
   const { data, error } = await supabase
     .from('estanterias')
     .select('*')
-    .ilike('codigo_qr', `%${codigoQR}%`)
+    .eq('codigo_qr', codigoQR)
     .single()
   if (error) throw error
   return data

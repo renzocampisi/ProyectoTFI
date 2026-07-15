@@ -70,6 +70,7 @@ export default function MateriasDetailPage() {
   const [material, setMaterial] = useState(null)
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState(null)
+  const [sugerencia, setSugerencia] = useState(undefined) // undefined=cargando, null=sin datos
 
   // Estado de acciones (eliminar, agregar stock)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -88,6 +89,15 @@ export default function MateriasDetailPage() {
   }, [id])
 
   useEffect(() => { cargar() }, [cargar])
+
+  // Reposición predictiva: pedido aparte, no bloquea el render principal
+  // del material — si tarda o falla, la sección simplemente no aparece.
+  useEffect(() => {
+    if (!id) return
+    MaterialesService.getSugerenciaReposicion(id)
+      .then(setSugerencia)
+      .catch(() => setSugerencia(null))
+  }, [id])
 
   const handleEliminar = async () => {
     if (eliminando) return
@@ -185,6 +195,20 @@ export default function MateriasDetailPage() {
           </div>
         )}
       </section>
+
+      {/* ── Reposición predictiva ────────────────────────────── */}
+      {sugerencia && sugerencia.cantidadSugerida > 0 && (
+        <section className={styles.card}>
+          <h2 className={styles.cardTitle}>Reposición sugerida</h2>
+          <p className={styles.observacionesText}>
+            En los últimos {sugerencia.ventanaDias} días se consumieron{' '}
+            <strong>{sugerencia.consumoTotal} {material.unidad}</strong> de este material
+            (≈{sugerencia.consumoDiario}/día). Para cubrir {sugerencia.coberturaDias} días más
+            de ese ritmo, convendría reponer aproximadamente{' '}
+            <strong>{sugerencia.cantidadSugerida} {material.unidad}</strong>.
+          </p>
+        </section>
+      )}
 
       {/* ── Card acciones ───────────────────────────────────── */}
       <section className={styles.acciones}>

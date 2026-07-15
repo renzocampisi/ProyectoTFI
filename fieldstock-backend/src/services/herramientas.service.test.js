@@ -211,12 +211,22 @@ describe('herramientas.service', () => {
   })
 
   describe('updateEstado', () => {
-    const ESTADOS_VALIDOS = ['DISPONIBLE', 'EN_OBRA', 'EN_MANTENIMIENTO', 'RESERVADA', 'BAJA']
+    // BAJA queda afuera a propósito: es terminal, solo se entra/sale vía
+    // las RPCs dedicadas (dar_baja_herramienta / reactivar_herramienta).
+    const ESTADOS_VALIDOS = ['DISPONIBLE', 'EN_OBRA', 'EN_MANTENIMIENTO', 'RESERVADA']
 
     it.each(ESTADOS_VALIDOS)('acepta el estado válido del dominio: %s', async (estado) => {
-      mockChain.single.mockResolvedValue({ data: { id: 'h-1', estado }, error: null })
+      mockChain.single
+        .mockResolvedValueOnce({ data: { estado: 'DISPONIBLE' }, error: null }) // check de estado actual (no BAJA)
+        .mockResolvedValueOnce({ data: { id: 'h-1', estado }, error: null })    // resultado del update
       await expect(HerramientasService.updateEstado('h-1', estado)).resolves.toBeDefined()
       expect(mockChain.update).toHaveBeenCalledWith({ estado })
+    })
+
+    it('rechaza BAJA — hay que usar el endpoint de dar de baja (RPC dar_baja_herramienta)', async () => {
+      await expect(
+        HerramientasService.updateEstado('h-1', 'BAJA')
+      ).rejects.toMatchObject({ status: 400 })
     })
 
     it('rechaza estados inválidos con error status 400', async () => {
@@ -229,6 +239,13 @@ describe('herramientas.service', () => {
       await expect(
         HerramientasService.updateEstado('h-1', 'disponible')
       ).rejects.toMatchObject({ status: 400 })
+    })
+
+    it('rechaza el cambio si la herramienta está actualmente en BAJA (hay que reactivar primero)', async () => {
+      mockChain.single.mockResolvedValueOnce({ data: { estado: 'BAJA' }, error: null })
+      await expect(
+        HerramientasService.updateEstado('h-1', 'DISPONIBLE')
+      ).rejects.toMatchObject({ status: 409 })
     })
   })
 

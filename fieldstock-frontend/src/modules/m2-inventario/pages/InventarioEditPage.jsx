@@ -32,6 +32,7 @@ export default function InventarioEditPage() {
         descripcion: herr.descripcion  || '',
         añoCompra:   herr.anio_compra  || '',
         valor:       herr.valor        || '',
+        fechaGarantia: herr.fecha_garantia || '',
         importante:  herr.importante   === true,
       })
       setCategorias(cats)
@@ -67,6 +68,7 @@ export default function InventarioEditPage() {
         descripcion: form.descripcion.trim() || null,
         añoCompra:   form.añoCompra          || null,
         valor:       form.valor ? Number(form.valor) : null,
+        fechaGarantia: form.fechaGarantia    || null,
         importante:  form.importante === true,
       })
       setGuardado(true)
@@ -184,6 +186,11 @@ export default function InventarioEditPage() {
                 className={`${styles.input} ${errores.valor ? styles.inputError : ''}`}
                 value={form.valor} onChange={e => set('valor', e.target.value)} />
               {errores.valor && <span className={styles.error}>{errores.valor}</span>}
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="fechaGarantia">Vencimiento de garantía</label>
+              <input id="fechaGarantia" type="date" className={styles.input}
+                value={form.fechaGarantia} onChange={e => set('fechaGarantia', e.target.value)} />
             </div>
           </div>
         </fieldset>

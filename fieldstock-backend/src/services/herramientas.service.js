@@ -75,6 +75,7 @@ export async function create(body) {
       estado:       body.estadoInicial || 'DISPONIBLE',
       importante:   body.importante === true,
       codigo_qr:    codigoQR,
+      fecha_garantia: body.fechaGarantia || null,
     })
     .select()
     .single()
@@ -95,6 +96,7 @@ export async function update(id, body) {
   if (body.valor       !== undefined) campos.valor        = body.valor        || null
   if (body.divisa      !== undefined) campos.divisa       = body.divisa       || 'ARS'
   if (body.importante  !== undefined) campos.importante   = body.importante === true
+  if (body.fechaGarantia !== undefined) campos.fecha_garantia = body.fechaGarantia || null
 
   const { data, error } = await supabase
     .from('herramientas').update(campos).eq('id', id).select().single()
@@ -102,11 +104,32 @@ export async function update(id, body) {
   return data
 }
 
+// BAJA queda afuera de este set a propósito: es terminal y solo se puede
+// entrar/salir vía las RPCs dedicadas (ver guard abajo).
+const ESTADOS_VALIDOS = ['DISPONIBLE','EN_OBRA','EN_MANTENIMIENTO','RESERVADA']
+
 export async function updateEstado(id, estado) {
-  const ESTADOS_VALIDOS = ['DISPONIBLE','EN_OBRA','EN_MANTENIMIENTO','RESERVADA','BAJA']
   if (!ESTADOS_VALIDOS.includes(estado)) {
-    const err = new Error(`Estado inválido: ${estado}`)
+    const err = new Error(
+      estado === 'BAJA'
+        ? 'No se puede setear BAJA por acá — usá el endpoint de dar de baja (RPC dar_baja_herramienta).'
+        : `Estado inválido: ${estado}`
+    )
     err.status = 400; throw err
+  }
+
+  // Guard: si la herramienta está actualmente en BAJA, la única salida
+  // válida es reactivar_herramienta (RPC) — un UPDATE directo acá dejaría
+  // activo=true/fecha_eliminacion sin resetear, rompiendo el ciclo de vida
+  // documentado en CLAUDE.md.
+  const { data: actual, error: errActual } = await supabase
+    .from('herramientas').select('estado').eq('id', id).single()
+  if (errActual) throw errActual
+  if (actual.estado === 'BAJA') {
+    const err = new Error(
+      'La herramienta está de BAJA — usá el endpoint de reactivar (RPC reactivar_herramienta) para sacarla de ese estado.'
+    )
+    err.status = 409; throw err
   }
 
   const { data, error } = await supabase

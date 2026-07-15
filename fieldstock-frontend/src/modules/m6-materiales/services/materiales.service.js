@@ -43,4 +43,8 @@ export const MaterialesService = {
   // el form de Presupuestos para autocompletar al elegir un material.
   // Lanza err.status=404 si nunca se compro — el caller cae al "vacio".
   getPrecioReferencia: (id) => api.get(`/materiales/${id}/precio-referencia`),
+
+  // Sugerencia de cuánto reponer según el consumo real de los últimos 90
+  // días (remitos). Devuelve null si no hay historial suficiente todavía.
+  getSugerenciaReposicion: (id) => api.get(`/materiales/${id}/sugerencia-reposicion`),
 }

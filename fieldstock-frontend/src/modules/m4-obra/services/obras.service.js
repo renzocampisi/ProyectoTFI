@@ -21,4 +21,5 @@ export const ObrasService = {
   update:    (id, body) => api.put(`/obras/${id}`, body),
   finalizar: (id)       => api.post(`/obras/${id}/finalizar`, {}),
   reactivar: (id)       => api.post(`/obras/${id}/reactivar`, {}),
+  getReservas: (id)     => api.get(`/obras/${id}/reservas`),
 }

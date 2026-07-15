@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Arquitectura — Presupuesto guiado por chat + sugerencia de encargado</title>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' })
+</script>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1d21; --muted: #5b6470; --card: #f7f8fa;
+    --border: #e2e5e9; --accent: #3457d5; --accent-bg: #eef1fc;
+    --danger: #b3261e; --danger-bg: #fdecea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 20px 80px; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); margin: 0 0 32px; font-size: 0.95rem; }
+  h2 { font-size: 1.1rem; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--border); }
+  h3 { font-size: 0.95rem; margin: 20px 0 8px; color: var(--fg); }
+  p { margin: 0 0 12px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 20px; margin: 16px 0;
+  }
+  .card.accent { background: var(--accent-bg); border-color: #c7d2f5; }
+  .card.danger { background: var(--danger-bg); border-color: #f3c6c2; }
+  .card h3 { margin-top: 0; }
+  ul, ol { margin: 8px 0 12px; padding-left: 22px; }
+  li { margin: 4px 0; }
+  code { background: #eef0f3; padding: 1px 6px; border-radius: 4px; font-size: 0.88em; }
+  .tag {
+    display: inline-block; font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.03em; padding: 2px 8px; border-radius: 100px; margin-right: 6px;
+  }
+  .tag.reuse { background: #dbf0e3; color: #1a6b3c; }
+  .tag.new { background: #fde8cc; color: #8a4b06; }
+  .tag.deferred { background: #e6e8ec; color: #5b6470; }
+  .pre-mermaid-note { color: var(--muted); font-size: 0.85rem; margin-bottom: 4px; }
+  pre.mermaid { background: transparent; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+  .stop-block {
+    margin-top: 48px; padding: 20px; border: 2px solid var(--accent); border-radius: 10px;
+    background: var(--accent-bg);
+  }
+  .stop-block strong { color: var(--accent); }
+  @media print { body { padding: 20px; } }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a; --fg: #e8eaed; --muted: #9aa3af; --card: #1c1f24;
+      --border: #2c3038; --accent: #7c93f0; --accent-bg: #1c2340;
+      --danger: #f2938c; --danger-bg: #3a1f1e;
+    }
+    code { background: #23262c; }
+    .tag.reuse { background: #123324; color: #6fdb9a; }
+    .tag.new { background: #3a2a10; color: #f0b25c; }
+    .tag.deferred { background: #23262c; color: #9aa3af; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Presupuesto guiado por chat + sugerencia de encargado</h1>
+  <p class="subtitle">Etapa 1 — Arquitectura de alto nivel · Panel IA (M1) + M-Presupuestos · FieldStock AI</p>
+
+  <div class="pre-mermaid-note">Flujo del presupuesto guiado (lo único que pasa por el chat):</div>
+  <pre class="mermaid">
+flowchart TD
+    U["Usuario: 'armame un presupuesto'"] --> O1["¿Para qué obra?<br/>lista las obras existentes"]
+    O1 --> O2{"¿Existe o es nueva?"}
+    O2 -->|"existente"| M1
+    O2 -->|"nueva"| ON["Junta los datos<br/>(mismo flujo que crear_obra)"]
+    ON --> M1
+
+    M1["Pregunta: '¿qué material y qué cantidad?'"] --> M2{"¿Otro material más?"}
+    M2 -->|"sí"| M1
+    M2 -->|"no, listo"| L1["Pregunta: cantidad de empleados<br/>y costo por empleado/día"]
+
+    L1 --> PV["Vista previa completa:<br/>obra + lista de materiales + costo de mano de obra"]
+    PV --> C{"Usuario confirma"}
+    C -->|"no"| X["Nada cambia"]
+    C -->|"sí"| CR["Crea presupuesto BORRADOR<br/>+ un insumo por cada material<br/>+ un costo de mano de obra"]
+    CR --> ED["Editable en /presupuestos como siempre<br/>(mismo flujo de aprobación)"]
+
+    style CR fill:#dbf0e3,stroke:#1a6b3c
+  </pre>
+
+  <h2>El problema y el resultado buscado</h2>
+  <p>
+    Armar un presupuesto a mano hoy significa: crearlo desde el formulario, después agregar cada insumo
+    uno por uno desde otra pantalla, después agregar el costo de mano de obra aparte. La idea es que se
+    pueda hacer lo mismo charlando con el Panel IA: le decís para qué obra es y le vas dictando "20 cajas
+    de tornillos", "100 metros de caño de tal marca", etc., el asistente arma la lista, y al final
+    confirmás todo de una vez — sin abrir el formulario ítem por ítem.
+  </p>
+  <p>
+    <strong>Importante, dos cosas que quedaron afuera de esta ronda</strong> tras la conversación de
+    arquitectura: no hay una acción <code>crear_remito</code> por chat (los remitos se siguen generando
+    solo automáticamente al aprobar un presupuesto, como ya funciona hoy), y el asistente no estima
+    cantidades de materiales por su cuenta — el usuario dicta cada material y cantidad, el asistente solo
+    escucha y arma la lista.
+  </p>
+
+  <h2>Enfoque de alto nivel — Presupuesto guiado</h2>
+
+  <div class="card">
+    <h3><span class="tag new">nuevo</span> Wizard de presupuesto en el chat</h3>
+    <p>Es una conversación de varios turnos, sin ningún cálculo automático de por medio:</p>
+    <ol>
+      <li>Pregunta para qué obra es — lista las obras existentes para elegir, o junta los datos de una
+        obra nueva (reutilizando el mismo flujo que ya existe para crear una obra por chat).</li>
+      <li>Pregunta material y cantidad, uno por vez, en un loop: el usuario dicta ("20 cajas de
+        tornillos", "100 metros de caño de tal marca") y el asistente <strong>siempre busca en el
+        catálogo real antes de asumir nada</strong> — nunca inventa ni asocia un material a ojo:
+        <ul>
+          <li>Si el usuario nombra algo genérico ("tornillos") y hay varias coincidencias en el
+            catálogo, se las muestra todas (con marca y stock) y pregunta cuál de todas es.</li>
+          <li>Si el usuario ya da nombre + marca y hay una coincidencia exacta, la toma directo sin
+            preguntar de nuevo.</li>
+          <li>Si no hay ninguna coincidencia, avisa que no existe ese material en el catálogo y
+            pregunta si se da de alta (mismo chequeo de duplicados que ya usa la acción de crear
+            material) o si el usuario quiere corregir el nombre.</li>
+        </ul>
+      </li>
+      <li>Cuando el usuario dice que no hay más materiales, pregunta cuántos empleados se van a asignar
+        y el costo por empleado/día — esto se pregunta siempre en la conversación, no hay un valor
+        guardado en ningún lado del sistema.</li>
+      <li>Arma una única vista previa con todo: la obra, la lista completa de materiales con cantidad,
+        y el costo de mano de obra calculado.</li>
+    </ol>
+    <p>
+      Al confirmar, se crea un presupuesto en BORRADOR con todos esos insumos y el costo de mano de obra
+      cargados — exactamente como si el usuario lo hubiera hecho a mano, ítem por ítem, desde la pantalla
+      de presupuestos. Se puede seguir editando ahí antes de mandarlo a aprobación. La máquina de estados
+      de presupuestos no cambia en nada.
+    </p>
+  </div>
+
+  <h2>Enfoque de alto nivel — Sugerencia de encargado libre</h2>
+
+  <div class="card">
+    <h3><span class="tag reuse">reutiliza</span> Botón "Sugerir encargado" en el modal existente</h3>
+    <p>
+      Cuando se aprueba un presupuesto, ya se genera automáticamente un remito en BORRADOR y ya existe
+      una pantalla para configurarlo (elegir transporte y responsable), que ya sabe qué encargados están
+      libres u ocupados en ese momento. Se agrega un botón en esa misma pantalla que, al apretarlo,
+      pre-selecciona automáticamente un encargado libre (en vez de que el usuario tenga que mirar la
+      lista y elegir manualmente). El usuario sigue pudiendo cambiar la selección antes de confirmar —
+      esto no toca la máquina de estados del remito ni el flujo de aprobación en nada, es puramente una
+      comodidad dentro de una pantalla que ya existe. No tiene nada que ver con el chat.
+    </p>
+  </div>
+
+  <div class="card">
+    <h3><span class="tag deferred">anotado para más adelante — no se construye ahora</span>
+      Sugerencia de herramientas según los materiales</h3>
+    <p>
+      La idea de que el sistema sugiera herramientas automáticamente según los materiales del presupuesto
+      (por ejemplo: si hay tornillos, sugerir atornillador y caja de herramientas; si hay caños, sugerir
+      máquina de soldar) queda anotada para el futuro. Hace falta una lista real de qué herramienta
+      corresponde a qué material — el usuario la va a preparar más adelante. Hasta que exista esa lista,
+      no se construye nada de esto: ni una relación en la base, ni un botón, ni una estimación del
+      modelo por su cuenta.
+    </p>
+  </div>
+
+  <h2>Decisiones acordadas en esta ronda</h2>
+  <ul>
+    <li>No hay <code>crear_remito</code> por chat — se descarta, los remitos se siguen generando solo al
+      aprobar un presupuesto.</li>
+    <li>El presupuesto por chat es 100% guiado: el usuario dicta cada material y cantidad, el asistente
+      no estima ni calcula estos valores por su cuenta.</li>
+    <li>El costo de mano de obra se sigue preguntando siempre en la conversación.</li>
+    <li>El presupuesto generado aterriza como BORRADOR normal, editable en la UI existente.</li>
+    <li>Se suma una mejora chica e independiente del chat: un botón para sugerir un encargado libre en
+      la pantalla de configuración post-aprobación que ya existe.</li>
+    <li>La sugerencia de herramientas según materiales queda anotada pero fuera de esta ronda — no se
+      construye nada de eso todavía.</li>
+  </ul>
+
+  <div class="stop-block">
+    <p><strong>¿Aprobás esta arquitectura?</strong> Decime <strong>OK</strong> para continuar con el plan
+    de implementación, o indicame los cambios que querés.</p>
+  </div>
+
+</div>
+</body>
+</html>

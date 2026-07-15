@@ -24,6 +24,8 @@ import * as CategoriasCtrl      from '../controllers/categorias.controller.js'
 import * as MarcasCtrl          from '../controllers/marcas.controller.js'
 import * as HerramientasCtrl    from '../controllers/herramientas.controller.js'
 import * as MovimientosCtrl     from '../controllers/movimientos.controller.js'
+import * as ReservasCtrl        from '../controllers/reservas.controller.js'
+import * as KitsCtrl            from '../controllers/kits.controller.js'
 import * as RemitosCtrl         from '../controllers/remitos.controller.js'
 import * as MateriasCtrl        from '../controllers/materiales.controller.js'
 import * as ObrasCtrl           from '../controllers/obras.controller.js'
@@ -90,6 +92,20 @@ router.post  ('/herramientas/:id/reactivar', HerramientasCtrl.reactivar)
 router.get ('/herramientas/:id/movimientos', MovimientosCtrl.getByHerramienta)
 router.post('/herramientas/:id/movimientos', MovimientosCtrl.create)
 
+// ── Reservas (herramienta atada a obra + fecha) ─────────────────
+router.get   ('/herramientas/:id/reservas',           ReservasCtrl.listarPorHerramienta)
+router.post  ('/herramientas/:id/reservas',           ReservasCtrl.crear)
+router.delete('/herramientas/:id/reservas/:reservaId', ReservasCtrl.eliminar)
+router.get   ('/obras/:id/reservas',                  ReservasCtrl.listarPorObra)
+
+// ── Kits (herramientas + materiales que se usan juntos) ─────────
+router.get   ('/kits',     KitsCtrl.getAll)
+router.post  ('/kits',     KitsCtrl.create)
+router.get   ('/kits/:id', KitsCtrl.getById)
+router.put   ('/kits/:id', KitsCtrl.update)
+router.delete('/kits/:id', KitsCtrl.remove)
+router.post  ('/remitos/:remitoId/kits/:kitId', KitsCtrl.agregarARemito)
+
 // ── Materiales ────────────────────────────────────────────────
 // IMPORTANTE: rutas literales antes de las paramétricas (ej. /marcas
 // antes de /:id) para que Express no las capture como id.
@@ -102,6 +118,7 @@ router.put   ('/materiales/:id',            MateriasCtrl.update)
 router.delete('/materiales/:id',            MateriasCtrl.remove)
 router.post  ('/materiales/:id/agregar-stock', MateriasCtrl.agregarStock)
 router.get   ('/materiales/:id/precio-referencia', MateriasCtrl.getPrecioReferencia)
+router.get   ('/materiales/:id/sugerencia-reposicion', MateriasCtrl.getSugerenciaReposicion)
 
 // ── Remitos ───────────────────────────────────────────────────
 router.get   ('/remitos',                                    RemitosCtrl.getAll)
@@ -238,6 +255,9 @@ router.put   ('/config/:key',    requireRole(ROLES_ADMIN_LEVEL), ConfigCtrl.set)
 // Asistente conversacional con tool use sobre Gemini. Read-only,
 // vision total — cualquier usuario autenticado puede usarlo.
 router.post('/panel/chat', PanelCtrl.chat)
+// Ejecuta una accion de escritura propuesta por /panel/chat (accionPendiente),
+// tras confirmación explícita del usuario en la UI — nunca se dispara sola.
+router.post('/panel/ejecutar-accion', PanelCtrl.ejecutarAccion)
 
 // ── Notificaciones ────────────────────────────────────────────
 router.get  ('/notificaciones',              NotificacionesCtrl.getAll)

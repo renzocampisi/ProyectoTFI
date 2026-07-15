@@ -57,3 +57,16 @@ export async function marcarTodasLeidas() {
     .eq('leida', false)
   if (error) throw error
 }
+
+// Conteo puro (head: true → no trae filas) para casos que solo necesitan el
+// número total de no leídas, sin el join a remitos ni el limit(15) de getAll()
+// (usado por el preview de la write tool marcar_notificaciones_leidas: contar
+// mal ahí mostraría un número distinto al que marcarTodasLeidas() realmente aplica).
+export async function contarNoLeidas() {
+  const { count, error } = await supabase
+    .from('notificaciones')
+    .select('id', { count: 'exact', head: true })
+    .eq('leida', false)
+  if (error) throw error
+  return count ?? 0
+}

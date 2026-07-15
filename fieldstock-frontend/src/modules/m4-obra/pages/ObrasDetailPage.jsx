@@ -1,9 +1,10 @@
 // src/modules/m4-obra/pages/ObrasDetailPage.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useObra } from '../hooks/useObras'
 import { ObrasService } from '../services/obras.service'
 import PresupuestosObraSection from '@modules/m-presupuestos/components/PresupuestosObraSection'
+import EstadoRemitoBadge from '@modules/m5-remito/components/EstadoRemitoBadge'
 import { ESTADO_INFO } from '../constants'
 import styles from './ObrasDetailPage.module.css'
 
@@ -21,18 +22,6 @@ function EstadoBadge({ estado }) {
   return <span className={`${styles.badge} ${styles[info.cls] || ''}`}>{info.label}</span>
 }
 
-function EstadoRemitoBadge({ estado }) {
-  const MAP = {
-    BORRADOR:         { label: 'Borrador',        cls: 'borrador'  },
-    CONFIRMADO:       { label: 'Confirmado',       cls: 'confirmado'},
-    EN_TRANSITO:      { label: 'En tránsito',      cls: 'transito'  },
-    RECIBIDO_EN_OBRA: { label: 'Recibido en obra', cls: 'recibido'  },
-    CERRADO:          { label: 'Cerrado',          cls: 'cerrado'   },
-  }
-  const { label, cls } = MAP[estado] ?? { label: estado, cls: 'borrador' }
-  return <span className={`${styles.remitoBadge} ${styles[cls]}`}>{label}</span>
-}
-
 export default function ObrasDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -40,6 +29,15 @@ export default function ObrasDetailPage() {
 
   const [loadingAction, setLoadingAction] = useState(false)
   const [errAction,     setErrAction]     = useState(null)
+
+  // Herramientas reservadas para esta obra (reserva con fecha, separada del
+  // estado RESERVADA transitorio de un remito en BORRADOR). Pedido aparte,
+  // no bloquea el render principal.
+  const [reservas, setReservas] = useState([])
+  useEffect(() => {
+    if (!id) return
+    ObrasService.getReservas(id).then(setReservas).catch(() => setReservas([]))
+  }, [id])
 
   const action = async (fn) => {
     setLoadingAction(true); setErrAction(null)
@@ -147,7 +145,6 @@ export default function ObrasDetailPage() {
                   <thead>
                     <tr>
                       <th>Número</th>
-                      <th>Tipo</th>
                       <th>Fecha</th>
                       <th>Herramientas</th>
                       <th>Insumos</th>
@@ -159,12 +156,7 @@ export default function ObrasDetailPage() {
                     {obra.remitos.map(r => (
                       <tr key={r.id} className={styles.row} onClick={() => navigate(`/remitos/${r.id}`)}>
                         <td className={styles.numero}>{r.numero}</td>
-                        <td>
-                          <span className={`${styles.tipoBadge} ${r.tipo === 'EGRESO' ? styles.egreso : styles.ingreso}`}>
-                            {r.tipo === 'EGRESO' ? '↑ Egreso' : '↓ Ingreso'}
-                          </span>
-                        </td>
-                        <td className={styles.fecha}>{formatFecha(r.fecha)}</td>
+                        <td className={styles.fecha}>{formatFecha(r.fecha_egreso)}</td>
                         <td className={styles.cant}>{r.cantidad_herramientas}</td>
                         <td className={styles.cant}>{r.cantidad_materiales}</td>
                         <td><EstadoRemitoBadge estado={r.estado} /></td>
@@ -181,6 +173,34 @@ export default function ObrasDetailPage() {
               </div>
             )}
           </section>
+
+          {reservas.length > 0 && (
+            <section className={styles.card}>
+              <h2 className={styles.cardTitle}>
+                Herramientas reservadas
+                <span className={styles.cardCount}>{reservas.length}</span>
+              </h2>
+              <div className={styles.tableWrapper}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Herramienta</th>
+                      <th>Fecha reservada</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reservas.map(r => (
+                      <tr key={r.id} className={styles.row}
+                        onClick={() => navigate(`/herramientas/${r.herramienta_id}`)}>
+                        <td>{r.herramienta?.nombre}</td>
+                        <td className={styles.fecha}>{formatFecha(r.fecha_reserva)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
         </div>
 
       </div>

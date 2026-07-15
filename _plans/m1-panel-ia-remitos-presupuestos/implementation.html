@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Implementación — Presupuesto guiado por chat + sugerencia de encargado</title>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' })
+</script>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1d21; --muted: #5b6470; --card: #f7f8fa;
+    --border: #e2e5e9; --accent: #3457d5; --accent-bg: #eef1fc;
+    --danger: #b3261e; --danger-bg: #fdecea; --code-bg: #eef0f3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 20px 80px; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 800px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); margin: 0 0 32px; font-size: 0.95rem; }
+  h2 { font-size: 1.1rem; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--border); }
+  h3 { font-size: 0.95rem; margin: 4px 0 8px; }
+  p { margin: 0 0 12px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 20px; margin: 14px 0;
+  }
+  .card.danger { background: var(--danger-bg); border-color: #f3c6c2; }
+  ul, ol { margin: 8px 0 12px; padding-left: 22px; }
+  li { margin: 4px 0; }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: 0.88em; }
+  pre.mermaid { background: transparent; }
+  .pre-mermaid-note { color: var(--muted); font-size: 0.85rem; margin-bottom: 4px; }
+  .step {
+    border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin: 14px 0;
+    background: var(--card);
+  }
+  .step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%; background: var(--accent);
+    color: #fff; font-size: 0.8rem; font-weight: 700; margin-right: 8px;
+  }
+  .step h3 { display: inline; }
+  .step .file { font-family: ui-monospace, monospace; font-size: 0.85em; color: var(--accent); }
+  .step .verify {
+    margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border);
+    font-size: 0.9rem; color: var(--muted);
+  }
+  .step .verify strong { color: var(--fg); }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; }
+  @media print { body { padding: 20px; } }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a; --fg: #e8eaed; --muted: #9aa3af; --card: #1c1f24;
+      --border: #2c3038; --accent: #7c93f0; --accent-bg: #1c2340;
+      --danger: #f2938c; --danger-bg: #3a1f1e; --code-bg: #23262c;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Presupuesto guiado por chat + sugerencia de encargado</h1>
+  <p class="subtitle">Etapa 2 — Implementación · Panel IA (M1) + M-Presupuestos · FieldStock AI</p>
+
+  <div class="pre-mermaid-note">Secuencia de una conversación típica, con qué se llama en cada paso:</div>
+  <pre class="mermaid">
+sequenceDiagram
+    participant U as Usuario
+    participant O as panel.service (orquestador)
+    participant T as tools.js (lectura)
+    participant W as writeTools.js (escritura)
+    participant S as Services existentes
+
+    U->>O: "armame un presupuesto"
+    O->>T: listar_obras
+    T->>S: Obras.getAll()
+    O-->>U: "¿para qué obra? (lista)"
+    U->>O: "Casa Pérez" / datos de obra nueva
+    Note over O: si es nueva, mismo turno<br/>que ya usa crear_obra
+    U->>O: "20 cajas de tornillos M12"
+    O->>T: listar_materiales(q:"tornillos")
+    T->>S: Materiales.getAll({q})
+    O-->>U: "¿cuál de estos: Tornillos M12 Tacsa,<br/>Tornillos M12 Roda...?"
+    U->>O: "Tacsa" ... (repite por cada material)
+    U->>O: "nada más"
+    O-->>U: "¿cuántos empleados, cuántos días,<br/>costo por empleado/día?"
+    U->>O: "2 empleados, 3 días, $15000/día"
+    O->>W: crear_presupuesto_guiado (preview)
+    W->>S: Materiales.getById / findDuplicate<br/>Materiales.getPrecioReferencia
+    O-->>U: vista previa completa + Confirmar/Cancelar
+    U->>O: Confirmar
+    O->>W: crear_presupuesto_guiado (execute)
+    W->>S: Materiales.create (si hace falta)<br/>Presupuestos.create<br/>Presupuestos.addInsumo x N<br/>Presupuestos.addCosto (mano de obra)
+    O-->>U: "Listo — presupuesto Nº... creado"
+  </pre>
+
+  <h2>Patrones de diseño</h2>
+  <div class="card">
+    <ul>
+      <li><strong>Mismo patrón propone→preview→confirma</strong> que las 8 acciones ya en producción — no
+        se crea ningún mecanismo nuevo de confirmación. <code>crear_presupuesto_guiado</code> es una
+        entrada más en <code>WRITE_TOOLS</code> con su <code>preview()</code>/<code>execute()</code>.</li>
+      <li><strong>Sin estado nuevo en el backend.</strong> La "memoria" de qué materiales ya se juntaron
+        en la conversación vive en el propio texto del historial del chat (como ya pasa hoy) — el modelo
+        vuelve a resolver cada <code>materialId</code> contra el catálogo antes de la vista previa final,
+        no hace falta guardar un borrador intermedio en la base.</li>
+      <li><strong>Reuso total de servicios existentes</strong> en el <code>execute()</code>: nada de lógica
+        de negocio nueva. <code>Materiales.create/findDuplicate/getById/getPrecioReferencia</code>,
+        <code>Presupuestos.create/addInsumo/addCosto</code> — todos ya probados por la UI manual.</li>
+      <li><strong>Controller → Service</strong> sin cambios — no se toca ningún controller, la tool nueva
+        vive enteramente en la capa de services del Panel IA.</li>
+    </ul>
+  </div>
+
+  <h2>Riesgos puntuales</h2>
+  <div class="card">
+    <table>
+      <tr><th>Riesgo</th><th>Mitigación</th></tr>
+      <tr>
+        <td>El <code>execute()</code> hace varias escrituras seguidas (crear materiales nuevos, crear
+          presupuesto, N insumos, 1 costo) sin transacción — si una falla a mitad de camino, queda un
+          presupuesto BORRADOR parcial.</td>
+        <td>No hace falta rollback: un presupuesto BORRADOR incompleto es completamente editable/
+          completable a mano en la UI existente, igual que cualquier presupuesto a medio cargar. El
+          <code>resumen</code> de error debe incluir el número de presupuesto ya creado para que el
+          usuario sepa dónde seguir.</td>
+      </tr>
+      <tr>
+        <td>Material sin precio de referencia (<code>getPrecioReferencia</code> devuelve <code>null</code>).</td>
+        <td><code>precioUnitario</code> cae a 0 y la vista previa lo marca explícitamente ("sin precio de
+          referencia — se carga en $0, corregilo en el presupuesto"), en vez de fallar o inventar un
+          precio.</td>
+      </tr>
+      <tr>
+        <td>El modelo intenta llamar <code>crear_presupuesto_guiado</code> con un <code>materialId</code>
+          que en realidad no verificó en esa conversación (alucinación de ID).</td>
+        <td><code>preview()</code> valida cada <code>materialId</code> contra <code>Materiales.getById</code>
+          igual que el resto de las tools — si no existe, corta con error explicando cuál falló, nunca
+          asume.</td>
+      </tr>
+      <tr>
+        <td>Ambigüedad de material no resuelta (el usuario dice "tornillos" y hay 5 coincidencias, pero
+          el modelo elige una sola por su cuenta).</td>
+        <td>Se ataca en el system prompt (regla explícita, igual que ya existe la regla anti-alucinación
+          de "listo"): si <code>listar_materiales</code> devuelve más de una coincidencia, el modelo tiene
+          que preguntar cuál es antes de seguir — nunca elegir solo.</td>
+      </tr>
+    </table>
+  </div>
+
+  <h2>Pasos ordenados</h2>
+
+  <div class="step">
+    <span class="step-num">1</span><h3>Write tool nueva: <span class="file">crear_presupuesto_guiado</span></h3>
+    <p><span class="file">fieldstock-backend/src/services/panel/writeTools.js</span></p>
+    <ul>
+      <li>Importar <code>* as Presupuestos from '../presupuestos.service.js'</code> (los demás services
+        ya están importados).</li>
+      <li><strong>parameters:</strong> <code>obraId</code> (string, requerido), <code>materiales</code>
+        (array de <code>{ materialId?, materialNuevo?: {nombre, marca?, unidad?}, cantidad }</code>,
+        mínimo 1 elemento), <code>empleados</code> (number), <code>diasEstimados</code> (number),
+        <code>costoPorEmpleadoDia</code> (number).</li>
+      <li><strong><code>preview()</code>:</strong>
+        <ol>
+          <li>Valida obra existente (<code>Obras.getById</code>) y al menos 1 material.</li>
+          <li>Por cada ítem: si trae <code>materialId</code>, resuelve con <code>Materiales.getById</code>
+            (error si no existe). Si trae <code>materialNuevo</code>, corre
+            <code>Materiales.findDuplicate</code> — si ya existe, error pidiendo usar ese
+            <code>materialId</code> en vez de crear uno nuevo (mismo mensaje que ya usa
+            <code>crear_material</code>).</li>
+          <li>Para cada material resuelto, intenta <code>Materiales.getPrecioReferencia</code> para el
+            precio unitario sugerido (0 si no hay referencia, marcado en el resumen).</li>
+          <li>Calcula el costo de mano de obra: <code>empleados × diasEstimados × costoPorEmpleadoDia</code>.</li>
+          <li><code>resumen</code>: obra + lista de materiales con cantidad/precio + costo de mano de
+            obra + total. <code>detalle</code>: el breakdown completo para que el frontend lo pinte.</li>
+        </ol>
+      </li>
+      <li><strong><code>execute()</code>:</strong>
+        <ol>
+          <li><code>Presupuestos.create({ obraId })</code> → guarda el <code>id</code>/<code>numero</code>.</li>
+          <li>Por cada material: si es <code>materialNuevo</code>, <code>Materiales.create()</code> primero
+            para obtener el <code>materialId</code> real; después
+            <code>Presupuestos.addInsumo(presupuestoId, { materialId, cantidad, precioUnitario })</code>.</li>
+          <li><code>Presupuestos.addCosto(presupuestoId, { categoria: 'MANO_OBRA', descripcion:
+            'Mano de obra (N empleados x M días)', cantidad: empleados*diasEstimados, unidad: 'jornal',
+            costoUnitario: costoPorEmpleadoDia })</code>.</li>
+          <li><code>resumen</code>: "Listo — presupuesto Nº... creado con N insumos y mano de obra por
+            $...". Incluye siempre el número de presupuesto, incluso si algo intermedio falló (ver
+            riesgos).</li>
+        </ol>
+      </li>
+    </ul>
+    <div class="verify"><strong>Verificar:</strong> desde el backend levantado, pedirle al chat un
+      presupuesto de prueba con 2-3 materiales (uno existente, uno inexistente) y confirmar que el
+      preview muestra la lista completa correctamente antes de tocar nada.</div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">2</span><h3>System prompt: describir el flujo guiado</h3>
+    <p><span class="file">fieldstock-backend/src/services/panel.service.js</span></p>
+    <ul>
+      <li>Sumar <code>crear_presupuesto_guiado</code> a la lista de tools de acción del prompt.</li>
+      <li>Agregar una sección de reglas específica para presupuestos:
+        <ul>
+          <li>Antes de armar la propuesta final, resolver la obra (existente vía
+            <code>listar_obras</code>, o nueva juntando los mismos datos que <code>crear_obra</code>).</li>
+          <li>Por cada material que el usuario menciona, llamar <code>listar_materiales</code> con ese
+            texto de búsqueda antes de asumir nada. Si hay más de una coincidencia, preguntar cuál es
+            explícitamente — nunca elegir por su cuenta. Si no hay ninguna, avisar y preguntar si se
+            da de alta.</li>
+          <li>No llamar a <code>crear_presupuesto_guiado</code> hasta tener: obra resuelta, al menos un
+            material confirmado por el usuario ("nada más" o equivalente), y los tres datos de mano de
+            obra (empleados, días, costo por empleado/día).</li>
+          <li>Reforzar (ya existe la regla general): nunca decir que el presupuesto "ya se creó" sin el
+            <code>functionResponse</code> real de la ejecución confirmada.</li>
+        </ul>
+      </li>
+    </ul>
+    <div class="verify"><strong>Verificar:</strong> probar el caso de material ambiguo en vivo (ej. pedir
+      "arandelas" cuando hay varias marcas en el catálogo) y confirmar que el asistente pregunta en vez
+      de elegir una sola.</div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">3</span><h3>Botón "Sugerir encargado libre"</h3>
+    <p><span class="file">fieldstock-frontend/src/modules/m-presupuestos/components/ConfigurarRemitoModal.jsx</span></p>
+    <ul>
+      <li>Agregar un botón chico junto al <code>&lt;select&gt;</code> de responsable (el array
+        <code>encargados</code> ya trae el flag <code>ocupado</code>, no hace falta ningún llamado nuevo
+        al backend).</li>
+      <li>Handler: <code>const libre = encargados.find(e =&gt; !e.ocupado); if (libre) setResponsableId(libre.id)
+        else setError('Todos los encargados están ocupados — elegí uno manualmente.')</code> (usar el
+        mismo estado <code>error</code> que ya existe en el componente, o un mensaje inline separado si
+        se prefiere no pisar errores de guardado).</li>
+      <li>El botón no dispara ningún guardado — solo pre-selecciona el <code>&lt;select&gt;</code>
+        existente; el usuario sigue confirmando con "Guardar" como siempre.</li>
+    </ul>
+    <p><span class="file">fieldstock-frontend/src/modules/m-presupuestos/components/ConfigurarRemitoModal.module.css</span></p>
+    <ul>
+      <li>Estilo del botón nuevo reusando los tokens ya definidos en este mismo módulo CSS (mismo
+        patrón que <code>.btnGhost</code>/<code>.btnPrimary</code> — no inventar una paleta nueva).</li>
+    </ul>
+    <div class="verify"><strong>Verificar:</strong> aprobar un presupuesto de prueba en el navegador,
+      abrir el modal generado, apretar "Sugerir encargado libre" y confirmar que selecciona a alguien
+      no marcado <code>ocupado</code>. Probar también el caso límite: todos ocupados.</div>
+  </div>
+
+  <h2>Verificación general</h2>
+  <p>
+    <code>npm run dev</code> desde la raíz levanta backend (3000) y frontend (5173). Después de cada paso,
+    probar en el navegador con una cuenta real contra la base de datos — no alcanza con leer el código.
+    <code>npm run lint --prefix fieldstock-frontend</code> antes de cerrar el frontend. Para el paso 3, un
+    presupuesto de prueba puede limpiarse después vía SQL directo (mismo criterio que se viene usando en
+    toda la sesión: pedir confirmación antes de cualquier borrado/verificación destructiva contra la
+    base real).
+  </p>
+
+</div>
+</body>
+</html>

@@ -45,6 +45,14 @@ export async function create(req, res, next) {
 
 export async function update(req, res, next) {
   try {
+    // Guard: mismo espíritu que desactivar() — el update genérico también
+    // puede setear activo=false (el form de edición tiene un checkbox
+    // "Cuenta activa"), y sin este chequeo un DUEÑO podía editarse a sí
+    // mismo, destildarlo y quedar bloqueado fuera del sistema sin nadie
+    // más para reactivarlo.
+    if (req.params.id === req.user.id && req.body?.activo === false) {
+      return res.status(400).json({ ok: false, error: 'No podés desactivar tu propia cuenta' })
+    }
     const data = await UsuariosService.update(req.params.id, req.body)
     res.json({ ok: true, data })
   } catch (err) { next(err) }

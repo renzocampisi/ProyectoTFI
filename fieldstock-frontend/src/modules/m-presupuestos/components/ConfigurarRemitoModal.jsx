@@ -33,6 +33,7 @@ export default function ConfigurarRemitoModal({ remitoId, onClose }) {
   const [responsableId, setResponsableId] = useState('')
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState(null)
+  const [avisoLibre,   setAvisoLibre]   = useState(null)
 
   useEffect(() => {
     let mounted = true
@@ -48,6 +49,19 @@ export default function ConfigurarRemitoModal({ remitoId, onClose }) {
   }, [])
 
   const responsableSeleccionado = encargados.find(e => e.id === responsableId)
+
+  // Pre-selecciona el primer encargado libre (sin tocar el backend — los
+  // encargados con su flag `ocupado` ya vinieron cargados). El usuario
+  // sigue pudiendo cambiar la seleccion antes de guardar.
+  const handleSugerirLibre = () => {
+    setAvisoLibre(null)
+    const libre = encargados.find(e => !e.ocupado)
+    if (!libre) {
+      setAvisoLibre('Todos los encargados están ocupados en este momento — elegí uno manualmente.')
+      return
+    }
+    setResponsableId(libre.id)
+  }
 
   const handleGuardar = async () => {
     if (saving) return
@@ -120,10 +134,16 @@ export default function ConfigurarRemitoModal({ remitoId, onClose }) {
               </div>
 
               <div className={styles.field}>
-                <label className={styles.label}>Responsable / Encargado</label>
+                <div className={styles.labelRow}>
+                  <label className={styles.label}>Responsable / Encargado</label>
+                  <button type="button" className={styles.btnSuggest}
+                    onClick={handleSugerirLibre} disabled={encargados.length === 0}>
+                    Sugerir encargado libre
+                  </button>
+                </div>
                 <select className={styles.input}
                   value={responsableId}
-                  onChange={e => setResponsableId(e.target.value)}>
+                  onChange={e => { setResponsableId(e.target.value); setAvisoLibre(null) }}>
                   <option value="">— Elegir responsable —</option>
                   {encargados.map(u => (
                     <option key={u.id} value={u.id}>
@@ -131,6 +151,7 @@ export default function ConfigurarRemitoModal({ remitoId, onClose }) {
                     </option>
                   ))}
                 </select>
+                {avisoLibre && <span className={styles.hintOcupado}>⚠ {avisoLibre}</span>}
                 {responsableSeleccionado?.ocupado && (
                   <span className={styles.hintOcupado}>
                     ⚠ {responsableSeleccionado.nombre} ya está como responsable de

@@ -25,7 +25,7 @@ const SUGERENCIAS = [
 ]
 
 export default function PanelPage() {
-  const { mensajes, pensando, error, enviar, resetChat } = usePanel()
+  const { mensajes, pensando, error, enviar, resetChat, confirmarAccion, cancelarAccion } = usePanel()
   const fondoRef = useRef(null)
 
   // Scroll automatico al fondo en cada turno nuevo (incluido el "pensando").
@@ -70,7 +70,9 @@ export default function PanelPage() {
         ) : (
           <div className={styles.mensajes}>
             {mensajes.map((m, i) => (
-              <ChatMessage key={i} mensaje={m} />
+              <ChatMessage key={i} mensaje={m}
+                onConfirmarAccion={() => confirmarAccion(i)}
+                onCancelarAccion={() => cancelarAccion(i)} />
             ))}
             {pensando && <ChatMessage mensaje={{ role: 'assistant', content: '', pensando: true }} />}
             {error && (
