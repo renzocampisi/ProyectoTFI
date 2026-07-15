@@ -6,6 +6,8 @@ import RequireRole from '@shared/components/RequireRole'
 import { ROLES_ADMIN_LEVEL } from '@shared/constants/roles'
 
 import LoginPage  from '@modules/m0-auth/pages/LoginPage'
+import RecuperarPasswordPage   from '@modules/m0-auth/pages/RecuperarPasswordPage'
+import RestablecerPasswordPage from '@modules/m0-auth/pages/RestablecerPasswordPage'
 import PerfilPage from '@modules/m0-auth/pages/PerfilPage'
 
 import DashboardPage        from '@modules/m1-dashboard/pages/DashboardPage'
@@ -61,8 +63,14 @@ export default function AppRouter() {
     <BrowserRouter>
       <Routes>
 
-        {/* /login es la única ruta pública (sin RequireAuth). */}
+        {/* Rutas públicas (sin RequireAuth): login y recuperación de
+            contraseña self-service. /restablecer-password es a donde
+            Supabase redirige tras click en el mail — la sesión de tipo
+            "recovery" que trae esa URL nunca carga `profile`, así que
+            esta ruta no puede vivir detrás de RequireAuth. */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/recuperar-password" element={<RecuperarPasswordPage />} />
+        <Route path="/restablecer-password" element={<RestablecerPasswordPage />} />
 
         {/* QR mobile del remito: privada también — quien escanea es siempre
             un empleado (operario/encargado/dueño). El responsable del cliente
