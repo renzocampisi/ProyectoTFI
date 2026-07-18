@@ -37,6 +37,7 @@ import * as UsuariosCtrl        from '../controllers/usuarios.controller.js'
 import * as ComprasCtrl         from '../controllers/compras.controller.js'
 import * as PresupuestosCtrl    from '../controllers/presupuestos.controller.js'
 import * as ConfigCtrl          from '../controllers/config.controller.js'
+import * as EmpresaCtrl         from '../controllers/empresa.controller.js'
 import * as PanelCtrl           from '../controllers/panel.controller.js'
 
 const router = Router()
@@ -250,6 +251,12 @@ router.post  ('/presupuestos/:id/pdf',
 router.get   ('/config',         ConfigCtrl.getAll)
 router.get   ('/config/:key',    ConfigCtrl.get)
 router.put   ('/config/:key',    requireRole(ROLES_ADMIN_LEVEL), ConfigCtrl.set)
+
+// ── Empresa (datos de la empresa dueña de esta instancia) ───────
+// GET accesible para cualquier autenticado (el nombre se muestra en el
+// header a todos los roles); PUT restringido a DUEÑO/ADMIN.
+router.get('/empresa', EmpresaCtrl.get)
+router.put('/empresa', requireRole(ROLES_ADMIN_LEVEL), EmpresaCtrl.set)
 
 // ── M1 Panel IA ───────────────────────────────────────────────
 // Asistente conversacional con tool use sobre Gemini. Read-only,

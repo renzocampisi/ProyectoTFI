@@ -9,6 +9,7 @@ import {
 } from 'react-icons/lu'
 import { useAuth } from '@shared/hooks/useAuth'
 import { useTema } from '@shared/hooks/useTema'
+import { useEmpresa } from '@shared/hooks/useEmpresa'
 import { ROLE_LABELS, esDueño } from '@shared/constants/roles'
 import NotificacionesBell from '@shared/components/NotificacionesBell'
 import DraggableFAB from '@shared/components/DraggableFAB'
@@ -46,10 +47,11 @@ const SISTEMA_ITEMS = [
 ]
 
 const ADMIN_ITEMS = [
-  { to: '/usuarios', label: 'Usuarios', icon: LuUsers, activo: true },
-  // "Configuración" del sistema (porcentaje de ganancia default) se sacó
-  // del sidebar — el % se setea en cada presupuesto, no a nivel global.
-  // La pagina /configuracion sigue accesible si se navega manualmente.
+  { to: '/usuarios',       label: 'Usuarios',       icon: LuUsers,    activo: true },
+  // Volvió al sidebar (issue "datos de la empresa"): antes solo tenía el
+  // % de ganancia default y no ameritaba un ítem propio; ahora también
+  // vive acá el nombre/teléfono/dirección/email de la empresa.
+  { to: '/configuracion',  label: 'Configuración',  icon: LuSettings, activo: true },
 ]
 
 function NavGroup({ label, items, collapsed }) {
@@ -144,6 +146,7 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const { tema, toggle } = useTema()
   const { role } = useAuth()
+  const { empresa } = useEmpresa()
   const location = useLocation()
 
   // Mantener `enDirectorio` para futuro toggle expand/collapse del grupo.
@@ -158,6 +161,9 @@ export default function AppLayout() {
           <span className={styles.brandText}>
             FieldStock <span className={styles.brandTextTag}>AI</span>
           </span>
+          {!collapsed && empresa?.nombre && (
+            <span className={styles.brandEmpresa}>{empresa.nombre}</span>
+          )}
         </div>
 
         <nav className={styles.nav}>
