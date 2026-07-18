@@ -5,6 +5,7 @@ import RequireAuth from '@shared/components/RequireAuth'
 import RequireRole from '@shared/components/RequireRole'
 import { ROLES_ADMIN_LEVEL } from '@shared/constants/roles'
 
+import LandingPage from '@modules/m-landing/pages/LandingPage'
 import LoginPage  from '@modules/m0-auth/pages/LoginPage'
 import RecuperarPasswordPage   from '@modules/m0-auth/pages/RecuperarPasswordPage'
 import RestablecerPasswordPage from '@modules/m0-auth/pages/RestablecerPasswordPage'
@@ -71,6 +72,11 @@ export default function AppRouter() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/recuperar-password" element={<RecuperarPasswordPage />} />
         <Route path="/restablecer-password" element={<RestablecerPasswordPage />} />
+
+        {/* Landing pública — lo que ve alguien antes de pagar/loguearse.
+            Ruta dedicada (no toca "/", que sigue siendo el Dashboard
+            autenticado) para no reestructurar el resto de la navegación. */}
+        <Route path="/bienvenida" element={<LandingPage />} />
 
         {/* QR mobile del remito: privada también — quien escanea es siempre
             un empleado (operario/encargado/dueño). El responsable del cliente

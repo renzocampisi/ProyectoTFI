@@ -8,6 +8,7 @@ import {
   LuBoxes,
 } from 'react-icons/lu'
 import { useAuth } from '@shared/hooks/useAuth'
+import { useTema } from '@shared/hooks/useTema'
 import { ROLE_LABELS, esDueño } from '@shared/constants/roles'
 import NotificacionesBell from '@shared/components/NotificacionesBell'
 import DraggableFAB from '@shared/components/DraggableFAB'
@@ -50,16 +51,6 @@ const ADMIN_ITEMS = [
   // del sidebar — el % se setea en cada presupuesto, no a nivel global.
   // La pagina /configuracion sigue accesible si se navega manualmente.
 ]
-
-function useTema() {
-  const [tema, setTema] = useState(() => localStorage.getItem('fs-tema') || 'dark')
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', tema === 'light' ? 'light' : '')
-    localStorage.setItem('fs-tema', tema)
-  }, [tema])
-  const toggle = () => setTema(t => t === 'dark' ? 'light' : 'dark')
-  return { tema, toggle }
-}
 
 function NavGroup({ label, items, collapsed }) {
   return (
