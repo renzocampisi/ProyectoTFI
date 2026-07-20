@@ -38,7 +38,7 @@ export default function LandingPage() {
               {tema === 'dark' ? <LuSun size={17} color="#fbbf24" /> : <LuMoon size={17} color="#6366f1" />}
             </button>
             <button className={styles.btnGhost} onClick={() => navigate('/login')}>Iniciar sesión</button>
-            <button className={styles.btnPrimary} onClick={() => navigate('/login')}>Probar gratis</button>
+            <button className={styles.btnPrimary} onClick={() => navigate('/registro')}>Probar gratis</button>
           </div>
         </div>
       </nav>
@@ -53,7 +53,7 @@ export default function LandingPage() {
               y sabés al instante dónde está, quién la tiene y cuándo tiene que volver.
             </p>
             <div className={styles.heroCtas}>
-              <button className={styles.btnPrimaryLg} onClick={() => navigate('/login')}>Probar gratis 14 días</button>
+              <button className={styles.btnPrimaryLg} onClick={() => navigate('/registro')}>Probar gratis 14 días</button>
               <button className={styles.btnGhostLg} onClick={() => navigate('/login')}>Iniciar sesión →</button>
             </div>
             <p className={styles.heroFine}>SIN TARJETA · CONFIGURÁS TU PRIMER GALPÓN EN 10 MINUTOS</p>
@@ -148,13 +148,13 @@ export default function LandingPage() {
         <div className={styles.plans}>
           <Plan nombre="Taller" desc="Para un galpón chico que recién empieza a ordenar el inventario."
             precio="29" items={['Hasta 150 herramientas', 'Escaneo QR ilimitado', 'Remitos y obras ilimitadas', '3 usuarios']}
-            cta="Empezar" onClick={() => navigate('/login')} />
+            cta="Empezar" onClick={() => navigate('/registro')} />
           <Plan destacado nombre="Obra" desc="Para constructoras con varias obras activas al mismo tiempo."
             precio="79" items={['Herramientas ilimitadas', 'Kits, reservas y reposición predictiva', 'Geolocalización de remitos', 'Hasta 10 usuarios']}
-            cta="Empezar gratis" onClick={() => navigate('/login')} />
+            cta="Empezar gratis" onClick={() => navigate('/registro')} />
           <Plan nombre="Empresa" desc="Para constructoras grandes con varios galpones y equipos."
             precio="A medida" items={['Todo lo de Obra', 'Panel con IA para presupuestos', 'Roles y permisos avanzados', 'Usuarios ilimitados']}
-            cta="Hablemos" onClick={() => navigate('/login')} />
+            cta="Hablemos" onClick={() => navigate('/registro')} />
         </div>
       </section>
 
@@ -163,7 +163,7 @@ export default function LandingPage() {
           <h2 className={styles.ctaH2}>El control que<br />tu obra necesita.</h2>
           <p className={styles.ctaSub}>Probalo gratis 14 días. Sin tarjeta, sin instalar nada en la obra.</p>
           <div className={styles.ctaRow}>
-            <button className={styles.btnPrimaryLg} onClick={() => navigate('/login')}>Probar gratis 14 días</button>
+            <button className={styles.btnPrimaryLg} onClick={() => navigate('/registro')}>Probar gratis 14 días</button>
             <button className={styles.btnGhostOnDark} onClick={() => navigate('/login')}>Iniciar sesión</button>
           </div>
         </div>

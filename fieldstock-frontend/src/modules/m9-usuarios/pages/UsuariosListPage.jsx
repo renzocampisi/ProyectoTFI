@@ -13,6 +13,7 @@ import { ROLE_LABELS } from '@shared/constants/roles'
 import { useAuth } from '@shared/hooks/useAuth'
 import UsuarioFormModal from '../components/UsuarioFormModal'
 import PasswordRevealModal from '../components/PasswordRevealModal'
+import InvitarModal from '../components/InvitarModal'
 import styles from './UsuariosListPage.module.css'
 
 function formatFecha(iso) {
@@ -27,6 +28,7 @@ export default function UsuariosListPage() {
 
   // Estado de modales
   const [showForm, setShowForm] = useState(false)        // create
+  const [showInvitar, setShowInvitar] = useState(false)  // invitar empleado
   const [editando, setEditando] = useState(null)         // user en edición (o null)
   const [reveal,   setReveal]   = useState(null)         // { usuario, passwordPlano, modo? } — post-create o post-reset
   const [confDesact, setConfDesact] = useState(null)     // confirm desactivar
@@ -80,9 +82,14 @@ export default function UsuariosListPage() {
             {loading ? 'Cargando...' : `${usuarios.length} usuario${usuarios.length !== 1 ? 's' : ''}`}
           </p>
         </div>
-        <button className={styles.btnPrimary} onClick={() => setShowForm(true)}>
-          + Nuevo usuario
-        </button>
+        <div className={styles.headerActions}>
+          <button className={styles.btnGhost} onClick={() => setShowInvitar(true)}>
+            Invitar
+          </button>
+          <button className={styles.btnPrimary} onClick={() => setShowForm(true)}>
+            + Nuevo usuario
+          </button>
+        </div>
       </div>
 
       {error && <div className={styles.errorBanner}>⚠ {error}</div>}
@@ -169,6 +176,9 @@ export default function UsuariosListPage() {
           usuario={editando}
           onClose={() => setEditando(null)}
           onUpdated={handleUpdated} />
+      )}
+      {showInvitar && (
+        <InvitarModal onClose={() => setShowInvitar(false)} />
       )}
       {reveal && (
         <PasswordRevealModal

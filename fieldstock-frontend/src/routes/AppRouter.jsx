@@ -7,6 +7,7 @@ import { ROLES_ADMIN_LEVEL } from '@shared/constants/roles'
 
 import LandingPage from '@modules/m-landing/pages/LandingPage'
 import LoginPage  from '@modules/m0-auth/pages/LoginPage'
+import RegistroPage from '@modules/m0-auth/pages/RegistroPage'
 import RecuperarPasswordPage   from '@modules/m0-auth/pages/RecuperarPasswordPage'
 import RestablecerPasswordPage from '@modules/m0-auth/pages/RestablecerPasswordPage'
 import PerfilPage from '@modules/m0-auth/pages/PerfilPage'
@@ -70,6 +71,7 @@ export default function AppRouter() {
             "recovery" que trae esa URL nunca carga `profile`, así que
             esta ruta no puede vivir detrás de RequireAuth. */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/registro" element={<RegistroPage />} />
         <Route path="/recuperar-password" element={<RecuperarPasswordPage />} />
         <Route path="/restablecer-password" element={<RestablecerPasswordPage />} />
 
