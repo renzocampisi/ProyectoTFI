@@ -5,7 +5,6 @@ import {
   LuHouse, LuWrench, LuPackage, LuArchive, LuClipboardList, LuConstruction,
   LuQrCode, LuTruck, LuBuilding2, LuFactory, LuShoppingCart, LuCreditCard,
   LuSparkles, LuUsers, LuSettings, LuSun, LuMoon, LuUser, LuLogOut, LuChevronDown,
-  LuBoxes,
 } from 'react-icons/lu'
 import { useAuth } from '@shared/hooks/useAuth'
 import { useTema } from '@shared/hooks/useTema'
@@ -24,7 +23,6 @@ const INICIO_ITEMS = [
 
 const DEPOSITO_ITEMS = [
   { to: '/herramientas', label: 'Herramientas', icon: LuWrench,  activo: true },
-  { to: '/kits',         label: 'Kits',         icon: LuBoxes,   activo: true },
   { to: '/materiales',   label: 'Materiales',   icon: LuPackage, activo: true },
   { to: '/estanterias',  label: 'Estanterías',  icon: LuArchive, activo: true },
 ]

@@ -7,6 +7,7 @@ import { ObrasService } from '@modules/m4-obra/services/obras.service'
 import EstadoBadge from '../components/EstadoBadge'
 import QRModal from '@modules/m3-qr/components/QRModal'
 import MarcaLogo from '@shared/components/MarcaLogo'
+import KitSection from '@modules/m-kits/components/KitSection'
 import styles from './InventarioDetailPage.module.css'
 
 const TIPO_MOVIMIENTO = {
@@ -260,6 +261,8 @@ export default function InventarioDetailPage() {
               <p className={styles.descripcion}>{herramienta.descripcion}</p>
             </section>
           )}
+
+          {!esBaja && <KitSection herramientaId={id} />}
         </div>
 
         <div className={styles.columnaDer}>

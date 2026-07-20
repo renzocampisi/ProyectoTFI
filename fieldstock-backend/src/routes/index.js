@@ -99,6 +99,9 @@ router.post('/marcas', MarcasCtrl.create)
 
 // ── Herramientas ──────────────────────────────────────────────
 router.get   ('/herramientas',               HerramientasCtrl.getAll)
+// Kits que incluyen esta herramienta — gestión de kits vive en la ficha de
+// la herramienta, no en un módulo propio (ver KitsCtrl.getByHerramienta).
+router.get   ('/herramientas/:id/kits',      KitsCtrl.getByHerramienta)
 router.post  ('/herramientas',               HerramientasCtrl.create)
 router.get   ('/herramientas/:id',           HerramientasCtrl.getById)
 router.put   ('/herramientas/:id',           HerramientasCtrl.update)

@@ -22,6 +22,13 @@ export async function getById(req, res, next) {
   } catch (err) { next(err) }
 }
 
+export async function getByHerramienta(req, res, next) {
+  try {
+    const data = await KitsService.getByHerramienta(req.params.id)
+    res.json({ ok: true, data })
+  } catch (err) { next(err) }
+}
+
 export async function create(req, res, next) {
   try {
     const data = await KitsService.create(req.body)
