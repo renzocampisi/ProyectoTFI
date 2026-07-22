@@ -724,7 +724,7 @@ function KitBuscadorModal({ remitoId, onClose, onSaved }) {
           <div className={styles.loadingWrapper}><span className={styles.spinner} />Cargando...</div>
         ) : kits.length === 0 ? (
           <p className={styles.buscadorEmpty}>
-            No hay kits armados todavía. Creá uno desde la sección "Kits" del menú.
+            No hay kits armados todavía. Creá uno desde la ficha de una herramienta ("Armar kit").
           </p>
         ) : (
           <ul className={styles.checkLista}>

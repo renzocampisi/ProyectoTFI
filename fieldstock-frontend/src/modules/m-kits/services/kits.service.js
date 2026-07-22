@@ -20,4 +20,7 @@ export const KitsService = {
   create:  (body)     => api.post('/kits', body),
   update:  (id, body) => api.put(`/kits/${id}`, body),
   remove:  (id)       => api.delete(`/kits/${id}`),
+  // Kits que incluyen una herramienta puntual — usado desde la ficha de la
+  // herramienta (InventarioDetailPage), ya no hay un listado propio de kits.
+  getByHerramienta: (herramientaId) => api.get(`/herramientas/${herramientaId}/kits`),
 }

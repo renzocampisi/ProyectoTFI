@@ -9,6 +9,8 @@
 .title    { font-size: var(--text-2xl); font-weight: 600; letter-spacing: -0.02em; color: var(--text-primary); margin-bottom: var(--space-1); }
 .subtitle { font-size: var(--text-sm); color: var(--text-secondary); }
 
+.headerActions { display: flex; gap: var(--space-2); flex-shrink: 0; }
+
 .btnPrimary {
   background: var(--color-primary);
   color: #fff;
@@ -226,7 +228,8 @@
 /* Mobile: table → cards */
 @media (max-width: 640px) {
   .header { flex-direction: column; gap: var(--space-3); }
-  .header .btnPrimary { width: 100%; text-align: center; }
+  .headerActions { width: 100%; }
+  .headerActions .btnPrimary, .headerActions .btnGhost { flex: 1; text-align: center; }
 
   .tableWrapper { background: transparent; border: none; }
   .table, .table tbody { display: block; }

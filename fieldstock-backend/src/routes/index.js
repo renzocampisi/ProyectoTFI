@@ -34,12 +34,26 @@ import * as EstanteriasCtrl     from '../controllers/estanterias.controller.js'
 import * as NotificacionesCtrl  from '../controllers/notificaciones.controller.js'
 import * as DashboardCtrl       from '../controllers/dashboard.controller.js'
 import * as UsuariosCtrl        from '../controllers/usuarios.controller.js'
+import * as InvitacionesCtrl    from '../controllers/invitaciones.controller.js'
+import * as AuthPublicoCtrl     from '../controllers/auth-publico.controller.js'
 import * as ComprasCtrl         from '../controllers/compras.controller.js'
 import * as PresupuestosCtrl    from '../controllers/presupuestos.controller.js'
 import * as ConfigCtrl          from '../controllers/config.controller.js'
+import * as EmpresaCtrl         from '../controllers/empresa.controller.js'
 import * as PanelCtrl           from '../controllers/panel.controller.js'
 
 const router = Router()
+
+// ── Auth pública (registro self-service) ────────────────────────
+// Sin requireAuth — es lo que un visitante sin sesión usa para crear su
+// cuenta. Dos caminos (ver auth-publico.service.js):
+//   - Bootstrap: si todavía no hay ningún usuario, el primer registro es
+//     DUEÑO y carga los datos de la empresa.
+//   - Invitado: cualquier registro posterior necesita un código de
+//     invitación vigente generado por un DUEÑO/ADMIN (ver invitaciones abajo).
+router.get ('/auth/estado',            AuthPublicoCtrl.getEstado)
+router.post('/auth/registro-dueno',    AuthPublicoCtrl.registrarDueño)
+router.post('/auth/registro-invitado', AuthPublicoCtrl.registrarConInvitacion)
 
 // ── Auth global ───────────────────────────────────────────────
 // Toda la API /api requiere autenticación. El único endpoint público
@@ -71,6 +85,10 @@ router.patch ('/usuarios/:id', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.upda
 router.delete('/usuarios/:id', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.desactivar)
 router.post  ('/usuarios/:id/reset-password', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.resetPassword)
 
+// ── Invitaciones (códigos de registro para empleados) ───────────
+router.get ('/invitaciones', requireRole(ROLES_ADMIN_LEVEL), InvitacionesCtrl.getAll)
+router.post('/invitaciones', requireRole(ROLES_ADMIN_LEVEL), InvitacionesCtrl.generar)
+
 // ── Categorías ────────────────────────────────────────────────
 router.get ('/categorias', CategoriasCtrl.getAll)
 router.post('/categorias', CategoriasCtrl.create)
@@ -81,6 +99,9 @@ router.post('/marcas', MarcasCtrl.create)
 
 // ── Herramientas ──────────────────────────────────────────────
 router.get   ('/herramientas',               HerramientasCtrl.getAll)
+// Kits que incluyen esta herramienta — gestión de kits vive en la ficha de
+// la herramienta, no en un módulo propio (ver KitsCtrl.getByHerramienta).
+router.get   ('/herramientas/:id/kits',      KitsCtrl.getByHerramienta)
 router.post  ('/herramientas',               HerramientasCtrl.create)
 router.get   ('/herramientas/:id',           HerramientasCtrl.getById)
 router.put   ('/herramientas/:id',           HerramientasCtrl.update)
@@ -250,6 +271,12 @@ router.post  ('/presupuestos/:id/pdf',
 router.get   ('/config',         ConfigCtrl.getAll)
 router.get   ('/config/:key',    ConfigCtrl.get)
 router.put   ('/config/:key',    requireRole(ROLES_ADMIN_LEVEL), ConfigCtrl.set)
+
+// ── Empresa (datos de la empresa dueña de esta instancia) ───────
+// GET accesible para cualquier autenticado (el nombre se muestra en el
+// header a todos los roles); PUT restringido a DUEÑO/ADMIN.
+router.get('/empresa', EmpresaCtrl.get)
+router.put('/empresa', requireRole(ROLES_ADMIN_LEVEL), EmpresaCtrl.set)
 
 // ── M1 Panel IA ───────────────────────────────────────────────
 // Asistente conversacional con tool use sobre Gemini. Read-only,

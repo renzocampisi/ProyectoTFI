@@ -5,7 +5,9 @@ import RequireAuth from '@shared/components/RequireAuth'
 import RequireRole from '@shared/components/RequireRole'
 import { ROLES_ADMIN_LEVEL } from '@shared/constants/roles'
 
+import LandingPage from '@modules/m-landing/pages/LandingPage'
 import LoginPage  from '@modules/m0-auth/pages/LoginPage'
+import RegistroPage from '@modules/m0-auth/pages/RegistroPage'
 import RecuperarPasswordPage   from '@modules/m0-auth/pages/RecuperarPasswordPage'
 import RestablecerPasswordPage from '@modules/m0-auth/pages/RestablecerPasswordPage'
 import PerfilPage from '@modules/m0-auth/pages/PerfilPage'
@@ -33,9 +35,6 @@ import MateriasListPage   from '@modules/m6-materiales/pages/MateriasListPage'
 import MateriasNewPage    from '@modules/m6-materiales/pages/MateriasNewPage'
 import MateriasDetailPage from '@modules/m6-materiales/pages/MateriasDetailPage'
 import MateriasEditPage   from '@modules/m6-materiales/pages/MateriasEditPage'
-import KitsListPage       from '@modules/m-kits/pages/KitsListPage'
-import KitsNewPage        from '@modules/m-kits/pages/KitsNewPage'
-import KitsDetailPage     from '@modules/m-kits/pages/KitsDetailPage'
 
 import TransportesPage from '@modules/m7-directorio/pages/TransportesPage'
 import ClientesPage    from '@modules/m7-directorio/pages/ClientesPage'
@@ -69,8 +68,14 @@ export default function AppRouter() {
             "recovery" que trae esa URL nunca carga `profile`, así que
             esta ruta no puede vivir detrás de RequireAuth. */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/registro" element={<RegistroPage />} />
         <Route path="/recuperar-password" element={<RecuperarPasswordPage />} />
         <Route path="/restablecer-password" element={<RestablecerPasswordPage />} />
+
+        {/* Landing pública — lo que ve alguien antes de pagar/loguearse.
+            Ruta dedicada (no toca "/", que sigue siendo el Dashboard
+            autenticado) para no reestructurar el resto de la navegación. */}
+        <Route path="/bienvenida" element={<LandingPage />} />
 
         {/* QR mobile del remito: privada también — quien escanea es siempre
             un empleado (operario/encargado/dueño). El responsable del cliente
@@ -129,12 +134,6 @@ export default function AppRouter() {
             <Route path="nuevo"      element={<MateriasNewPage />} />
             <Route path=":id"        element={<MateriasDetailPage />} />
             <Route path=":id/editar" element={<MateriasEditPage />} />
-          </Route>
-
-          <Route path="kits">
-            <Route index        element={<KitsListPage />} />
-            <Route path="nuevo" element={<KitsNewPage />} />
-            <Route path=":id"   element={<KitsDetailPage />} />
           </Route>
 
           <Route path="directorio">

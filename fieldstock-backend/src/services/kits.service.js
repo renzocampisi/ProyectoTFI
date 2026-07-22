@@ -57,6 +57,22 @@ export async function getById(id) {
   return aplanar(data)
 }
 
+// Kits activos que incluyen una herramienta puntual — usado desde la ficha
+// de la herramienta (InventarioDetailPage) para gestionar el kit sin pasar
+// por un listado propio de kits. Trae todos los kits activos y filtra en
+// JS (volumen bajo esperado — decenas de kits, no miles).
+export async function getByHerramienta(herramientaId) {
+  const { data, error } = await supabase
+    .from('kits')
+    .select(SELECT)
+    .eq('activo', true)
+    .order('nombre')
+  if (error) throw error
+  return (data || [])
+    .map(aplanar)
+    .filter(k => k.herramientas.some(h => h.id === herramientaId))
+}
+
 export async function create(body) {
   const { nombre, descripcion, herramientaIds = [], materiales = [] } = body
   if (!nombre?.trim()) {

@@ -5,9 +5,10 @@ import {
   LuHouse, LuWrench, LuPackage, LuArchive, LuClipboardList, LuConstruction,
   LuQrCode, LuTruck, LuBuilding2, LuFactory, LuShoppingCart, LuCreditCard,
   LuSparkles, LuUsers, LuSettings, LuSun, LuMoon, LuUser, LuLogOut, LuChevronDown,
-  LuBoxes,
 } from 'react-icons/lu'
 import { useAuth } from '@shared/hooks/useAuth'
+import { useTema } from '@shared/hooks/useTema'
+import { useEmpresa } from '@shared/hooks/useEmpresa'
 import { ROLE_LABELS, esDueño } from '@shared/constants/roles'
 import NotificacionesBell from '@shared/components/NotificacionesBell'
 import DraggableFAB from '@shared/components/DraggableFAB'
@@ -22,7 +23,6 @@ const INICIO_ITEMS = [
 
 const DEPOSITO_ITEMS = [
   { to: '/herramientas', label: 'Herramientas', icon: LuWrench,  activo: true },
-  { to: '/kits',         label: 'Kits',         icon: LuBoxes,   activo: true },
   { to: '/materiales',   label: 'Materiales',   icon: LuPackage, activo: true },
   { to: '/estanterias',  label: 'Estanterías',  icon: LuArchive, activo: true },
 ]
@@ -45,21 +45,12 @@ const SISTEMA_ITEMS = [
 ]
 
 const ADMIN_ITEMS = [
-  { to: '/usuarios', label: 'Usuarios', icon: LuUsers, activo: true },
-  // "Configuración" del sistema (porcentaje de ganancia default) se sacó
-  // del sidebar — el % se setea en cada presupuesto, no a nivel global.
-  // La pagina /configuracion sigue accesible si se navega manualmente.
+  { to: '/usuarios',       label: 'Usuarios',       icon: LuUsers,    activo: true },
+  // Volvió al sidebar (issue "datos de la empresa"): antes solo tenía el
+  // % de ganancia default y no ameritaba un ítem propio; ahora también
+  // vive acá el nombre/teléfono/dirección/email de la empresa.
+  { to: '/configuracion',  label: 'Configuración',  icon: LuSettings, activo: true },
 ]
-
-function useTema() {
-  const [tema, setTema] = useState(() => localStorage.getItem('fs-tema') || 'dark')
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', tema === 'light' ? 'light' : '')
-    localStorage.setItem('fs-tema', tema)
-  }, [tema])
-  const toggle = () => setTema(t => t === 'dark' ? 'light' : 'dark')
-  return { tema, toggle }
-}
 
 function NavGroup({ label, items, collapsed }) {
   return (
@@ -153,6 +144,7 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const { tema, toggle } = useTema()
   const { role } = useAuth()
+  const { empresa } = useEmpresa()
   const location = useLocation()
 
   // Mantener `enDirectorio` para futuro toggle expand/collapse del grupo.
@@ -167,6 +159,9 @@ export default function AppLayout() {
           <span className={styles.brandText}>
             FieldStock <span className={styles.brandTextTag}>AI</span>
           </span>
+          {!collapsed && empresa?.nombre && (
+            <span className={styles.brandEmpresa}>{empresa.nombre}</span>
+          )}
         </div>
 
         <nav className={styles.nav}>
