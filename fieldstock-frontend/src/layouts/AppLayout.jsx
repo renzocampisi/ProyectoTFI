@@ -1,6 +1,6 @@
 // src/layouts/AppLayout.jsx
 import { useState, useEffect, useRef } from 'react'
-import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import {
   LuHouse, LuWrench, LuPackage, LuArchive, LuClipboardList, LuConstruction,
   LuQrCode, LuTruck, LuBuilding2, LuFactory, LuShoppingCart, LuCreditCard,
@@ -9,9 +9,11 @@ import {
 import { useAuth } from '@shared/hooks/useAuth'
 import { useTema } from '@shared/hooks/useTema'
 import { useEmpresa } from '@shared/hooks/useEmpresa'
+import { useSuscripcion } from '@modules/m-facturacion/hooks/useSuscripcion'
 import { ROLE_LABELS, esDueño } from '@shared/constants/roles'
 import NotificacionesBell from '@shared/components/NotificacionesBell'
 import DraggableFAB from '@shared/components/DraggableFAB'
+import SuscripcionBanner from '@shared/components/SuscripcionBanner'
 import styles from './AppLayout.module.css'
 
 // Iconos unificados via react-icons/lu (Lucide). Antes eran emojis que
@@ -40,8 +42,8 @@ const DIRECTORIO_ITEMS = [
 ]
 
 const SISTEMA_ITEMS = [
-  { to: '/compras',     label: 'Compras',     icon: LuShoppingCart, activo: true  },
-  { to: '/facturacion', label: 'Facturación', icon: LuCreditCard,   activo: false },
+  { to: '/compras',     label: 'Compras',     icon: LuShoppingCart, activo: true },
+  { to: '/facturacion', label: 'Facturación', icon: LuCreditCard,   activo: true },
 ]
 
 const ADMIN_ITEMS = [
@@ -145,11 +147,19 @@ export default function AppLayout() {
   const { tema, toggle } = useTema()
   const { role } = useAuth()
   const { empresa } = useEmpresa()
+  const { suscripcion } = useSuscripcion()
   const location = useLocation()
 
   // Mantener `enDirectorio` para futuro toggle expand/collapse del grupo.
   // eslint-disable-next-line no-unused-vars
   const enDirectorio = location.pathname.startsWith('/directorio')
+
+  // Suscripción vencida más allá del período de gracia: se corta el acceso
+  // entero salvo la pantalla de Facturación, para que pueda regularizarlo.
+  const bloqueada = suscripcion?.estadoEfectivo === 'BLOQUEADA'
+  if (bloqueada && location.pathname !== '/facturacion') {
+    return <Navigate to="/facturacion" replace />
+  }
 
   return (
     <div className={`${styles.shell} ${collapsed ? styles.collapsed : ''}`}>
@@ -234,7 +244,10 @@ export default function AppLayout() {
           ya tiene el item "Escanear QR" normal — el FAB no se muestra. */}
       <DraggableFAB />
 
-      <main className={styles.main}><Outlet /></main>
+      <main className={styles.main}>
+        <SuscripcionBanner suscripcion={suscripcion} />
+        <Outlet />
+      </main>
     </div>
   )
 }

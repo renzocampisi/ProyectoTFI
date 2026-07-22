@@ -31,10 +31,15 @@ jest.mock('./empresa.service.js', () => ({
   set: jest.fn().mockResolvedValue({ nombre: 'ACME' }),
 }))
 
+jest.mock('./suscripcion.service.js', () => ({
+  crearPrueba: jest.fn().mockResolvedValue({ id: 's-1', estado: 'PRUEBA' }),
+}))
+
 import * as AuthPublicoService from './auth-publico.service.js'
 import { supabase } from '../config/supabase.js'
 import * as InvitacionesService from './invitaciones.service.js'
 import * as EmpresaService from './empresa.service.js'
+import * as SuscripcionService from './suscripcion.service.js'
 
 const credencialesValidas = { email: 'nuevo@empresa.com', password: 'password123', nombre: 'Juan Pérez' }
 
@@ -52,6 +57,7 @@ beforeEach(() => {
   mockAuthAdmin.createUser.mockResolvedValue({ data: { user: { id: 'auth-1' } }, error: null })
   mockAuthAdmin.deleteUser.mockResolvedValue({ data: null, error: null })
   EmpresaService.set.mockResolvedValue({ nombre: 'ACME' })
+  SuscripcionService.crearPrueba.mockResolvedValue({ id: 's-1', estado: 'PRUEBA' })
 })
 
 describe('auth-publico.service.hayUsuarios', () => {
@@ -98,6 +104,7 @@ describe('auth-publico.service.registrarDueño', () => {
     const insertArg = mockChain.insert.mock.calls[0][0]
     expect(insertArg.role).toBe('DUEÑO')
     expect(EmpresaService.set).toHaveBeenCalledWith(empresa, 'auth-1')
+    expect(SuscripcionService.crearPrueba).toHaveBeenCalledWith('auth-1')
     expect(data.usuario.role).toBe('DUEÑO')
   })
 

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { InventarioService } from '../services/inventario.service'
 import { api } from '@shared/utils/api'
+import { useSuscripcion } from '@modules/m-facturacion/hooks/useSuscripcion'
 import styles from './InventarioNewPage.module.css'
 
 const DIVISAS = [
@@ -70,6 +71,8 @@ function SelectorConAgregar({ label, items, value, onChange, placeholder, onCrea
 
 export default function InventarioNewPage() {
   const navigate = useNavigate()
+  const { suscripcion } = useSuscripcion()
+  const enPrueba = suscripcion?.estadoEfectivo === 'PRUEBA'
 
   const [form, setForm] = useState({
     nombre:        '',
@@ -246,10 +249,17 @@ export default function InventarioNewPage() {
                 </button>
                 <button type="button"
                   className={`${styles.importanteBtn} ${form.importante ? styles.importanteBtnImportante : ''}`}
-                  onClick={() => set('importante', true)}>
+                  onClick={() => set('importante', true)}
+                  disabled={enPrueba}
+                  title={enPrueba ? 'Requiere una suscripción activa — no disponible durante la prueba gratuita' : undefined}>
                   ⭐ Importante — lleva rastreador GPS
                 </button>
               </div>
+              {enPrueba && (
+                <p className={styles.importanteHint}>
+                  Marcar una herramienta como importante requiere una suscripción activa.
+                </p>
+              )}
             </div>
 
           </div>

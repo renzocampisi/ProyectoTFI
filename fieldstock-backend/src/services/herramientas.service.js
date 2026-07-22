@@ -14,6 +14,20 @@
  * Cobertura de tests: ver herramientas.service.test.js (27 casos).
  */
 import { supabase } from '../config/supabase.js'
+import * as SuscripcionService from './suscripcion.service.js'
+
+// Marcar una herramienta "importante" implica entregar un rastreador GPS
+// físico — durante la prueba gratuita eso es un riesgo (podría no
+// devolverse), así que se bloquea hasta que haya una suscripción paga.
+async function validarImportantePermitido(importante) {
+  if (importante !== true) return
+  const suscripcion = await SuscripcionService.getActual()
+  const estado = SuscripcionService.calcularEstadoEfectivo(suscripcion)
+  if (estado === 'PRUEBA') {
+    const err = new Error('Marcar una herramienta como importante requiere una suscripción activa — no está disponible durante la prueba gratuita.')
+    err.status = 403; throw err
+  }
+}
 
 /**
  * Genera el código QR inmutable de una herramienta.
@@ -58,6 +72,8 @@ export async function getById(id) {
 }
 
 export async function create(body) {
+  await validarImportantePermitido(body.importante)
+
   const codigoQR = generarCodigoQR(body.nombre)
 
   const { data, error } = await supabase
@@ -85,6 +101,8 @@ export async function create(body) {
 }
 
 export async function update(id, body) {
+  if (body.importante !== undefined) await validarImportantePermitido(body.importante)
+
   const campos = {}
   if (body.nombre      !== undefined) campos.nombre       = body.nombre
   if (body.categoriaId !== undefined) campos.categoria_id = body.categoriaId

@@ -21,6 +21,7 @@ import { supabase } from '../config/supabase.js'
 import { ROLES } from '../constants/roles.js'
 import * as InvitacionesService from './invitaciones.service.js'
 import * as EmpresaService from './empresa.service.js'
+import * as SuscripcionService from './suscripcion.service.js'
 
 function validarCredenciales({ email, password, nombre }) {
   if (!email?.trim())  { const e = new Error('email es obligatorio');  e.status = 400; throw e }
@@ -82,6 +83,7 @@ export async function registrarDueño({ email, password, nombre, telefono, empre
 
   const usuario = await crearAuthYPerfil({ email, password, nombre, telefono, role: ROLES.DUEÑO })
   await EmpresaService.set(empresa, usuario.id)
+  await SuscripcionService.crearPrueba(usuario.id)
 
   return { usuario }
 }
