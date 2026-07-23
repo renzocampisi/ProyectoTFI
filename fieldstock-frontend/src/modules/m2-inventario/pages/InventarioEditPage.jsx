@@ -13,6 +13,11 @@ export default function InventarioEditPage() {
   const navigate = useNavigate()
   const { suscripcion } = useSuscripcion()
   const enPrueba = suscripcion?.estadoEfectivo === 'PRUEBA'
+  const sinSeguimiento = !enPrueba && !suscripcion?.plan?.incluye_seguimiento
+  const importanteBloqueado = enPrueba || sinSeguimiento
+  const importanteHint = enPrueba
+    ? 'Requiere una suscripción activa — no disponible durante la prueba gratuita'
+    : 'Requiere el plan "Pro + Seguimiento"'
 
   const [form,       setForm]       = useState(null)
   const [categorias, setCategorias] = useState([])
@@ -147,14 +152,16 @@ export default function InventarioEditPage() {
                 <button type="button"
                   className={`${styles.importanteBtn} ${form.importante ? styles.importanteBtnImportante : ''}`}
                   onClick={() => set('importante', true)}
-                  disabled={enPrueba}
-                  title={enPrueba ? 'Requiere una suscripción activa — no disponible durante la prueba gratuita' : undefined}>
+                  disabled={importanteBloqueado}
+                  title={importanteBloqueado ? importanteHint : undefined}>
                   ⭐ Importante — lleva rastreador GPS
                 </button>
               </div>
-              {enPrueba && (
+              {importanteBloqueado && (
                 <p className={styles.importanteHint}>
-                  Marcar una herramienta como importante requiere una suscripción activa.
+                  {enPrueba
+                    ? 'Marcar una herramienta como importante requiere una suscripción activa.'
+                    : 'Marcar una herramienta como importante requiere el plan "Pro + Seguimiento".'}
                 </p>
               )}
             </div>

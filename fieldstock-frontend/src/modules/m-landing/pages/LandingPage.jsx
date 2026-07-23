@@ -146,15 +146,15 @@ export default function LandingPage() {
           </p>
         </div>
         <div className={styles.plans}>
-          <Plan nombre="Taller" desc="Para un galpón chico que recién empieza a ordenar el inventario."
-            precio="29" items={['Hasta 150 herramientas', 'Escaneo QR ilimitado', 'Remitos y obras ilimitadas', '3 usuarios']}
+          <Plan nombre="Básico" desc="Para un galpón chico que recién empieza a ordenar el inventario."
+            precio="29.99" items={['Herramientas, materiales, remitos y obras', 'Escaneo QR ilimitado', 'Hasta 3 usuarios']}
             cta="Empezar" onClick={() => navigate('/registro')} />
-          <Plan destacado nombre="Obra" desc="Para constructoras con varias obras activas al mismo tiempo."
-            precio="79" items={['Herramientas ilimitadas', 'Kits, reservas y reposición predictiva', 'Geolocalización de remitos', 'Hasta 10 usuarios']}
+          <Plan destacado nombre="Pro" desc="Para constructoras con varias obras activas al mismo tiempo."
+            precio="79.99" items={['Todo lo de Básico, usuarios ilimitados', 'Kits, reservas y reposición predictiva', 'Compras, presupuestos y Panel con IA']}
             cta="Empezar gratis" onClick={() => navigate('/registro')} />
-          <Plan nombre="Empresa" desc="Para constructoras grandes con varios galpones y equipos."
-            precio="A medida" items={['Todo lo de Obra', 'Panel con IA para presupuestos', 'Roles y permisos avanzados', 'Usuarios ilimitados']}
-            cta="Hablemos" onClick={() => navigate('/registro')} />
+          <Plan nombre="Pro + Seguimiento" desc="Para quienes necesitan controlar sus herramientas más valiosas con rastreo GPS."
+            precio="109.99" items={['Todo lo de Pro', 'Marcá herramientas "Importante" con rastreador GPS', 'Prioridad en soporte']}
+            cta="Empezar gratis" onClick={() => navigate('/registro')} />
         </div>
       </section>
 
@@ -243,7 +243,7 @@ function Tag({ label, titulo, texto }) {
 }
 
 function Plan({ destacado, nombre, desc, precio, items, cta, onClick }) {
-  const esNumero = /^\d+$/.test(precio)
+  const esNumero = /^\d+(\.\d+)?$/.test(precio)
   return (
     <div className={`${styles.plan} ${destacado ? styles.planHi : ''}`}>
       {destacado && <span className={styles.planBadge}>Más elegido</span>}

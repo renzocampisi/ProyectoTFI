@@ -17,14 +17,21 @@ import { supabase } from '../config/supabase.js'
 import * as SuscripcionService from './suscripcion.service.js'
 
 // Marcar una herramienta "importante" implica entregar un rastreador GPS
-// físico — durante la prueba gratuita eso es un riesgo (podría no
-// devolverse), así que se bloquea hasta que haya una suscripción paga.
+// físico. Dos motivos para bloquearlo:
+//   - Durante la prueba gratuita: el dispositivo podría no devolverse.
+//   - Fuera de la prueba: es una función exclusiva del plan "Pro + Seguimiento"
+//     (planes.incluye_seguimiento) — Básico y Pro no la incluyen.
 async function validarImportantePermitido(importante) {
   if (importante !== true) return
   const suscripcion = await SuscripcionService.getActual()
   const estado = SuscripcionService.calcularEstadoEfectivo(suscripcion)
+
   if (estado === 'PRUEBA') {
     const err = new Error('Marcar una herramienta como importante requiere una suscripción activa — no está disponible durante la prueba gratuita.')
+    err.status = 403; throw err
+  }
+  if (!suscripcion?.plan?.incluye_seguimiento) {
+    const err = new Error('Marcar una herramienta como importante requiere el plan "Pro + Seguimiento" — actualizá tu plan desde Facturación.')
     err.status = 403; throw err
   }
 }

@@ -154,6 +154,7 @@ export default function FacturacionPage() {
                 <ul className={styles.planFeatures}>
                   <li>{plan.max_usuarios ? `Hasta ${plan.max_usuarios} usuarios` : 'Usuarios ilimitados'}</li>
                   {plan.incluye_panel_ia && <li>Panel con IA para presupuestos</li>}
+                  {plan.incluye_seguimiento && <li>Rastreo GPS de herramientas ("Importante")</li>}
                 </ul>
                 {puedeGestionar && (
                   aMedida ? (
