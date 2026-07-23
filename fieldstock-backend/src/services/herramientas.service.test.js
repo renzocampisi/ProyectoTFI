@@ -19,12 +19,22 @@ jest.mock('../config/supabase.js', () => ({
   },
 }))
 
+jest.mock('./suscripcion.service.js', () => ({
+  getActual: jest.fn(),
+  calcularEstadoEfectivo: jest.fn(),
+}))
+
 // Importar DESPUÉS de los mocks
 import * as HerramientasService from './herramientas.service.js'
 import { supabase } from '../config/supabase.js'
+import * as SuscripcionService from './suscripcion.service.js'
 
 beforeEach(() => {
   jest.clearAllMocks()
+  // Default: suscripción ACTIVA — así los tests de "importante" preexistentes
+  // (que no son sobre el gating) no se ven afectados por el nuevo chequeo.
+  SuscripcionService.getActual.mockResolvedValue({ estado: 'ACTIVA' })
+  SuscripcionService.calcularEstadoEfectivo.mockReturnValue('ACTIVA')
   // Reset del mockChain — clearAllMocks limpia las llamadas pero también borra los mockReturnThis
   mockChain.select.mockReturnThis()
   mockChain.insert.mockReturnThis()
@@ -167,6 +177,20 @@ describe('herramientas.service', () => {
       // strings, números, etc. no cuentan — solo el boolean true
       expect(insertArg.importante).toBe(false)
     })
+
+    it('rechaza importante=true con 403 durante la prueba gratuita', async () => {
+      SuscripcionService.calcularEstadoEfectivo.mockReturnValue('PRUEBA')
+      await expect(
+        HerramientasService.create({ nombre: 'Soldadora', categoriaId: 'c', importante: true })
+      ).rejects.toMatchObject({ status: 403 })
+      expect(mockChain.insert).not.toHaveBeenCalled()
+    })
+
+    it('no chequea la suscripción si importante no viene en true', async () => {
+      mockChain.single.mockResolvedValue({ data: { id: 'h-new' }, error: null })
+      await HerramientasService.create({ nombre: 'Martillo', categoriaId: 'c' })
+      expect(SuscripcionService.getActual).not.toHaveBeenCalled()
+    })
   })
 
   describe('update', () => {
@@ -207,6 +231,22 @@ describe('herramientas.service', () => {
       await HerramientasService.update('h-1', { nombre: 'X' })
       const updateArg = mockChain.update.mock.calls[0][0]
       expect(updateArg).not.toHaveProperty('importante')
+    })
+
+    it('rechaza marcar importante=true con 403 durante la prueba gratuita', async () => {
+      SuscripcionService.calcularEstadoEfectivo.mockReturnValue('PRUEBA')
+      await expect(
+        HerramientasService.update('h-1', { importante: true })
+      ).rejects.toMatchObject({ status: 403 })
+      expect(mockChain.update).not.toHaveBeenCalled()
+    })
+
+    it('permite desmarcar importante=false aunque esté en PRUEBA', async () => {
+      SuscripcionService.calcularEstadoEfectivo.mockReturnValue('PRUEBA')
+      mockChain.single.mockResolvedValue({ data: { id: 'h-1' }, error: null })
+      await HerramientasService.update('h-1', { importante: false })
+      const updateArg = mockChain.update.mock.calls[0][0]
+      expect(updateArg.importante).toBe(false)
     })
   })
 

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { InventarioService } from '../services/inventario.service'
+import { useSuscripcion } from '@modules/m-facturacion/hooks/useSuscripcion'
 import styles from './InventarioNewPage.module.css' // reutiliza los mismos estilos
 
 const AÑO_ACTUAL = new Date().getFullYear()
@@ -10,6 +11,8 @@ const AÑOS = Array.from({ length: 20 }, (_, i) => AÑO_ACTUAL - i)
 export default function InventarioEditPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { suscripcion } = useSuscripcion()
+  const enPrueba = suscripcion?.estadoEfectivo === 'PRUEBA'
 
   const [form,       setForm]       = useState(null)
   const [categorias, setCategorias] = useState([])
@@ -143,10 +146,17 @@ export default function InventarioEditPage() {
                 </button>
                 <button type="button"
                   className={`${styles.importanteBtn} ${form.importante ? styles.importanteBtnImportante : ''}`}
-                  onClick={() => set('importante', true)}>
+                  onClick={() => set('importante', true)}
+                  disabled={enPrueba}
+                  title={enPrueba ? 'Requiere una suscripción activa — no disponible durante la prueba gratuita' : undefined}>
                   ⭐ Importante — lleva rastreador GPS
                 </button>
               </div>
+              {enPrueba && (
+                <p className={styles.importanteHint}>
+                  Marcar una herramienta como importante requiere una suscripción activa.
+                </p>
+              )}
             </div>
           </div>
         </fieldset>

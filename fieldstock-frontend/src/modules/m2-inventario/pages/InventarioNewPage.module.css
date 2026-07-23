@@ -58,6 +58,8 @@
 .importanteBtn:hover { border-color: var(--color-border-light); color: var(--text-primary); }
 .importanteBtnActive { background: var(--color-surface); border-color: var(--color-primary); color: var(--color-primary); }
 .importanteBtnImportante { background: rgba(245,166,35,0.1); border-color: rgba(245,166,35,0.4); color: var(--color-warning); font-weight: 500; }
+.importanteBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.importanteHint { font-size: var(--text-xs); color: var(--text-muted); margin: var(--space-1) 0 0; }
 
 /* Boton + para agregar datos que no hayan sido cargados */
 .selectorRow {

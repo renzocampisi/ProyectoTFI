@@ -19,6 +19,7 @@ import { Router } from 'express'
 import multer from 'multer'
 import { requireAuth } from '../middlewares/requireAuth.js'
 import { requireRole } from '../middlewares/requireRole.js'
+import { requireSuscripcionActiva } from '../middlewares/requireSuscripcionActiva.js'
 import { ROLES, ROLES_ADMIN_LEVEL, ROLES_OPERATIVOS } from '../constants/roles.js'
 import * as CategoriasCtrl      from '../controllers/categorias.controller.js'
 import * as MarcasCtrl          from '../controllers/marcas.controller.js'
@@ -41,6 +42,8 @@ import * as PresupuestosCtrl    from '../controllers/presupuestos.controller.js'
 import * as ConfigCtrl          from '../controllers/config.controller.js'
 import * as EmpresaCtrl         from '../controllers/empresa.controller.js'
 import * as PanelCtrl           from '../controllers/panel.controller.js'
+import * as PlanesCtrl          from '../controllers/planes.controller.js'
+import * as SuscripcionCtrl     from '../controllers/suscripcion.controller.js'
 
 const router = Router()
 
@@ -55,6 +58,12 @@ router.get ('/auth/estado',            AuthPublicoCtrl.getEstado)
 router.post('/auth/registro-dueno',    AuthPublicoCtrl.registrarDueño)
 router.post('/auth/registro-invitado', AuthPublicoCtrl.registrarConInvitacion)
 
+// ── Webhook de Mercado Pago ──────────────────────────────────────
+// También público — lo llama Mercado Pago directo, sin sesión de
+// FieldStock. procesarWebhook() valida la firma (x-signature) antes de
+// confiar en nada del body — ver suscripcion.service.js.
+router.post('/webhooks/mercadopago', SuscripcionCtrl.webhook)
+
 // ── Auth global ───────────────────────────────────────────────
 // Toda la API /api requiere autenticación. El único endpoint público
 // es /health (montado fuera de este router, en index.js). Esto incluye
@@ -62,6 +71,12 @@ router.post('/auth/registro-invitado', AuthPublicoCtrl.registrarConInvitacion)
 // empleado logueado (operario / encargado / dueño) — el cliente recibe
 // el PDF impreso pero no opera la app.
 router.use(requireAuth)
+
+// Gating por estado de suscripción — corre para TODO lo que sigue,
+// salvo las rutas que necesita poder ver alguien BLOQUEADO para pagar
+// (ver excepciones dentro del middleware): /suscripcion, /planes,
+// /usuarios/me.
+router.use(requireSuscripcionActiva)
 
 // ── Dashboard ─────────────────────────────────────────────────
 // Word #16 — single endpoint que agrega KPIs + listas para la home.
@@ -88,6 +103,14 @@ router.post  ('/usuarios/:id/reset-password', requireRole(ROLES_ADMIN_LEVEL), Us
 // ── Invitaciones (códigos de registro para empleados) ───────────
 router.get ('/invitaciones', requireRole(ROLES_ADMIN_LEVEL), InvitacionesCtrl.getAll)
 router.post('/invitaciones', requireRole(ROLES_ADMIN_LEVEL), InvitacionesCtrl.generar)
+
+// ── Planes y suscripción ────────────────────────────────────────
+// GET accesible para cualquier autenticado (se muestran en /facturacion
+// a cualquier rol); elegir/cancelar plan queda para DUEÑO/ADMIN.
+router.get ('/planes',                 PlanesCtrl.getAll)
+router.get ('/suscripcion',            SuscripcionCtrl.getEstado)
+router.post('/suscripcion/elegir-plan', requireRole(ROLES_ADMIN_LEVEL), SuscripcionCtrl.elegirPlan)
+router.post('/suscripcion/cancelar',    requireRole(ROLES_ADMIN_LEVEL), SuscripcionCtrl.cancelar)
 
 // ── Categorías ────────────────────────────────────────────────
 router.get ('/categorias', CategoriasCtrl.getAll)
