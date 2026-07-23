@@ -105,24 +105,24 @@ describe('suscripcion.service.elegirPlan', () => {
     ).rejects.toMatchObject({ status: 400 })
   })
 
-  it('rechaza el plan Empresa (a medida, sin checkout automático)', async () => {
-    PlanesService.getByCodigo.mockResolvedValue({ id: 'p-3', nombre: 'Empresa', precio_mensual: null })
+  it('rechaza un plan sin precio fijo (a medida, sin checkout automático)', async () => {
+    PlanesService.getByCodigo.mockResolvedValue({ id: 'p-3', nombre: 'A medida', precio_mensual: null })
     await expect(
-      SuscripcionService.elegirPlan({ codigoPlan: 'EMPRESA', payerEmail: 'x@x.com', backUrl: 'https://app/facturacion' })
+      SuscripcionService.elegirPlan({ codigoPlan: 'A_MEDIDA', payerEmail: 'x@x.com', backUrl: 'https://app/facturacion' })
     ).rejects.toMatchObject({ status: 400 })
     expect(MercadoPagoService.crearPreapproval).not.toHaveBeenCalled()
   })
 
   it('crea el preapproval y guarda plan_id + mp_preapproval_id', async () => {
-    PlanesService.getByCodigo.mockResolvedValue({ id: 'p-2', nombre: 'Obra', precio_mensual: 79 })
+    PlanesService.getByCodigo.mockResolvedValue({ id: 'p-2', nombre: 'Pro', precio_mensual: 79.99 })
     mockChain.maybeSingle.mockResolvedValue({ data: { id: 's-1' }, error: null })
     MercadoPagoService.crearPreapproval.mockResolvedValue({ id: 'pre-1', init_point: 'https://mp.test/checkout' })
     mockChain.then = (resolve) => resolve({ error: null })
 
-    const data = await SuscripcionService.elegirPlan({ codigoPlan: 'OBRA', payerEmail: 'dueno@x.com', backUrl: 'https://app/facturacion' })
+    const data = await SuscripcionService.elegirPlan({ codigoPlan: 'PRO', payerEmail: 'dueno@x.com', backUrl: 'https://app/facturacion' })
 
     expect(MercadoPagoService.crearPreapproval).toHaveBeenCalledWith(
-      expect.objectContaining({ transactionAmount: 79, payerEmail: 'dueno@x.com', externalReference: 's-1' })
+      expect.objectContaining({ transactionAmount: 79.99, payerEmail: 'dueno@x.com', externalReference: 's-1' })
     )
     expect(mockChain.update).toHaveBeenCalledWith(
       expect.objectContaining({ plan_id: 'p-2', mp_preapproval_id: 'pre-1' })

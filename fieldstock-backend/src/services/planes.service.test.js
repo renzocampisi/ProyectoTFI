@@ -26,7 +26,7 @@ beforeEach(() => {
 describe('planes.service.getAll', () => {
   it('trae solo planes activos ordenados por precio (nulls al final)', async () => {
     mockChain.then = (resolve) => resolve({
-      data: [{ codigo: 'TALLER' }, { codigo: 'OBRA' }, { codigo: 'EMPRESA', precio_mensual: null }],
+      data: [{ codigo: 'BASICO' }, { codigo: 'PRO' }, { codigo: 'PRO_SEGUIMIENTO', precio_mensual: null }],
       error: null,
     })
     const data = await PlanesService.getAll()
@@ -44,11 +44,11 @@ describe('planes.service.getAll', () => {
 
 describe('planes.service.getByCodigo', () => {
   it('busca por código entre los activos', async () => {
-    mockChain.maybeSingle.mockResolvedValue({ data: { codigo: 'OBRA' }, error: null })
-    const data = await PlanesService.getByCodigo('OBRA')
-    expect(mockChain.eq).toHaveBeenCalledWith('codigo', 'OBRA')
+    mockChain.maybeSingle.mockResolvedValue({ data: { codigo: 'PRO' }, error: null })
+    const data = await PlanesService.getByCodigo('PRO')
+    expect(mockChain.eq).toHaveBeenCalledWith('codigo', 'PRO')
     expect(mockChain.eq).toHaveBeenCalledWith('activo', true)
-    expect(data.codigo).toBe('OBRA')
+    expect(data.codigo).toBe('PRO')
   })
 
   it('devuelve null si no existe', async () => {
