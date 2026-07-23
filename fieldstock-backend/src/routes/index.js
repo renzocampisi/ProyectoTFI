@@ -44,6 +44,8 @@ import * as EmpresaCtrl         from '../controllers/empresa.controller.js'
 import * as PanelCtrl           from '../controllers/panel.controller.js'
 import * as PlanesCtrl          from '../controllers/planes.controller.js'
 import * as SuscripcionCtrl     from '../controllers/suscripcion.controller.js'
+import * as AddonsCtrl          from '../controllers/addons.controller.js'
+import * as DispositivosCtrl    from '../controllers/dispositivos.controller.js'
 
 const router = Router()
 
@@ -111,6 +113,18 @@ router.get ('/planes',                 PlanesCtrl.getAll)
 router.get ('/suscripcion',            SuscripcionCtrl.getEstado)
 router.post('/suscripcion/elegir-plan', requireRole(ROLES_ADMIN_LEVEL), SuscripcionCtrl.elegirPlan)
 router.post('/suscripcion/cancelar',    requireRole(ROLES_ADMIN_LEVEL), SuscripcionCtrl.cancelar)
+router.patch('/suscripcion/extras',     requireRole(ROLES_ADMIN_LEVEL), AddonsCtrl.actualizarExtras)
+
+// ── Dispositivos de rastreo GPS ─────────────────────────────────
+// Emparejar es lo que hace el dueño/encargado escaneando el QR del
+// dispositivo — cualquier rol operativo. Ver el listado completo, cargar
+// dispositivos nuevos, liberar o dar de baja quedan exclusivos de ADMIN
+// (panel de control) — primera vez que ADMIN se diferencia de DUEÑO.
+router.post  ('/dispositivos/emparejar',       requireRole(ROLES_OPERATIVOS),  DispositivosCtrl.emparejar)
+router.get   ('/dispositivos',                 requireRole([ROLES.ADMIN]),     DispositivosCtrl.getAll)
+router.post  ('/dispositivos',                 requireRole([ROLES.ADMIN]),     DispositivosCtrl.crear)
+router.post  ('/dispositivos/:id/liberar',     requireRole([ROLES.ADMIN]),     DispositivosCtrl.liberar)
+router.post  ('/dispositivos/:id/dar-de-baja', requireRole([ROLES.ADMIN]),     DispositivosCtrl.darDeBaja)
 
 // ── Categorías ────────────────────────────────────────────────
 router.get ('/categorias', CategoriasCtrl.getAll)

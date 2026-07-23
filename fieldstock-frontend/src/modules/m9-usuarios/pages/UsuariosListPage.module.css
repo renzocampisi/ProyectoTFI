@@ -82,7 +82,11 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  /* overflow-x en vez de hidden: con hidden, angostar la ventana recortaba
+     directamente los botones de Resetear/Desactivar en vez de dejarlos
+     accesibles con scroll — quedaban invisibles sin ningún aviso. */
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 .table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 .table thead th {
@@ -152,6 +156,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 /* Area tactil suficiente para tablet sin mouse — antes los botones
@@ -223,6 +228,17 @@
   gap: var(--space-3);
   justify-content: flex-end;
   margin-top: var(--space-2);
+}
+
+/* Ventana angosta (laptop achicada, tablet) mientras todavía es tabla:
+   la columna Alta es la menos importante — se oculta primero para darle
+   aire a las acciones (Editar/Resetear/Desactivar), que antes quedaban
+   recortadas por el overflow:hidden del wrapper en vez de mantenerse
+   visibles. .actions con flex-wrap además permite que "Editar" pase a una
+   fila y los íconos a la siguiente si el espacio sigue sin alcanzar. */
+@media (max-width: 900px) {
+  .thFecha, .cellFecha { display: none; }
+  .actions { justify-content: flex-end; row-gap: var(--space-1); }
 }
 
 /* Mobile: table → cards */

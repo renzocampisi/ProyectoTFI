@@ -75,6 +75,15 @@ describe('mercadopago.service.obtenerPreapproval / cancelarPreapproval / obtener
     expect(mockPreApprovalUpdate).toHaveBeenCalledWith({ id: 'pre-1', body: { status: 'cancelled' } })
   })
 
+  it('actualizarMontoPreapproval delega en preApproval.update con el nuevo monto', async () => {
+    mockPreApprovalUpdate.mockResolvedValue({ id: 'pre-1', auto_recurring: { transaction_amount: 38.96 } })
+    await MercadoPagoService.actualizarMontoPreapproval('pre-1', 38.96)
+    expect(mockPreApprovalUpdate).toHaveBeenCalledWith({
+      id: 'pre-1',
+      body: { auto_recurring: { transaction_amount: 38.96, currency_id: 'ARS' } },
+    })
+  })
+
   it('obtenerPago delega en payment.get', async () => {
     mockPaymentGet.mockResolvedValue({ id: 'pay-1', status: 'approved' })
     const data = await MercadoPagoService.obtenerPago('pay-1')

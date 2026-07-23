@@ -149,6 +149,19 @@
   margin: var(--space-1) 0 0;
 }
 
+/* Fila submit + link secundario: el botón queda a la izquierda y el link
+   ("Volver al login") a la derecha, separados — antes quedaban pegados
+   porque los <button> son inline-block por default y fluían uno al lado
+   del otro sin espacio. */
+.formActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+.formActions .btnPrimary { margin-top: 0; }
+
 .btnLink {
   font-size: var(--text-sm);
   color: var(--color-primary);
@@ -158,6 +171,7 @@
   padding: var(--space-1);
   cursor: pointer;
   transition: color var(--transition-fast);
+  white-space: nowrap;
 }
 .btnLink:hover:not(:disabled) { color: var(--color-primary-hover); }
 .btnLink:disabled { opacity: 0.5; cursor: not-allowed; }

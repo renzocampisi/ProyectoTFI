@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import AppLayout from '@layouts/AppLayout'
 import RequireAuth from '@shared/components/RequireAuth'
 import RequireRole from '@shared/components/RequireRole'
-import { ROLES_ADMIN_LEVEL } from '@shared/constants/roles'
+import { ROLES, ROLES_ADMIN_LEVEL } from '@shared/constants/roles'
 
 import LandingPage from '@modules/m-landing/pages/LandingPage'
 import LoginPage  from '@modules/m0-auth/pages/LoginPage'
@@ -54,6 +54,7 @@ import PresupuestoNewPage    from '@modules/m-presupuestos/pages/PresupuestoNewP
 import ConfigPage from '@modules/m-config/pages/ConfigPage'
 
 import FacturacionPage from '@modules/m-facturacion/pages/FacturacionPage'
+import AdminControlPage from '@modules/m-admin-control/pages/AdminControlPage'
 
 import PanelPage from '@modules/m1-panel/pages/PanelPage'
 
@@ -159,6 +160,14 @@ export default function AppRouter() {
           <Route path="presupuestos/*"     element={<ComingSoon modulo="Presupuestos" />} />
           <Route path="facturacion" element={<FacturacionPage />} />
           <Route path="panel"         element={<PanelPage />} />
+
+          {/* Panel de control — exclusivo de ADMIN (rol del dueño del
+              sistema), no de DUEÑO/ENCARGADO de la empresa cliente. */}
+          <Route path="admin/control" element={
+            <RequireRole roles={[ROLES.ADMIN]}>
+              <AdminControlPage />
+            </RequireRole>
+          } />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

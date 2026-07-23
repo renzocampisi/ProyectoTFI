@@ -117,7 +117,7 @@ export default function UsuariosListPage() {
                 <th>Rol</th>
                 <th>Teléfono</th>
                 <th>Estado</th>
-                <th>Alta</th>
+                <th className={styles.thFecha}>Alta</th>
                 <th></th>
               </tr>
             </thead>

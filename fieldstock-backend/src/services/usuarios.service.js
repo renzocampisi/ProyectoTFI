@@ -21,6 +21,7 @@
 import { supabase } from '../config/supabase.js'
 import { ROLES_LIST } from '../constants/roles.js'
 import { genPassword } from '../utils/genPassword.js'
+import * as SuscripcionService from './suscripcion.service.js'
 
 // ── Lectura ───────────────────────────────────────────────────
 
@@ -49,6 +50,32 @@ export async function getMe(id) {
   return getById(id)
 }
 
+/**
+ * `max_usuarios` null significa ilimitado (planes Pro y Pro + Seguimiento).
+ * `empleados_extra` es el add-on self-service (ver addons.service.js) que
+ * suma cupo por arriba del límite del plan sin necesidad de subir de plan.
+ */
+async function validarCupoUsuarios() {
+  const suscripcion = await SuscripcionService.getActual()
+  const maxUsuarios = suscripcion?.plan?.max_usuarios
+  if (maxUsuarios == null) return // plan ilimitado o todavía sin plan (PRUEBA)
+
+  const cupo = maxUsuarios + (suscripcion.empleados_extra || 0)
+
+  const { count, error } = await supabase
+    .from('usuarios')
+    .select('id', { count: 'exact', head: true })
+    .eq('activo', true)
+  if (error) throw error
+
+  if ((count || 0) >= cupo) {
+    const e = new Error(
+      `Llegaste al límite de empleados de tu plan (${cupo}). Agregá empleados extra desde Facturación o subí de plan.`
+    )
+    e.status = 403; throw e
+  }
+}
+
 // ── Escritura ─────────────────────────────────────────────────
 
 /**
@@ -64,6 +91,8 @@ export async function create({ email, nombre, telefono, role }) {
     const e = new Error(`role inválido. Debe ser uno de: ${ROLES_LIST.join(', ')}`)
     e.status = 400; throw e
   }
+
+  await validarCupoUsuarios()
 
   const passwordPlano = genPassword(8)
 

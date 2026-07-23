@@ -5,6 +5,8 @@ import jsQR from 'jsqr'
 import { api } from '@shared/utils/api'
 import { detectarTipoQR } from '@shared/utils/qr'
 import { RemitosService } from '@modules/m5-remito/services/remitos.service'
+import { InventarioService } from '@modules/m2-inventario/services/inventario.service'
+import { DispositivosService } from '@modules/m-admin-control/services/dispositivos.service'
 import styles from './QRScannerPage.module.css'
 
 /**
@@ -14,6 +16,12 @@ import styles from './QRScannerPage.module.css'
  */
 async function resolverDestino(codigo) {
   const { tipo, codigo: limpio } = detectarTipoQR(codigo)
+
+  // Caso 0: QR de un dispositivo de rastreo → no navega a ningún lado, el
+  // componente pasa a mostrar el selector de herramienta para emparejarlo.
+  if (tipo === 'dispositivo') {
+    return { tipo: 'dispositivo', codigoDispositivo: limpio }
+  }
 
   // Caso 1: QR de remito → resolver número → /remitos/:id/qr
   if (tipo === 'remito') {
@@ -68,6 +76,14 @@ export default function QRScannerPage() {
   const [mensaje,  setMensaje]  = useState('')
   const [buscando, setBuscando] = useState(false)
   const [inputVal, setInputVal] = useState('')
+
+  // Emparejado de dispositivo de rastreo — se activa cuando el QR escaneado
+  // es de un dispositivo (prefijo FS-DEV-), en vez de navegar a otra página.
+  const [codigoDispositivo, setCodigoDispositivo] = useState(null)
+  const [herramientas,      setHerramientas]      = useState([])
+  const [herramientaElegida, setHerramientaElegida] = useState('')
+  const [emparejando,       setEmparejando]       = useState(false)
+  const [errEmparejar,      setErrEmparejar]      = useState(null)
 
   useEffect(() => {
     iniciarCamara()
@@ -137,7 +153,12 @@ export default function QRScannerPage() {
     setBuscando(true)
     try {
       const destino = await resolverDestino(valor)
-      if (destino) {
+      if (destino?.tipo === 'dispositivo') {
+        setCodigoDispositivo(destino.codigoDispositivo)
+        const lista = await InventarioService.getAll()
+        setHerramientas(lista)
+        setEstado('emparejando')
+      } else if (destino) {
         navigate(destino.path)
       } else {
         setEstado('noEncontrado')
@@ -148,6 +169,19 @@ export default function QRScannerPage() {
       setMensaje('Error al conectar con el servidor.')
     } finally {
       setBuscando(false)
+    }
+  }
+
+  const handleConfirmarEmparejado = async () => {
+    if (!herramientaElegida) return
+    setEmparejando(true); setErrEmparejar(null)
+    try {
+      await DispositivosService.emparejar(codigoDispositivo, herramientaElegida)
+      setEstado('emparejado')
+    } catch (err) {
+      setErrEmparejar(err.message)
+    } finally {
+      setEmparejando(false)
     }
   }
 
@@ -162,6 +196,9 @@ export default function QRScannerPage() {
 
   const reiniciar = () => {
     setInputVal('')
+    setCodigoDispositivo(null)
+    setHerramientaElegida('')
+    setErrEmparejar(null)
     iniciarCamara()
   }
 
@@ -190,6 +227,37 @@ export default function QRScannerPage() {
             <span className={styles.errorIcon}>{estado === 'noEncontrado' ? '🔍' : '⚠'}</span>
             <p style={{ whiteSpace: 'pre-line', textAlign: 'center', fontSize: '12px' }}>{mensaje}</p>
             <button className={styles.btnGhost} onClick={reiniciar}>Intentar de nuevo</button>
+          </div>
+        )}
+
+        {estado === 'emparejando' && (
+          <div className={styles.errorBox}>
+            <p style={{ fontSize: '13px', textAlign: 'center' }}>
+              Dispositivo <strong>{codigoDispositivo}</strong> — elegí a qué herramienta emparejarlo:
+            </p>
+            <select
+              style={{ width: '100%', padding: '8px', fontSize: '13px' }}
+              value={herramientaElegida}
+              onChange={e => setHerramientaElegida(e.target.value)}
+            >
+              <option value="">Seleccioná una herramienta</option>
+              {herramientas.map(h => <option key={h.id} value={h.id}>{h.nombre}</option>)}
+            </select>
+            {errEmparejar && <p style={{ color: 'var(--color-danger, #f25f5c)', fontSize: '12px' }}>⚠ {errEmparejar}</p>}
+            <button className={styles.btnSecondary}
+              onClick={handleConfirmarEmparejado}
+              disabled={!herramientaElegida || emparejando}>
+              {emparejando ? 'Emparejando...' : 'Confirmar'}
+            </button>
+            <button className={styles.btnGhost} onClick={reiniciar}>Cancelar</button>
+          </div>
+        )}
+
+        {estado === 'emparejado' && (
+          <div className={styles.errorBox}>
+            <span className={styles.errorIcon}>✓</span>
+            <p style={{ textAlign: 'center', fontSize: '13px' }}>Dispositivo emparejado correctamente.</p>
+            <button className={styles.btnSecondary} onClick={reiniciar}>Escanear otro</button>
           </div>
         )}
 
