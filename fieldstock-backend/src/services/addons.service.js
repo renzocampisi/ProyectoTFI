@@ -13,6 +13,7 @@ import * as SuscripcionService from './suscripcion.service.js'
 import * as MercadoPagoService from './mercadopago.service.js'
 import * as EmailService from './email.service.js'
 import * as EmpresaService from './empresa.service.js'
+import * as CentralReporteService from './central-reporte.service.js'
 
 export const PRECIO_EMPLEADO_EXTRA = 2.99
 export const PRECIO_HERRAMIENTA_SEGUIMIENTO = 9.99
@@ -93,6 +94,8 @@ export async function actualizarExtras({ empleadosExtra, herramientasCupo, payer
     detalle,
     montoTotal,
   })
+
+  CentralReporteService.reportar() // fire-and-forget — nunca bloquea esta respuesta
 
   return { montoTotal, detalle }
 }

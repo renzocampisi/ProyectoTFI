@@ -11,8 +11,17 @@ import { useSuscripcion } from '@modules/m-facturacion/hooks/useSuscripcion'
 import { useEmpresa } from '@shared/hooks/useEmpresa'
 import { UsuariosService } from '@modules/m9-usuarios/services/usuarios.service'
 import { useDispositivos } from '../hooks/useDispositivos'
+import { useClientesCentrales } from '../hooks/useClientesCentrales'
 import { DispositivosService } from '../services/dispositivos.service'
+import { ClientesCentralesService } from '../services/clientes-centrales.service'
 import styles from './AdminControlPage.module.css'
+
+function formatMinutos(iso) {
+  const minutos = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
+  if (minutos < 1) return 'recién'
+  if (minutos < 60) return `hace ${minutos} min`
+  return `hace ${Math.round(minutos / 60)} h`
+}
 
 const ESTADO_LABEL = {
   LIBRE:      { texto: 'Libre',      cls: 'estadoLibre' },
@@ -24,6 +33,27 @@ export default function AdminControlPage() {
   const { suscripcion, loading: loadingSus } = useSuscripcion()
   const { empresa, loading: loadingEmpresa } = useEmpresa()
   const { dispositivos, loading: loadingDisp, error, refetch } = useDispositivos()
+  const { clientes, loading: loadingClientes, error: errClientes, refetch: refetchClientes } = useClientesCentrales()
+
+  const [clienteAccion, setClienteAccion] = useState(null) // cliente elegido para liberar un dispositivo
+  const [codigoRemoto, setCodigoRemoto] = useState('')
+  const [liberandoRemoto, setLiberandoRemoto] = useState(false)
+  const [errRemoto, setErrRemoto] = useState(null)
+
+  const handleLiberarRemoto = async (e) => {
+    e.preventDefault()
+    if (!codigoRemoto.trim() || !clienteAccion) return
+    setLiberandoRemoto(true); setErrRemoto(null)
+    try {
+      await ClientesCentralesService.liberarDispositivo(clienteAccion.id, codigoRemoto.trim())
+      setClienteAccion(null); setCodigoRemoto('')
+      refetchClientes()
+    } catch (err) {
+      setErrRemoto(err.message)
+    } finally {
+      setLiberandoRemoto(false)
+    }
+  }
 
   // Recuerdo importante para quien use este panel: cada instancia de
   // FieldStock es UNA sola empresa cliente (ver architecture.html — un
@@ -87,6 +117,73 @@ export default function AdminControlPage() {
           no una lista de varias.
         </p>
       </header>
+
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>Mis clientes</h2>
+        <p className={styles.textMuted} style={{ marginTop: 0 }}>
+          Último estado reportado por cada instancia-cliente (hasta 30 min de desfasaje). Vacío hasta que algún
+          cliente reporte acá — ver architecture-multi-cliente.html.
+        </p>
+        {errClientes && <div className={styles.errorBanner}>⚠ {errClientes}</div>}
+        {loadingClientes ? <p className={styles.textMuted}>Cargando...</p> : (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Empresa</th>
+                <th>Plan</th>
+                <th>Herramientas</th>
+                <th>Último reporte</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {(clientes || []).map(c => (
+                <tr key={c.id}>
+                  <td>{c.empresa_nombre || '—'}</td>
+                  <td>{c.plan_nombre || '— sin elegir —'}</td>
+                  <td>{c.herramientas_emparejadas} / {c.herramientas_cupo}</td>
+                  <td>
+                    <span className={`${styles.badge} ${c.activo ? styles.estadoLibre : styles.estadoBaja}`}>
+                      {c.activo ? 'activo' : 'sin reportar'}
+                    </span>{' '}
+                    {formatMinutos(c.ultimo_reporte_at)}
+                  </td>
+                  <td>
+                    <button className={styles.btnGhost} onClick={() => setClienteAccion(c)}>
+                      Liberar dispositivo
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {clientes?.length === 0 && (
+                <tr><td colSpan={5} className={styles.textMuted}>Todavía no reportó ningún cliente.</td></tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {clienteAccion && (
+        <div className={styles.errorBanner} style={{ background: 'var(--color-surface)', color: 'inherit' }}>
+          <form onSubmit={handleLiberarRemoto} className={styles.formRow}>
+            <span>Liberar dispositivo de <strong>{clienteAccion.empresa_nombre}</strong> — código QR:</span>
+            <input
+              type="text" placeholder="FS-DEV-XXXXXXXX" className={styles.input}
+              value={codigoRemoto} onChange={e => setCodigoRemoto(e.target.value)}
+              autoFocus
+            />
+            <button className={styles.btnPrimary} type="submit" disabled={liberandoRemoto || !codigoRemoto.trim()}>
+              {liberandoRemoto ? 'Liberando...' : 'Confirmar'}
+            </button>
+            <button className={styles.btnGhost} type="button" onClick={() => { setClienteAccion(null); setErrRemoto(null) }}>
+              Cancelar
+            </button>
+          </form>
+          {errRemoto && <p style={{ color: 'var(--color-danger)' }}>⚠ {errRemoto}</p>}
+        </div>
+      )}
+
+      <h2 className={styles.cardTitle} style={{ marginTop: 'var(--space-2)' }}>Esta instancia</h2>
 
       <section className={`${styles.card} ${styles.cardCuenta}`}>
         {(loadingEmpresa) ? <p className={styles.textMuted}>Cargando...</p> : (

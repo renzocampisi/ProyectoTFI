@@ -16,9 +16,12 @@
 import 'dotenv/config'
 import express from 'express'
 import cors    from 'cors'
+import cron    from 'node-cron'
 
 import router       from './routes/index.js'
 import { errorHandler } from './middlewares/errorHandler.js'
+import { getCentralUrl } from './config/central.js'
+import * as CentralReporteService from './services/central-reporte.service.js'
 
 const app  = express()
 const PORT = process.env.PORT || 3000
@@ -67,6 +70,16 @@ app.use((req, res) => res.status(404).json({
 // Error handler global: captura cualquier error propagado con next(err)
 // y lo convierte en JSON consistente. Debe ir AL FINAL (después de rutas).
 app.use(errorHandler)
+
+// ── Reporte al panel central multi-cliente ──────────────────────
+// Latido cada 20 min (margen bajo el límite de 30 acordado) — no-op si
+// CENTRAL_URL no está configurada (caso normal: esta instancia actúa de
+// central, o todavía no se conectó a ninguna). Los eventos puntuales
+// (cambió el plan, se emparejó un dispositivo) reportan aparte, ver esos
+// services — este cron es solo la señal de vida de fondo.
+if (getCentralUrl()) {
+  cron.schedule('*/20 * * * *', () => { CentralReporteService.reportar() })
+}
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ FieldStock API corriendo en http://0.0.0.0:${PORT}`)

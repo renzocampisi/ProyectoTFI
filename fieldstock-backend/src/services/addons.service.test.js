@@ -13,6 +13,7 @@ jest.mock('./suscripcion.service.js', () => ({ getActual: jest.fn() }))
 jest.mock('./mercadopago.service.js', () => ({ actualizarMontoPreapproval: jest.fn() }))
 jest.mock('./email.service.js', () => ({ enviarComprobantePago: jest.fn() }))
 jest.mock('./empresa.service.js', () => ({ get: jest.fn() }))
+jest.mock('./central-reporte.service.js', () => ({ reportar: jest.fn() }))
 
 import * as AddonsService from './addons.service.js'
 import { supabase } from '../config/supabase.js'

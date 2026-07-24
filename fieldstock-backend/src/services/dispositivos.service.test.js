@@ -14,6 +14,7 @@ jest.mock('../config/supabase.js', () => ({
 }))
 
 jest.mock('./suscripcion.service.js', () => ({ getActual: jest.fn() }))
+jest.mock('./central-reporte.service.js', () => ({ reportar: jest.fn() }))
 
 import * as DispositivosService from './dispositivos.service.js'
 import { supabase } from '../config/supabase.js'
@@ -42,6 +43,19 @@ describe('dispositivos.service.crear', () => {
     const data = await DispositivosService.crear({ codigoQR: 'FS-DEV-ABC123' })
     expect(mockChain.insert).toHaveBeenCalledWith(expect.objectContaining({ codigo_qr: 'FS-DEV-ABC123' }))
     expect(data.estado).toBe('LIBRE')
+  })
+})
+
+describe('dispositivos.service.getByCodigoQR', () => {
+  it('tira 404 si no existe ningún dispositivo con ese código', async () => {
+    mockChain.maybeSingle.mockResolvedValue({ data: null, error: null })
+    await expect(DispositivosService.getByCodigoQR('FS-DEV-X')).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('devuelve el dispositivo si existe', async () => {
+    mockChain.maybeSingle.mockResolvedValue({ data: { id: 'd-1', codigo_qr: 'FS-DEV-1' }, error: null })
+    const data = await DispositivosService.getByCodigoQR('FS-DEV-1')
+    expect(data.id).toBe('d-1')
   })
 })
 

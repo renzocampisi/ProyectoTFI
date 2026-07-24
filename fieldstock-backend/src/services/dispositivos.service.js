@@ -8,6 +8,22 @@
  */
 import { supabase } from '../config/supabase.js'
 import * as SuscripcionService from './suscripcion.service.js'
+import * as CentralReporteService from './central-reporte.service.js'
+
+/** Resuelve un dispositivo por su código QR — lo usa la acción remota del
+ * panel central, que solo conoce el código impreso, no el id interno. */
+export async function getByCodigoQR(codigoQR) {
+  const { data, error } = await supabase
+    .from('dispositivos_rastreo')
+    .select('*')
+    .eq('codigo_qr', codigoQR)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) {
+    const e = new Error('No existe ningún dispositivo con ese código QR'); e.status = 404; throw e
+  }
+  return data
+}
 
 export async function getAll() {
   const { data, error } = await supabase
@@ -69,6 +85,7 @@ export async function emparejar({ codigoQR, herramientaId }) {
     const e = new Error('El dispositivo no existe, ya está emparejado o fue dado de baja')
     e.status = 409; throw e
   }
+  CentralReporteService.reportar() // fire-and-forget
   return data
 }
 
@@ -87,6 +104,7 @@ export async function liberar(id) {
   if (!data) {
     const e = new Error('Dispositivo no encontrado'); e.status = 404; throw e
   }
+  CentralReporteService.reportar() // fire-and-forget
   return data
 }
 
@@ -101,5 +119,6 @@ export async function darDeBaja(id) {
   if (!data) {
     const e = new Error('Dispositivo no encontrado'); e.status = 404; throw e
   }
+  CentralReporteService.reportar() // fire-and-forget
   return data
 }

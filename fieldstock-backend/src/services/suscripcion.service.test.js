@@ -18,6 +18,8 @@ jest.mock('./planes.service.js', () => ({
   getByCodigo: jest.fn(),
 }))
 
+jest.mock('./central-reporte.service.js', () => ({ reportar: jest.fn() }))
+
 jest.mock('./mercadopago.service.js', () => ({
   crearPreapproval:    jest.fn(),
   obtenerPreapproval:  jest.fn(),

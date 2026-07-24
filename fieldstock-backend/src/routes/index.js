@@ -20,6 +20,7 @@ import multer from 'multer'
 import { requireAuth } from '../middlewares/requireAuth.js'
 import { requireRole } from '../middlewares/requireRole.js'
 import { requireSuscripcionActiva } from '../middlewares/requireSuscripcionActiva.js'
+import { requireClaveCliente } from '../middlewares/requireClaveCliente.js'
 import { ROLES, ROLES_ADMIN_LEVEL, ROLES_OPERATIVOS } from '../constants/roles.js'
 import * as CategoriasCtrl      from '../controllers/categorias.controller.js'
 import * as MarcasCtrl          from '../controllers/marcas.controller.js'
@@ -46,6 +47,8 @@ import * as PlanesCtrl          from '../controllers/planes.controller.js'
 import * as SuscripcionCtrl     from '../controllers/suscripcion.controller.js'
 import * as AddonsCtrl          from '../controllers/addons.controller.js'
 import * as DispositivosCtrl    from '../controllers/dispositivos.controller.js'
+import * as CentralCtrl         from '../controllers/central.controller.js'
+import * as ClientesCentralesCtrl from '../controllers/clientes-centrales.controller.js'
 
 const router = Router()
 
@@ -65,6 +68,15 @@ router.post('/auth/registro-invitado', AuthPublicoCtrl.registrarConInvitacion)
 // FieldStock. procesarWebhook() valida la firma (x-signature) antes de
 // confiar en nada del body — ver suscripcion.service.js.
 router.post('/webhooks/mercadopago', SuscripcionCtrl.webhook)
+
+// ── Panel central multi-cliente — llamadas instancia-a-instancia ──
+// Ninguna de las dos usa sesión de usuario (ver
+// architecture-multi-cliente.html). /central/reportar valida el
+// provisioning secret solo la primera vez que ve un client_key nuevo
+// (adentro del service); /central/acciones/* siempre requiere una
+// client_key ya conocida por ESTA instancia.
+router.post('/central/reportar', CentralCtrl.reportar)
+router.post('/central/acciones/liberar-dispositivo', requireClaveCliente, CentralCtrl.accionLiberarDispositivo)
 
 // ── Auth global ───────────────────────────────────────────────
 // Toda la API /api requiere autenticación. El único endpoint público
@@ -125,6 +137,10 @@ router.get   ('/dispositivos',                 requireRole([ROLES.ADMIN]),     D
 router.post  ('/dispositivos',                 requireRole([ROLES.ADMIN]),     DispositivosCtrl.crear)
 router.post  ('/dispositivos/:id/liberar',     requireRole([ROLES.ADMIN]),     DispositivosCtrl.liberar)
 router.post  ('/dispositivos/:id/dar-de-baja', requireRole([ROLES.ADMIN]),     DispositivosCtrl.darDeBaja)
+
+// ── Panel central multi-cliente — lectura y acciones con sesión ADMIN ──
+router.get ('/central/clientes',                            requireRole([ROLES.ADMIN]), ClientesCentralesCtrl.getAll)
+router.post('/central/clientes/:clienteId/liberar-dispositivo', requireRole([ROLES.ADMIN]), ClientesCentralesCtrl.liberarDispositivo)
 
 // ── Categorías ────────────────────────────────────────────────
 router.get ('/categorias', CategoriasCtrl.getAll)
