@@ -58,16 +58,32 @@ export async function getByQR(codigoQR) {
   return data
 }
 
-// ── Crear ─────────────────────────────────────────────────────
-export async function create(body) {
-  // Auto-asignar número siguiente
-  const { data: ultima } = await supabase
+/**
+ * Primer número libre entre las estanterías ACTIVAS — no el siguiente al
+ * máximo histórico. Con soft delete, una estantería dada de baja libera su
+ * número (ver índice único parcial `estanterias_numero_activa_key`); si no
+ * se rellenara el hueco acá, la numeración saltaría para siempre cada vez
+ * que se borra una del medio.
+ */
+async function siguienteNumeroLibre() {
+  const { data, error } = await supabase
     .from('estanterias')
     .select('numero')
-    .order('numero', { ascending: false })
-    .limit(1)
+    .eq('activa', true)
+    .order('numero', { ascending: true })
+  if (error) throw error
 
-  const numero   = (ultima?.[0]?.numero ?? 0) + 1
+  let numero = 1
+  for (const fila of data || []) {
+    if (fila.numero !== numero) break
+    numero++
+  }
+  return numero
+}
+
+// ── Crear ─────────────────────────────────────────────────────
+export async function create(body) {
+  const numero   = await siguienteNumeroLibre()
   const codigoQR = generarQREstanteria(numero)
 
   const { data, error } = await supabase
@@ -93,17 +109,50 @@ export async function update(id, body) {
 }
 
 // ── Eliminar (soft) ───────────────────────────────────────────
+// Solo se puede borrar una estantería vacía — si tiene algo guardado, hay
+// que sacarlo (o moverlo) primero. Evita perder de vista dónde estaba
+// guardado un material/herramienta por accidente.
 export async function remove(id) {
+  const { count, error: errCount } = await supabase
+    .from('estanteria_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('estanteria_id', id)
+  if (errCount) throw errCount
+
+  if ((count || 0) > 0) {
+    const err = new Error('No se puede borrar una estantería que todavía tiene herramientas o materiales guardados.')
+    err.status = 409; throw err
+  }
+
   const { error } = await supabase
     .from('estanterias').update({ activa: false }).eq('id', id)
   if (error) throw error
 }
 
 // ── Agregar ítem ──────────────────────────────────────────────
+// Un material o herramienta solo puede estar guardado en UNA estantería a
+// la vez (ver índices únicos parciales de la migración) — acá se valida
+// antes de insertar para poder devolver un mensaje claro, en vez de dejar
+// que explote como un error crudo de constraint violado.
 export async function addItem(estanteriaId, body) {
   if (!body.herramientaId && !body.materialId) {
     const err = new Error('Debe especificar herramientaId o materialId')
     err.status = 400; throw err
+  }
+
+  const columna = body.herramientaId ? 'herramienta_id' : 'material_id'
+  const valorId = body.herramientaId || body.materialId
+
+  const { data: existente, error: errExistente } = await supabase
+    .from('estanteria_items')
+    .select('estanteria_id, estanterias(numero)')
+    .eq(columna, valorId)
+    .maybeSingle()
+  if (errExistente) throw errExistente
+
+  if (existente) {
+    const err = new Error(`Ya está guardado en la Estantería ${existente.estanterias.numero} — sacalo de ahí antes de moverlo.`)
+    err.status = 409; throw err
   }
 
   const { data, error } = await supabase

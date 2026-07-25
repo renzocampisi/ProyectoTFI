@@ -5,12 +5,13 @@ import {
   LuHouse, LuWrench, LuPackage, LuArchive, LuClipboardList, LuConstruction,
   LuQrCode, LuTruck, LuBuilding2, LuFactory, LuShoppingCart, LuCreditCard,
   LuSparkles, LuUsers, LuSettings, LuSun, LuMoon, LuUser, LuLogOut, LuChevronDown,
+  LuRadar,
 } from 'react-icons/lu'
 import { useAuth } from '@shared/hooks/useAuth'
 import { useTema } from '@shared/hooks/useTema'
 import { useEmpresa } from '@shared/hooks/useEmpresa'
 import { useSuscripcion } from '@modules/m-facturacion/hooks/useSuscripcion'
-import { ROLE_LABELS, esDueño } from '@shared/constants/roles'
+import { ROLE_LABELS, esDueño, esAdminEstricto } from '@shared/constants/roles'
 import NotificacionesBell from '@shared/components/NotificacionesBell'
 import DraggableFAB from '@shared/components/DraggableFAB'
 import SuscripcionBanner from '@shared/components/SuscripcionBanner'
@@ -52,6 +53,13 @@ const ADMIN_ITEMS = [
   // % de ganancia default y no ameritaba un ítem propio; ahora también
   // vive acá el nombre/teléfono/dirección/email de la empresa.
   { to: '/configuracion',  label: 'Configuración',  icon: LuSettings, activo: true },
+]
+
+// Exclusivo del rol ADMIN (dueño del sistema) — a diferencia de ADMIN_ITEMS
+// de arriba, que también ve DUEÑO. Primera vez que la jerarquía se separa
+// de verdad (ver roles.js).
+const SUPERADMIN_ITEMS = [
+  { to: '/admin/control', label: 'Panel de control', icon: LuRadar, activo: true },
 ]
 
 function NavGroup({ label, items, collapsed }) {
@@ -191,6 +199,11 @@ export default function AppLayout() {
           {/* Administración — solo DUEÑO o ADMIN */}
           {esDueño(role) && (
             <NavGroup label="Administración" items={ADMIN_ITEMS} collapsed={collapsed} />
+          )}
+
+          {/* Panel de control — exclusivo de ADMIN (dueño del sistema) */}
+          {esAdminEstricto(role) && (
+            <NavGroup label={null} items={SUPERADMIN_ITEMS} collapsed={collapsed} />
           )}
 
           {/* Sistema */}

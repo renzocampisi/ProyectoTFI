@@ -50,6 +50,22 @@ export async function cancelarPreapproval(id) {
   return preApproval.update({ id, body: { status: 'cancelled' } })
 }
 
+/**
+ * Actualiza el monto recurrente de un preapproval ya autorizado — permite
+ * cobrar un add-on (empleado extra, herramienta con seguimiento) desde el
+ * próximo débito sin cancelar y volver a mandar al dueño a un checkout
+ * nuevo. La documentación pública de MP no aclara si esto requiere que el
+ * pagador reautorice — está probado contra el ambiente de test antes de
+ * confiar en este camino (ver addons.service.js para el fallback).
+ */
+export async function actualizarMontoPreapproval(id, nuevoMonto) {
+  const preApproval = new PreApproval(getClient())
+  return preApproval.update({
+    id,
+    body: { auto_recurring: { transaction_amount: nuevoMonto, currency_id: 'ARS' } },
+  })
+}
+
 export async function obtenerPago(id) {
   const payment = new Payment(getClient())
   return payment.get({ id })

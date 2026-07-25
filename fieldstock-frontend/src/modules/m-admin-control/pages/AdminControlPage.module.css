@@ -1,0 +1,67 @@
+.page { display: flex; flex-direction: column; gap: var(--space-5); max-width: 900px; }
+
+.header { display: flex; flex-direction: column; gap: var(--space-1); }
+.title { font-size: var(--text-2xl); font-weight: 600; letter-spacing: -0.02em; color: var(--text-primary); }
+.subtitle { font-size: var(--text-sm); color: var(--text-secondary); }
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.cardTitle { font-size: var(--text-lg); font-weight: 600; color: var(--text-primary); margin: 0; }
+
+.cardCuenta { border-color: var(--color-primary); background: var(--color-primary-dim); gap: var(--space-1); }
+.cuentaEmpresa { font-size: var(--text-lg); font-weight: 700; color: var(--text-primary); }
+.cuentaDueño { font-size: var(--text-sm); color: var(--text-secondary); }
+.textMuted { font-size: var(--text-sm); color: var(--text-muted); }
+
+.statRow {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-sm); color: var(--text-secondary);
+}
+.statRow:last-child { border-bottom: none; }
+.statRow strong { color: var(--text-primary); }
+
+.formRow { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.input {
+  flex: 1; min-width: 180px; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  font-size: var(--text-sm); background: var(--color-surface); color: var(--text-primary);
+}
+
+.btnPrimary {
+  background: var(--color-primary); color: #fff; font-size: var(--text-sm); font-weight: 500;
+  padding: var(--space-2) var(--space-5); border-radius: var(--radius-md);
+}
+.btnPrimary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btnGhost {
+  font-size: var(--text-xs); color: var(--text-muted); padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+}
+.btnDanger {
+  font-size: var(--text-xs); color: var(--color-danger); padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-danger); border-radius: var(--radius-md); background: transparent;
+}
+
+.errorBanner {
+  background: rgba(242,95,92,0.1); border: 1px solid rgba(242,95,92,0.3);
+  border-radius: var(--radius-md); padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm); color: var(--color-danger);
+}
+
+.table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.table th { text-align: left; color: var(--text-muted); font-weight: 500; padding: var(--space-2); border-bottom: 1px solid var(--color-border); }
+.table td { padding: var(--space-2); border-bottom: 1px solid var(--color-border); color: var(--text-primary); }
+.actions { display: flex; gap: var(--space-2); }
+
+.badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.03em; }
+.estadoLibre      { background: rgba(45,212,160,0.15); color: var(--estado-disponible); }
+.estadoEmparejado { background: var(--color-primary-dim); color: var(--color-primary); }
+.estadoBaja       { background: rgba(242,95,92,0.15);   color: var(--color-danger); }

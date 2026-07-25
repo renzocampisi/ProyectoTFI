@@ -15,6 +15,7 @@
 import { supabase } from '../config/supabase.js'
 import * as PlanesService from './planes.service.js'
 import * as MercadoPagoService from './mercadopago.service.js'
+import * as CentralReporteService from './central-reporte.service.js'
 
 export const DIAS_PRUEBA  = 7
 export const DIAS_GRACIA  = 5
@@ -126,6 +127,8 @@ export async function elegirPlan({ codigoPlan, payerEmail, backUrl }) {
     .eq('id', suscripcion.id)
   if (error) throw error
 
+  CentralReporteService.reportar() // fire-and-forget
+
   return { initPoint: mp.init_point }
 }
 
@@ -202,6 +205,7 @@ export async function procesarWebhook({ type, dataId, headers, query }) {
       tipo: mp.status === 'cancelled' ? 'CANCELACION' : 'ALTA',
       mpPreapprovalId: mp.id, estadoMp: mp.status, payload: mp,
     })
+    CentralReporteService.reportar() // fire-and-forget
     return
   }
 

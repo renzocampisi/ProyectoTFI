@@ -13,6 +13,12 @@ import { FacturacionService } from '../services/facturacion.service'
 import { useSuscripcion } from '../hooks/useSuscripcion'
 import styles from './FacturacionPage.module.css'
 
+// Precios visuales de los add-ons — mismo valor que PRECIO_EMPLEADO_EXTRA /
+// PRECIO_HERRAMIENTA_SEGUIMIENTO en addons.service.js (placeholder, ver
+// architecture.html). El monto real que se cobra siempre lo calcula el
+// backend — esto es solo para mostrarlo antes de confirmar.
+const addonsPrecios = { empleado: 2.99, herramienta: 9.99 }
+
 const ESTADO_LABEL = {
   PRUEBA:    { texto: 'Prueba gratuita', cls: 'estadoPrueba' },
   ACTIVA:    { texto: 'Activa',          cls: 'estadoActiva' },
@@ -38,11 +44,42 @@ export default function FacturacionPage() {
   const [cancelando, setCancelando] = useState(false)
   const [errCancelar, setErrCancelar] = useState(null)
 
+  const [empleadosExtra, setEmpleadosExtra] = useState(0)
+  const [herramientasCupo, setHerramientasCupo] = useState(0)
+  const [guardandoExtras, setGuardandoExtras] = useState(false)
+  const [errExtras, setErrExtras] = useState(null)
+  const [okExtras, setOkExtras] = useState(false)
+
   useEffect(() => {
     FacturacionService.getPlanes()
       .then(setPlanes)
       .catch(err => setErrPlanes(err.message))
   }, [])
+
+  // Sincroniza los steppers con lo que ya tiene contratado la instancia
+  // apenas carga la suscripción (o cuando cambia tras guardar).
+  useEffect(() => {
+    if (!suscripcion) return
+    setEmpleadosExtra(suscripcion.empleados_extra || 0)
+    setHerramientasCupo(suscripcion.herramientas_seguimiento_cupo || 0)
+  }, [suscripcion])
+
+  const handleGuardarExtras = async () => {
+    setGuardandoExtras(true); setErrExtras(null); setOkExtras(false)
+    try {
+      await FacturacionService.actualizarExtras(empleadosExtra, herramientasCupo)
+      setOkExtras(true)
+      await refetch()
+    } catch (err) {
+      setErrExtras(err.message)
+    } finally {
+      setGuardandoExtras(false)
+    }
+  }
+
+  const extrasSinCambios = suscripcion
+    && empleadosExtra === (suscripcion.empleados_extra || 0)
+    && herramientasCupo === (suscripcion.herramientas_seguimiento_cupo || 0)
 
   const handleElegir = async (codigoPlan) => {
     setEligiendo(codigoPlan); setErrElegir(null)
@@ -135,6 +172,61 @@ export default function FacturacionPage() {
           </div>
         )}
       </section>
+
+      {puedeGestionar && tieneSuscripcionMP && suscripcion?.plan && (estado === 'ACTIVA' || estado === 'VENCIDA') && (
+        <section className={styles.card}>
+          <h2 className={styles.planNombre}>Extras</h2>
+          <p className={styles.estadoTexto}>
+            Sumá empleados o herramientas con seguimiento por arriba de lo que incluye tu plan — se cobra al instante,
+            sin esperar al próximo vencimiento.
+          </p>
+
+          <div className={styles.extrasRow}>
+            <div className={styles.extrasInfo}>
+              <span className={styles.extrasLabel}>Empleados extra</span>
+              <span className={styles.extrasPrecio}>USD {addonsPrecios.empleado} c/u por mes</span>
+            </div>
+            <div className={styles.stepper}>
+              <button type="button" className={styles.stepperBtn}
+                onClick={() => setEmpleadosExtra(n => Math.max(0, n - 1))} disabled={empleadosExtra === 0}>−</button>
+              <span className={styles.stepperValue}>{empleadosExtra}</span>
+              <button type="button" className={styles.stepperBtn}
+                onClick={() => setEmpleadosExtra(n => n + 1)}>+</button>
+            </div>
+          </div>
+
+          <div className={styles.extrasRow}>
+            <div className={styles.extrasInfo}>
+              <span className={styles.extrasLabel}>Herramientas con seguimiento</span>
+              <span className={styles.extrasPrecio}>USD {addonsPrecios.herramienta} c/u por mes</span>
+            </div>
+            <div className={styles.stepper}>
+              <button type="button" className={styles.stepperBtn}
+                onClick={() => setHerramientasCupo(n => Math.max(0, n - 1))} disabled={herramientasCupo === 0}>−</button>
+              <span className={styles.stepperValue}>{herramientasCupo}</span>
+              <button type="button" className={styles.stepperBtn}
+                onClick={() => setHerramientasCupo(n => n + 1)}>+</button>
+            </div>
+          </div>
+
+          {!suscripcion.plan.incluye_seguimiento && herramientasCupo > 0 && (
+            <p className={styles.estadoTextoWarn}>
+              Tu plan actual no incluye seguimiento GPS — antes de sumar herramientas acá, contratá el plan
+              "Pro + Seguimiento".
+            </p>
+          )}
+
+          {errExtras && <div className={styles.errorBanner}>⚠ {errExtras}</div>}
+          {okExtras && !guardandoExtras && extrasSinCambios && (
+            <p className={styles.estadoTexto}>✓ Guardado — el comprobante te llega por email.</p>
+          )}
+
+          <button className={styles.btnPrimary} style={{ alignSelf: 'flex-start' }}
+            onClick={handleGuardarExtras} disabled={guardandoExtras || extrasSinCambios}>
+            {guardandoExtras ? 'Guardando...' : 'Confirmar cambios'}
+          </button>
+        </section>
+      )}
 
       {errPlanes && <div className={styles.errorBanner}>⚠ {errPlanes}</div>}
       {errElegir && <div className={styles.errorBanner}>⚠ {errElegir}</div>}

@@ -83,15 +83,16 @@ export default function RecuperarPasswordPage() {
 
             {error && <div className={styles.error}>⚠ {error}</div>}
 
-            <button type="submit" className={styles.btnPrimary} disabled={submitting}
-              style={{ marginTop: 'var(--space-4)' }}>
-              {submitting ? 'Enviando...' : 'Mandarme el link'}
-            </button>
+            <div className={styles.formActions}>
+              <button type="submit" className={styles.btnPrimary} disabled={submitting}>
+                {submitting ? 'Enviando...' : 'Mandarme el link'}
+              </button>
 
-            <button type="button" className={styles.btnLink} onClick={() => navigate('/login')}
-              disabled={submitting}>
-              Volver al login
-            </button>
+              <button type="button" className={styles.btnLink} onClick={() => navigate('/login')}
+                disabled={submitting}>
+                Volver al login
+              </button>
+            </div>
           </form>
         )}
       </div>
