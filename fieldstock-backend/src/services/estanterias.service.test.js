@@ -31,6 +31,15 @@ beforeEach(() => {
   supabase.from.mockImplementation(() => mockChain)
 })
 
+describe('estanterias.service.getByQR', () => {
+  it('filtra por activa=true para no romper si el código fue reusado por una estantería borrada', async () => {
+    mockChain.single.mockResolvedValue({ data: { id: 'e-1', codigo_qr: 'FS-EST-002', activa: true }, error: null })
+    await EstanteriasService.getByQR('FS-EST-002')
+    expect(mockChain.eq).toHaveBeenCalledWith('codigo_qr', 'FS-EST-002')
+    expect(mockChain.eq).toHaveBeenCalledWith('activa', true)
+  })
+})
+
 describe('estanterias.service.create — numeración', () => {
   it('usa el número 1 si no hay ninguna estantería activa', async () => {
     mockChain.then = (resolve) => resolve({ data: [], error: null })

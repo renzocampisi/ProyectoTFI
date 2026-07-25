@@ -50,6 +50,8 @@ export async function registrarOActualizar(payload, headers) {
   const fila = {
     client_key: clientKey,
     empresa_nombre: payload.empresaNombre || null,
+    dueño_nombre: payload.dueñoNombre || null,
+    dueño_email: payload.dueñoEmail || null,
     url_backend: payload.urlBackend,
     plan_codigo: payload.planCodigo || null,
     plan_nombre: payload.planNombre || null,

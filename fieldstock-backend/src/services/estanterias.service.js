@@ -49,10 +49,15 @@ export async function getById(id) {
 // .single() con múltiples resultados o devolviendo la estantería
 // equivocada.
 export async function getByQR(codigoQR) {
+  // activa=true es obligatorio acá: con la numeración por huecos, una
+  // estantería borrada (soft-delete) puede coexistir con una nueva que
+  // reusó el mismo codigo_qr — sin este filtro .single() rompe con dos
+  // filas apenas se reusa un código.
   const { data, error } = await supabase
     .from('estanterias')
     .select('*')
     .eq('codigo_qr', codigoQR)
+    .eq('activa', true)
     .single()
   if (error) throw error
   return data

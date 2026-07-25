@@ -87,13 +87,20 @@ export async function actualizarExtras({ empleadosExtra, herramientasCupo, payer
     payload: { detalle },
   })
 
-  const empresa = await EmpresaService.get()
-  await EmailService.enviarComprobantePago({
-    to: payerEmail,
-    nombreEmpresa: empresa.nombre || 'tu empresa',
-    detalle,
-    montoTotal,
-  })
+  // Fire-and-forget: el cobro y la actualización de la suscripción ya se
+  // hicieron. Si Resend falla (dominio sin verificar, hiccup del proveedor),
+  // no puede hacer parecer fallido un cambio que en realidad sí se aplicó.
+  EmpresaService.get()
+    .then(empresa => EmailService.enviarComprobantePago({
+      to: payerEmail,
+      nombreEmpresa: empresa.nombre || 'tu empresa',
+      detalle,
+      montoTotal,
+    }))
+    .catch(err => {
+      // eslint-disable-next-line no-console
+      console.error('[addons] no se pudo enviar el comprobante por email:', err.message)
+    })
 
   CentralReporteService.reportar() // fire-and-forget — nunca bloquea esta respuesta
 
