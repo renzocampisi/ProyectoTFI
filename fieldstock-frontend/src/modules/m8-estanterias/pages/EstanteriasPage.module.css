@@ -24,6 +24,10 @@
 .btnIcono:hover { color: var(--color-primary); }
 .btnAgregar { font-size: var(--text-xs); font-weight: 500; color: var(--color-primary); background: var(--color-primary-dim); border: 1px solid rgba(61,126,255,0.3); padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); transition: background var(--transition-fast); white-space: nowrap; }
 .btnAgregar:hover { background: rgba(61,126,255,0.25); }
+
+.btnBorrar { font-size: var(--text-base); color: var(--text-muted); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); transition: color var(--transition-fast); }
+.btnBorrar:hover:not(:disabled) { color: var(--color-danger); }
+.btnBorrar:disabled { opacity: 0.35; cursor: not-allowed; }
 .cardVacia { padding: var(--space-5); text-align: center; font-size: var(--text-sm); color: var(--text-muted); }
 .cardFooter { padding: var(--space-2) var(--space-5); border-top: 1px solid var(--color-border); background: var(--color-surface-alt); }
 .cardCount { font-size: var(--text-xs); color: var(--text-muted); }
@@ -81,6 +85,9 @@
 .btnPrimary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btnGhost { font-size: var(--text-sm); color: var(--text-secondary); padding: var(--space-2) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); transition: background var(--transition-fast); }
 .btnGhost:hover { background: var(--color-surface-alt); }
+.btnDanger { background: var(--color-danger); color: #fff; font-size: var(--text-sm); font-weight: 500; padding: var(--space-2) var(--space-5); border-radius: var(--radius-md); transition: opacity var(--transition-fast); }
+.btnDanger:hover:not(:disabled) { opacity: 0.9; }
+.btnDanger:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @media (max-width: 1024px) {
   .grid { grid-template-columns: 1fr; }

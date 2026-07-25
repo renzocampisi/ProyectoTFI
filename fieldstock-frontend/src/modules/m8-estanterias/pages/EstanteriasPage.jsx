@@ -150,6 +150,27 @@ function AsignarModal({ estanteria, onClose, onSaved }) {
   )
 }
 
+function ConfirmBorrarModal({ estanteria, onClose, onConfirm, borrando, error }) {
+  return (
+    <div className={styles.overlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3 className={styles.modalTitle}>¿Borrar Estantería N° {estanteria.numero}?</h3>
+          <button className={styles.btnClose} onClick={onClose}>✕</button>
+        </div>
+        <p>Esta acción no se puede deshacer.</p>
+        {error && <p className={styles.error}>⚠ {error}</p>}
+        <div className={styles.modalActions}>
+          <button className={styles.btnGhost} onClick={onClose} disabled={borrando}>Cancelar</button>
+          <button className={styles.btnDanger} onClick={onConfirm} disabled={borrando}>
+            {borrando ? 'Borrando...' : 'Sí, borrar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function EstanteriasPage() {
   const [estanterias, setEstanterias] = useState([])
   const [loading,     setLoading]     = useState(true)
@@ -157,6 +178,9 @@ export default function EstanteriasPage() {
   const [showQR,      setShowQR]      = useState(null)
   const [showAsignar, setShowAsignar] = useState(null)
   const [creando,     setCreando]     = useState(false)
+  const [confirmBorrar, setConfirmBorrar] = useState(null)
+  const [borrando,      setBorrando]      = useState(false)
+  const [errBorrar,     setErrBorrar]     = useState(null)
 
   const fetchEstanterias = useCallback(async () => {
     setLoading(true); setError(null)
@@ -189,6 +213,20 @@ export default function EstanteriasPage() {
     } catch (err) { setError(err.message) }
   }
 
+  const handleBorrar = async () => {
+    if (!confirmBorrar) return
+    setBorrando(true); setErrBorrar(null)
+    try {
+      await EstanteriasService.remove(confirmBorrar.id)
+      setConfirmBorrar(null)
+      await fetchEstanterias()
+    } catch (err) {
+      setErrBorrar(err.message)
+    } finally {
+      setBorrando(false)
+    }
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -210,6 +248,16 @@ export default function EstanteriasPage() {
           estanteria={showAsignar}
           onClose={() => setShowAsignar(null)}
           onSaved={async () => { setShowAsignar(null); await fetchEstanterias() }}
+        />
+      )}
+
+      {confirmBorrar && (
+        <ConfirmBorrarModal
+          estanteria={confirmBorrar}
+          onClose={() => { setConfirmBorrar(null); setErrBorrar(null) }}
+          onConfirm={handleBorrar}
+          borrando={borrando}
+          error={errBorrar}
         />
       )}
 
@@ -244,6 +292,12 @@ export default function EstanteriasPage() {
                 <div className={styles.cardActions}>
                   <button className={styles.btnIcono} onClick={() => setShowQR(est)} title="Ver QR">⬛</button>
                   <button className={styles.btnAgregar} onClick={() => setShowAsignar(est)}>+ Agregar</button>
+                  <button className={styles.btnBorrar}
+                    onClick={() => { setConfirmBorrar(est); setErrBorrar(null) }}
+                    disabled={est.items?.length > 0}
+                    title={est.items?.length > 0 ? 'Vaciala antes de borrarla' : 'Borrar estantería'}>
+                    🗑
+                  </button>
                 </div>
               </div>
 
