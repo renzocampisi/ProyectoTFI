@@ -99,6 +99,63 @@ async function getUltimasNotificaciones() {
   return data || []
 }
 
+/**
+ * Top 5 herramientas más despachadas a obra — un EGRESO por movimiento
+ * cuenta como "un uso". Igual criterio que getMaterialesStockBajo: se
+ * agrega en JS porque Supabase JS no tiene GROUP BY, y la tabla de
+ * movimientos es chica para la escala de este sistema.
+ */
+async function getTopHerramientasUsadas() {
+  const { data, error } = await supabase
+    .from('movimientos')
+    .select('herramienta_id, herramientas(nombre)')
+    .eq('tipo', 'EGRESO')
+  if (error) throw error
+
+  const porHerramienta = new Map()
+  for (const m of data) {
+    if (!m.herramienta_id) continue
+    const actual = porHerramienta.get(m.herramienta_id) || { nombre: m.herramientas?.nombre || '—', usos: 0 }
+    actual.usos++
+    porHerramienta.set(m.herramienta_id, actual)
+  }
+
+  return [...porHerramienta.entries()]
+    .map(([id, v]) => ({ id, nombre: v.nombre, usos: v.usos }))
+    .sort((a, b) => b.usos - a.usos)
+    .slice(0, LIMITE_LISTAS)
+}
+
+/**
+ * Top 5 materiales por consumo real (lo que salió menos lo que volvió sin
+ * usar) a lo largo de todos los remitos. Mismo criterio de agregación en
+ * JS que el resto de este service.
+ */
+async function getTopMaterialesConsumidos() {
+  const { data, error } = await supabase
+    .from('remito_materiales')
+    .select('material_id, cantidad_egreso, cantidad_retorno, materiales(nombre, unidad, activo)')
+  if (error) throw error
+
+  const porMaterial = new Map()
+  for (const m of data) {
+    // Un material dado de baja no debería seguir apareciendo en el
+    // ranking, aunque tenga consumo histórico real en remitos viejos.
+    if (!m.material_id || m.materiales?.activo === false) continue
+    const consumo = Number(m.cantidad_egreso || 0) - Number(m.cantidad_retorno || 0)
+    const actual = porMaterial.get(m.material_id)
+      || { nombre: m.materiales?.nombre || '—', unidad: m.materiales?.unidad || '', consumo: 0 }
+    actual.consumo += consumo
+    porMaterial.set(m.material_id, actual)
+  }
+
+  return [...porMaterial.entries()]
+    .map(([id, v]) => ({ id, nombre: v.nombre, unidad: v.unidad, consumo: v.consumo }))
+    .filter(m => m.consumo > 0)
+    .sort((a, b) => b.consumo - a.consumo)
+    .slice(0, LIMITE_LISTAS)
+}
+
 async function getUltimosRemitos() {
   const { data, error } = await supabase
     .from('remitos_resumen')
@@ -126,6 +183,8 @@ export async function getResumen() {
     materialesStockBajo,
     notificaciones,
     ultimosRemitos,
+    topHerramientas,
+    topMateriales,
   ] = await Promise.all([
     getKpisHerramientas(),
     getKpiObrasActivas(),
@@ -133,6 +192,8 @@ export async function getResumen() {
     getMaterialesStockBajo(),
     getUltimasNotificaciones(),
     getUltimosRemitos(),
+    getTopHerramientasUsadas(),
+    getTopMaterialesConsumidos(),
   ])
 
   return {
@@ -145,5 +206,7 @@ export async function getResumen() {
     notificaciones,
     materialesStockBajo: materialesStockBajo.slice(0, LIMITE_LISTAS),
     ultimosRemitos,
+    topHerramientas,
+    topMateriales,
   }
 }

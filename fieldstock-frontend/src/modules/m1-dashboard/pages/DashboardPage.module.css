@@ -124,6 +124,37 @@
   flex-shrink: 0;
 }
 
+/* ── Ranking con barra horizontal (top herramientas / materiales) ── */
+.barList { display: flex; flex-direction: column; gap: var(--space-3); flex: 1; justify-content: center; }
+.barRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2fr auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+.barLabel {
+  font-size: var(--text-sm); color: var(--text-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.barTrack {
+  height: 8px;
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-full, 999px);
+  overflow: hidden;
+}
+.barFill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: var(--radius-full, 999px);
+  transition: width var(--transition-fast);
+}
+.barValue {
+  font-size: var(--text-xs); color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* Estado vacío */
 .empty {
   display: flex; align-items: center; justify-content: center;
@@ -214,6 +245,17 @@
     top: var(--space-3);
     right: var(--space-3);
   }
+
+  /* Barras: label arriba, barra + valor abajo — en una sola columna
+     angosta no entran las 3 columnas del grid sin apretarse. */
+  .barRow {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "label label" "track value";
+    row-gap: 4px;
+  }
+  .barLabel { grid-area: label; white-space: normal; }
+  .barTrack { grid-area: track; }
+  .barValue { grid-area: value; }
 }
 
 @media (max-width: 480px) {

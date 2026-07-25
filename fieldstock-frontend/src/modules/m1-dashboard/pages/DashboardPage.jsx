@@ -13,7 +13,7 @@
 import { Link } from 'react-router-dom'
 import {
   LuWrench, LuConstruction, LuClipboardList, LuTriangleAlert, LuCheck,
-  LuBell, LuPackage, LuFileText,
+  LuBell, LuPackage, LuFileText, LuTrendingUp, LuChartBar,
 } from 'react-icons/lu'
 import { useDashboard } from '../hooks/useDashboard'
 import EstadoRemitoBadge from '@modules/m5-remito/components/EstadoRemitoBadge'
@@ -40,6 +40,27 @@ function tiempoRelativo(iso) {
   return fechaCorta(iso)
 }
 
+// Barra horizontal simple para un ranking (magnitud, una sola serie —
+// no hace falta leyenda, el título de la card ya nombra qué mide). El
+// ancho de cada barra es proporcional al máximo de la lista, no a un
+// total externo, así el ítem #1 siempre llena la barra completa.
+function BarList({ items, unidadSufijo }) {
+  const max = Math.max(1, ...items.map(i => i.valor))
+  return (
+    <div className={styles.barList}>
+      {items.map(item => (
+        <div key={item.id} className={styles.barRow} title={`${item.nombre}: ${item.valor}${unidadSufijo ? ` ${unidadSufijo(item)}` : ''}`}>
+          <span className={styles.barLabel}>{item.nombre}</span>
+          <div className={styles.barTrack}>
+            <div className={styles.barFill} style={{ width: `${(item.valor / max) * 100}%` }} />
+          </div>
+          <span className={styles.barValue}>{item.valor}{unidadSufijo ? ` ${unidadSufijo(item)}` : ''}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const { data, loading, error } = useDashboard()
 
@@ -57,7 +78,7 @@ export default function DashboardPage() {
     </div>
   )
 
-  const { kpis, notificaciones, materialesStockBajo, ultimosRemitos } = data
+  const { kpis, notificaciones, materialesStockBajo, ultimosRemitos, topHerramientas, topMateriales } = data
 
   return (
     <div className={styles.page}>
@@ -182,6 +203,31 @@ export default function DashboardPage() {
           </div>
         )}
 
+      </div>
+
+      {/* ── Herramientas más usadas + Materiales más consumidos ── */}
+      <div className={styles.row2}>
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <span className={styles.cardTitle}><LuTrendingUp size={14} /> Herramientas más usadas</span>
+          </div>
+          {topHerramientas.length === 0
+            ? <div className={styles.empty}>Todavía no hay egresos registrados.</div>
+            : <BarList items={topHerramientas.map(h => ({ id: h.id, nombre: h.nombre, valor: h.usos }))}
+                unidadSufijo={() => 'usos'} />
+          }
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <span className={styles.cardTitle}><LuChartBar size={14} /> Materiales más consumidos</span>
+          </div>
+          {topMateriales.length === 0
+            ? <div className={styles.empty}>Todavía no hay consumo de materiales registrado.</div>
+            : <BarList items={topMateriales.map(m => ({ id: m.id, nombre: m.nombre, valor: m.consumo, unidad: m.unidad }))}
+                unidadSufijo={item => item.unidad} />
+          }
+        </div>
       </div>
 
       {/* ── Últimos remitos ── */}
