@@ -130,6 +130,7 @@ export default function AdminControlPage() {
             <thead>
               <tr>
                 <th>Empresa</th>
+                <th>Dueño</th>
                 <th>Plan</th>
                 <th>Herramientas</th>
                 <th>Último reporte</th>
@@ -140,6 +141,7 @@ export default function AdminControlPage() {
               {(clientes || []).map(c => (
                 <tr key={c.id}>
                   <td>{c.empresa_nombre || '—'}</td>
+                  <td>{c.dueño_nombre ? `${c.dueño_nombre} · ${c.dueño_email}` : '—'}</td>
                   <td>{c.plan_nombre || '— sin elegir —'}</td>
                   <td>{c.herramientas_emparejadas} / {c.herramientas_cupo}</td>
                   <td>
@@ -156,7 +158,7 @@ export default function AdminControlPage() {
                 </tr>
               ))}
               {clientes?.length === 0 && (
-                <tr><td colSpan={5} className={styles.textMuted}>Todavía no reportó ningún cliente.</td></tr>
+                <tr><td colSpan={6} className={styles.textMuted}>Todavía no reportó ningún cliente.</td></tr>
               )}
             </tbody>
           </table>

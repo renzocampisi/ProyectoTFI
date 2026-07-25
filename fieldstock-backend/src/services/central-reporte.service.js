@@ -47,16 +47,19 @@ async function asegurarInstancia() {
 }
 
 async function armarPayload() {
-  const [empresa, suscripcion, dispositivos] = await Promise.all([
+  const [empresa, suscripcion, dispositivos, dueño] = await Promise.all([
     EmpresaService.get(),
     SuscripcionService.getEstado(),
     supabase.from('dispositivos_rastreo').select('estado'),
+    supabase.from('usuarios_resumen').select('nombre, email').eq('role', 'DUEÑO').limit(1).maybeSingle(),
   ])
 
   const emparejados = (dispositivos.data || []).filter(d => d.estado === 'EMPAREJADO').length
 
   return {
     empresaNombre: empresa?.nombre || null,
+    dueñoNombre: dueño?.data?.nombre || null,
+    dueñoEmail: dueño?.data?.email || null,
     urlBackend: null, // lo completa quien llama a reportar() — ver nota en esa función
     planCodigo: suscripcion?.plan?.codigo || null,
     planNombre: suscripcion?.plan?.nombre || null,
