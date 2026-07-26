@@ -2,6 +2,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useObras } from '../hooks/useObras'
+import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
 import { ESTADO_INFO, BUCKET_EN_PROCESO, BUCKET_HISTORIAL } from '../constants'
 import styles from './ObrasListPage.module.css'
 
@@ -88,6 +89,11 @@ export default function ObrasListPage() {
 
   const totalBucket = todas.filter(o => bucketActual.includes(o.estado)).length
 
+  const {
+    listaOrdenada: listaVisible,
+    orden, toggleOrden, IconoOrden, labelOrden,
+  } = useOrdenAlfabetico(lista, o => o.nombre)
+
   const cambiarSeccion = (nueva) => {
     setSeccion(nueva)
     setFiltroEstado('TODOS') // reset chip al cambiar bucket
@@ -153,6 +159,13 @@ export default function ObrasListPage() {
         {busqueda && (
           <button className={styles.btnGhost} onClick={() => setBusqueda('')}>Limpiar</button>
         )}
+        <button
+          className={`${styles.btnGhost} ${styles.btnOrden} ${orden !== 'ninguno' ? styles.chipActive : ''}`}
+          onClick={toggleOrden}
+          title="Ordenar alfabéticamente"
+        >
+          <IconoOrden size={14} /> {labelOrden}
+        </button>
       </div>
 
       {error && <div className={styles.errorBanner}>⚠ {error}</div>}
@@ -163,7 +176,7 @@ export default function ObrasListPage() {
         </div>
       )}
 
-      {!loading && !error && lista.length === 0 && (
+      {!loading && !error && listaVisible.length === 0 && (
         <div className={styles.empty}>
           <span className={styles.emptyIcon}>🏗️</span>
           <p>
@@ -179,8 +192,8 @@ export default function ObrasListPage() {
         </div>
       )}
 
-      {!loading && !error && lista.length > 0 && (
-        <TablaObras obras={lista} navigate={navigate} />
+      {!loading && !error && listaVisible.length > 0 && (
+        <TablaObras obras={listaVisible} navigate={navigate} />
       )}
 
     </div>

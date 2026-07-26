@@ -4,6 +4,7 @@
 // Agrega los campos extra `rubro` (qué provee) y `notas` (texto libre).
 import { useState, useEffect, useCallback } from 'react'
 import { ProveedoresService } from '../services/directorio.service'
+import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
 import styles from './DirectorioPage.module.css'
 
 const PROVINCIAS = [
@@ -216,6 +217,11 @@ export default function ProveedoresPage() {
 
   const inicial = CAMPOS.reduce((acc, c) => ({ ...acc, [c.key]: '' }), {})
 
+  const {
+    listaOrdenada: itemsOrdenados,
+    orden, toggleOrden, IconoOrden, labelOrden,
+  } = useOrdenAlfabetico(items, item => item.nombre)
+
   return (
     <div className={styles.page}>
       {showForm && (
@@ -259,6 +265,13 @@ export default function ProveedoresPage() {
           <input type="search" className={styles.searchInput} placeholder="Buscar proveedor..."
             value={busqueda} onChange={e => setBusqueda(e.target.value)} />
         </div>
+        <button
+          className={`${styles.btnGhost} ${styles.btnOrden} ${orden !== 'ninguno' ? styles.chipActive : ''}`}
+          onClick={toggleOrden}
+          title="Ordenar alfabéticamente"
+        >
+          <IconoOrden size={14} /> {labelOrden}
+        </button>
       </div>
 
       {error && <div className={styles.errorBanner}>⚠ {error}</div>}
@@ -278,7 +291,7 @@ export default function ProveedoresPage() {
                   <th>CUIT</th><th>Email</th><th>Contacto</th><th></th>
                 </tr></thead>
                 <tbody>
-                  {items.map(item => (
+                  {itemsOrdenados.map(item => (
                     <tr key={item.id} className={styles.row}>
                       <td className={styles.nombre}>{item.nombre}</td>
                       <td className={styles.celda}>{item.rubro || '—'}</td>

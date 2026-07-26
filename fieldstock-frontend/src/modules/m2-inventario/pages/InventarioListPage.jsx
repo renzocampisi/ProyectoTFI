@@ -1,6 +1,7 @@
 // src/modules/m2-inventario/pages/InventarioListPage.jsx
 import { useNavigate } from 'react-router-dom'
 import { useInventario } from '../hooks/useInventario'
+import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
 import { CATEGORIAS, ESTADOS } from '../services/inventario.mock'
 import EstadoBadge from '../components/EstadoBadge'
 import styles from './InventarioListPage.module.css'
@@ -25,6 +26,11 @@ export default function InventarioListPage() {
     filtroEstado,    setFiltroEstado,
     filtroCategoria, setFiltroCategoria,
   } = useInventario()
+
+  const {
+    listaOrdenada: herramientasOrdenadas,
+    orden, toggleOrden, IconoOrden, labelOrden,
+  } = useOrdenAlfabetico(herramientas, h => h.nombre)
 
   return (
     <div className={styles.page}>
@@ -84,6 +90,13 @@ export default function InventarioListPage() {
             <option key={cat.id} value={cat.id}>{cat.nombre}</option>
           ))}
         </select>
+        <button
+          className={`${styles.btnGhost} ${styles.btnOrden} ${orden !== 'ninguno' ? styles.chipActive : ''}`}
+          onClick={toggleOrden}
+          title="Ordenar alfabéticamente"
+        >
+          <IconoOrden size={14} /> {labelOrden}
+        </button>
       </div>
 
       {/* Estado vacío */}
@@ -112,7 +125,7 @@ export default function InventarioListPage() {
               </tr>
             </thead>
             <tbody>
-              {herramientas.map(h => (
+              {herramientasOrdenadas.map(h => (
                 <tr
                   key={h.id}
                   className={styles.row}

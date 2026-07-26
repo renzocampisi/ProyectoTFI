@@ -16,6 +16,12 @@
 }
 
 /* ── Sidebar ── */
+/* Sticky en toda resolución de escritorio/tablet (>430px, donde el sidebar
+   es la columna vertical — abajo de 430px pasa a ser una barra inferior
+   fixed aparte): .shell usa min-height, así que si el contenido de .main
+   crece más que el viewport, la página entera scrollea y sin sticky el
+   sidebar se iba con ese scroll — quedaba fuera de vista y había que
+   volver arriba para cambiar de módulo. */
 .sidebar {
   grid-row: 1 / -1;
   background: var(--color-surface);
@@ -23,6 +29,10 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  align-self: start;
 }
 
 .sidebarHeader {

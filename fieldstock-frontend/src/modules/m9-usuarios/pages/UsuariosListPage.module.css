@@ -32,6 +32,10 @@
 }
 .btnGhost:hover { background: var(--color-surface-alt); color: var(--text-primary); }
 
+.toolbar { display: flex; justify-content: flex-end; }
+.btnOrden { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; flex-shrink: 0; }
+.chipActive { background: var(--color-primary-dim); color: var(--color-primary); border-color: var(--color-primary); }
+
 .btnDanger {
   background: var(--color-danger);
   color: #fff;
