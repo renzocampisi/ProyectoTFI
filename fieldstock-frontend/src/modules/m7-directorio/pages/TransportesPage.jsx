@@ -1,6 +1,7 @@
 // src/modules/m7-directorio/pages/TransportesPage.jsx
 import { useState, useEffect, useCallback } from 'react'
 import { TransportesService } from '../services/directorio.service'
+import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
 import styles from './DirectorioPage.module.css'
 
 const PROVINCIAS = [
@@ -244,6 +245,11 @@ export default function TransportesPage() {
 
   const inicial = getCampos('EMPRESA').reduce((acc, c) => ({ ...acc, [c.key]: '' }), { tipo: 'EMPRESA' })
 
+  const {
+    listaOrdenada: itemsOrdenados,
+    orden, toggleOrden, IconoOrden, labelOrden,
+  } = useOrdenAlfabetico(items, item => item.nombre)
+
   return (
     <div className={styles.page}>
       {showForm && (
@@ -287,6 +293,13 @@ export default function TransportesPage() {
           <input type="search" className={styles.searchInput} placeholder="Buscar transporte..."
             value={busqueda} onChange={e => setBusqueda(e.target.value)} />
         </div>
+        <button
+          className={`${styles.btnGhost} ${styles.btnOrden} ${orden !== 'ninguno' ? styles.chipActive : ''}`}
+          onClick={toggleOrden}
+          title="Ordenar alfabéticamente"
+        >
+          <IconoOrden size={14} /> {labelOrden}
+        </button>
       </div>
 
       {error && <div className={styles.errorBanner}>⚠ {error}</div>}
@@ -306,7 +319,7 @@ export default function TransportesPage() {
                   <th>CUIT / CUIL</th><th>Email</th><th>Contacto</th><th></th>
                 </tr></thead>
                 <tbody>
-                  {items.map(item => {
+                  {itemsOrdenados.map(item => {
                     const esParticular = item.tipo === 'PARTICULAR'
                     return (
                       <tr key={item.id} className={styles.row}>

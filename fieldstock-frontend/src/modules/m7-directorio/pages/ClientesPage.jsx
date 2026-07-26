@@ -1,6 +1,7 @@
 // src/modules/m7-directorio/pages/ClientesPage.jsx
 import { useState, useEffect, useCallback } from 'react'
 import { ClientesService } from '../services/directorio.service'
+import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
 import styles from './DirectorioPage.module.css'
 
 const PROVINCIAS = [
@@ -201,6 +202,11 @@ export default function ClientesPage() {
 
   const inicial = CAMPOS.reduce((acc, c) => ({ ...acc, [c.key]: '' }), {})
 
+  const {
+    listaOrdenada: itemsOrdenados,
+    orden, toggleOrden, IconoOrden, labelOrden,
+  } = useOrdenAlfabetico(items, item => item.nombre)
+
   return (
     <div className={styles.page}>
 
@@ -249,6 +255,13 @@ export default function ClientesPage() {
           <input type="search" className={styles.searchInput} placeholder="Buscar cliente..."
             value={busqueda} onChange={e => setBusqueda(e.target.value)} />
         </div>
+        <button
+          className={`${styles.btnGhost} ${styles.btnOrden} ${orden !== 'ninguno' ? styles.chipActive : ''}`}
+          onClick={toggleOrden}
+          title="Ordenar alfabéticamente"
+        >
+          <IconoOrden size={14} /> {labelOrden}
+        </button>
       </div>
 
       {error && <div className={styles.errorBanner}>⚠ {error}</div>}
@@ -277,7 +290,7 @@ export default function ClientesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map(item => (
+                  {itemsOrdenados.map(item => (
                     <tr key={item.id} className={styles.row}>
                       <td className={styles.nombre}>{item.nombre}</td>
                       <td className={styles.celda} data-label="Teléfono">

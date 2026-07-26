@@ -11,6 +11,7 @@ import { useUsuarios } from '../hooks/useUsuarios'
 import { UsuariosService } from '../services/usuarios.service'
 import { ROLE_LABELS } from '@shared/constants/roles'
 import { useAuth } from '@shared/hooks/useAuth'
+import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
 import UsuarioFormModal from '../components/UsuarioFormModal'
 import PasswordRevealModal from '../components/PasswordRevealModal'
 import InvitarModal from '../components/InvitarModal'
@@ -36,6 +37,11 @@ export default function UsuariosListPage() {
   const [confReset,  setConfReset]  = useState(null)     // confirm reset password
   const [errReset,   setErrReset]   = useState(null)
   const [loadingReset, setLoadingReset] = useState(false)
+
+  const {
+    listaOrdenada: usuariosOrdenados,
+    orden, toggleOrden, IconoOrden, labelOrden,
+  } = useOrdenAlfabetico(usuarios, u => u.nombre)
 
   const handleCreated = (result) => {
     setShowForm(false)
@@ -92,6 +98,18 @@ export default function UsuariosListPage() {
         </div>
       </div>
 
+      {!loading && !error && usuarios.length > 0 && (
+        <div className={styles.toolbar}>
+          <button
+            className={`${styles.btnGhost} ${styles.btnOrden} ${orden !== 'ninguno' ? styles.chipActive : ''}`}
+            onClick={toggleOrden}
+            title="Ordenar alfabéticamente"
+          >
+            <IconoOrden size={14} /> {labelOrden}
+          </button>
+        </div>
+      )}
+
       {error && <div className={styles.errorBanner}>⚠ {error}</div>}
 
       {loading && (
@@ -122,7 +140,7 @@ export default function UsuariosListPage() {
               </tr>
             </thead>
             <tbody>
-              {usuarios.map(u => {
+              {usuariosOrdenados.map(u => {
                 const esYo = u.id === profile?.id
                 return (
                   <tr key={u.id} className={styles.row}>

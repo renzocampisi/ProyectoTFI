@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMateriales } from '../hooks/useMateriales'
+import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
 import MaterialDetalleModal from '../components/MaterialDetalleModal'
 import AgregarStockModal from '../components/AgregarStockModal'
 import styles from './MateriasListPage.module.css'
@@ -30,6 +31,11 @@ export default function MateriasListPage() {
   // o en el otro, no en ambos al mismo tiempo.
   const [materialStock,   setMaterialStock]   = useState(null)
   const { materiales, loading, error, refetch } = useMateriales({ q: busqueda || undefined })
+
+  const {
+    listaOrdenada: materialesOrdenados,
+    orden, toggleOrden, IconoOrden, labelOrden,
+  } = useOrdenAlfabetico(materiales, m => m.nombre)
 
   return (
     <div className={styles.page}>
@@ -69,6 +75,13 @@ export default function MateriasListPage() {
             onChange={e => setBusqueda(e.target.value)}
           />
         </div>
+        <button
+          className={`${styles.btnGhost} ${styles.btnOrden} ${orden !== 'ninguno' ? styles.chipActive : ''}`}
+          onClick={toggleOrden}
+          title="Ordenar alfabéticamente"
+        >
+          <IconoOrden size={14} /> {labelOrden}
+        </button>
       </div>
 
       {error && <div className={styles.errorBanner}>⚠ {error}</div>}
@@ -108,7 +121,7 @@ export default function MateriasListPage() {
               </tr>
             </thead>
             <tbody>
-              {materiales.map(m => (
+              {materialesOrdenados.map(m => (
                 <tr
                   key={m.id}
                   /* Fondo suave amarillo si está en alerta */

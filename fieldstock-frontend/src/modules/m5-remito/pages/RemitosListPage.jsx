@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRemitos } from '../hooks/useRemitos'
 import { RemitosService } from '../services/remitos.service'
+import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
 import EstadoRemitoBadge from '../components/EstadoRemitoBadge'
 import styles from './RemitosListPage.module.css'
 
@@ -97,6 +98,11 @@ export default function RemitosListPage() {
   const error   = seccion === 'activos' ? errorA   : errorC
   const lista   = seccion === 'activos' ? activos   : cerrados
 
+  const {
+    listaOrdenada: listaVisible,
+    orden, toggleOrden, IconoOrden, labelOrden,
+  } = useOrdenAlfabetico(lista, r => r.obra)
+
   return (
     <div className={styles.page}>
 
@@ -141,6 +147,13 @@ export default function RemitosListPage() {
         {busqueda && (
           <button className={styles.btnGhost} onClick={() => setBusqueda('')}>Limpiar</button>
         )}
+        <button
+          className={`${styles.btnGhost} ${styles.btnOrden} ${orden !== 'ninguno' ? styles.chipActive : ''}`}
+          onClick={toggleOrden}
+          title="Ordenar alfabéticamente por obra"
+        >
+          <IconoOrden size={14} /> {labelOrden}
+        </button>
       </div>
 
       {/* Modal confirmar eliminar */}
@@ -172,7 +185,7 @@ export default function RemitosListPage() {
         </div>
       )}
 
-      {!loading && !error && lista.length === 0 && (
+      {!loading && !error && listaVisible.length === 0 && (
         <div className={styles.empty}>
           <span className={styles.emptyIcon}>📋</span>
           <p>{busqueda ? `No se encontraron remitos con "${busqueda}".` : seccion === 'activos' ? 'No hay remitos en curso.' : 'No hay remitos cerrados.'}</p>
@@ -184,9 +197,9 @@ export default function RemitosListPage() {
         </div>
       )}
 
-      {!loading && !error && lista.length > 0 && (
+      {!loading && !error && listaVisible.length > 0 && (
         <TablaRemitos
-          remitos={lista}
+          remitos={listaVisible}
           navigate={navigate}
           onEliminar={setConfirmando}
           mostrarEliminar={seccion === 'cerrados'}
