@@ -87,3 +87,23 @@ describe('dashboard.service.getResumen — top materiales consumidos', () => {
     ])
   })
 })
+
+describe('dashboard.service.getResumen — insumos con menos stock', () => {
+  const materialesFixture = [
+    { id: 'm-1', nombre: 'Cemento',  unidad: 'bolsa', stock_actual: 2,  stock_minimo: 10 }, // en alerta, buffer -8
+    { id: 'm-2', nombre: 'Arena',    unidad: 'kg',    stock_actual: 50, stock_minimo: 20 }, // sin alerta, buffer +30
+    { id: 'm-3', nombre: 'Cal',      unidad: 'bolsa', stock_actual: 15, stock_minimo: 10 }, // sin alerta, buffer +5
+  ]
+
+  it('el KPI de alertas solo cuenta stock_actual <= stock_minimo', async () => {
+    tablas.materiales = () => chainResolvingTo({ data: materialesFixture, error: null })
+    const data = await DashboardService.getResumen()
+    expect(data.kpis.alertasStockBajo).toBe(1)
+  })
+
+  it('insumosMenorStock siempre devuelve filas (ordenadas por menor margen) aunque no estén en alerta', async () => {
+    tablas.materiales = () => chainResolvingTo({ data: materialesFixture, error: null })
+    const data = await DashboardService.getResumen()
+    expect(data.insumosMenorStock.map(m => m.id)).toEqual(['m-1', 'm-3', 'm-2'])
+  })
+})

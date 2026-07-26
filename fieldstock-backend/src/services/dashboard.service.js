@@ -69,11 +69,11 @@ async function getKpiRemitosEnCurso() {
 }
 
 /**
- * Materiales activos donde stock_actual <= stock_minimo (alerta de reposición).
- * Devolvemos los items para reusar el fetch entre el KPI y la lista
- * "stock bajo" — así evitamos una query duplicada.
+ * Todos los materiales activos con su stock — fuente única para el KPI de
+ * alertas y para el ranking "insumos con menos stock" de abajo, así se
+ * evita una query duplicada.
  */
-async function getMaterialesStockBajo() {
+async function getMaterialesConStock() {
   // Supabase JS no soporta column-vs-column comparison en filter() directo;
   // traemos los activos y filtramos en JS. La tabla materiales es chica
   // (~decenas de filas), así que no es un problema de performance.
@@ -81,12 +81,30 @@ async function getMaterialesStockBajo() {
     .from('materiales')
     .select('id, nombre, unidad, stock_actual, stock_minimo, marca')
     .eq('activo', true)
-
   if (error) throw error
-
   return data
+}
+
+/** Alerta real de reposición: stock_actual <= stock_minimo. */
+function getAlertasStockBajo(materiales) {
+  return materiales
     .filter(m => Number(m.stock_actual) <= Number(m.stock_minimo))
     .sort((a, b) => Number(a.stock_actual) - Number(b.stock_actual))
+}
+
+/**
+ * Top 5 insumos con menos margen sobre su mínimo (stock_actual - stock_minimo,
+ * ascendente). A diferencia de getAlertasStockBajo, esto siempre devuelve
+ * hasta 5 filas si hay materiales cargados — no solo los que ya están en
+ * alerta — para que la card nunca quede vacía y muestre "quién se está por
+ * quedar sin stock", no solo "quién ya se quedó".
+ */
+function getInsumosMenorStock(materiales) {
+  return [...materiales]
+    .sort((a, b) =>
+      (Number(a.stock_actual) - Number(a.stock_minimo)) - (Number(b.stock_actual) - Number(b.stock_minimo))
+    )
+    .slice(0, LIMITE_LISTAS)
 }
 
 async function getUltimasNotificaciones() {
@@ -101,7 +119,7 @@ async function getUltimasNotificaciones() {
 
 /**
  * Top 5 herramientas más despachadas a obra — un EGRESO por movimiento
- * cuenta como "un uso". Igual criterio que getMaterialesStockBajo: se
+ * cuenta como "un uso". Igual criterio que getMaterialesConStock: se
  * agrega en JS porque Supabase JS no tiene GROUP BY, y la tabla de
  * movimientos es chica para la escala de este sistema.
  */
@@ -180,7 +198,7 @@ export async function getResumen() {
     kpisHerramientas,
     obrasActivas,
     remitosEnCurso,
-    materialesStockBajo,
+    materialesConStock,
     notificaciones,
     ultimosRemitos,
     topHerramientas,
@@ -189,22 +207,26 @@ export async function getResumen() {
     getKpisHerramientas(),
     getKpiObrasActivas(),
     getKpiRemitosEnCurso(),
-    getMaterialesStockBajo(),
+    getMaterialesConStock(),
     getUltimasNotificaciones(),
     getUltimosRemitos(),
     getTopHerramientasUsadas(),
     getTopMaterialesConsumidos(),
   ])
 
+  const alertasStockBajo = getAlertasStockBajo(materialesConStock)
+
   return {
     kpis: {
       herramientas: kpisHerramientas,
       obrasActivas,
       remitosEnCurso,
-      alertasStockBajo: materialesStockBajo.length,
+      alertasStockBajo: alertasStockBajo.length,
     },
     notificaciones,
-    materialesStockBajo: materialesStockBajo.slice(0, LIMITE_LISTAS),
+    // Siempre hasta 5 filas (si hay materiales cargados) — no solo los que
+    // ya están en alerta, ver getInsumosMenorStock.
+    insumosMenorStock: getInsumosMenorStock(materialesConStock),
     ultimosRemitos,
     topHerramientas,
     topMateriales,

@@ -78,7 +78,7 @@ export default function DashboardPage() {
     </div>
   )
 
-  const { kpis, notificaciones, materialesStockBajo, ultimosRemitos, topHerramientas, topMateriales } = data
+  const { kpis, notificaciones, insumosMenorStock, ultimosRemitos, topHerramientas, topMateriales } = data
 
   return (
     <div className={styles.page}>
@@ -160,48 +160,45 @@ export default function DashboardPage() {
           }
         </div>
 
-        {/* Materiales con stock bajo */}
-        {/* Cuando no hay materiales bajos, mostramos solo el titulo en
-            modo compacto (sin rectangulo del card) — el contenedor sigue
-            ocupando su slot en el grid pero queda visualmente discreto.
-            Si aparece alguno, vuelve al card completo automaticamente. */}
-        {materialesStockBajo.length === 0 ? (
-          <div className={styles.cardCompact}>
-            <span className={styles.cardTitleMuted}>
-              <LuPackage size={14} /> Materiales con stock bajo
-            </span>
+        {/* Insumos con menos stock — SIEMPRE muestra hasta 5 filas (si hay
+            materiales cargados), no solo los que están en alerta real, así
+            este slot del grid nunca queda vacío/discreto. La severidad de
+            color solo se aplica a los que de verdad están en o por debajo
+            del mínimo — el resto se ve neutro, es "el que menos margen
+            tiene", no necesariamente un problema. */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <span className={styles.cardTitle}><LuPackage size={14} /> Insumos con menos stock</span>
+            <Link to="/materiales" className={styles.cardLink}>Ver catálogo →</Link>
           </div>
-        ) : (
-          <div className={styles.card}>
-            <div className={styles.cardHeader}>
-              <span className={styles.cardTitle}><LuPackage size={14} /> Materiales con stock bajo</span>
-              <Link to="/materiales" className={styles.cardLink}>Ver catálogo →</Link>
-            </div>
-            <div className={styles.list}>
-              {materialesStockBajo.map(m => {
-                const stock = Number(m.stock_actual)
-                const min   = Number(m.stock_minimo)
-                // Severidad: si el stock está en 0 o por debajo de la mitad
-                // del mínimo, lo pintamos en rojo (critico); si solo está
-                // por debajo del mínimo, en amarillo.
-                const critico = stock === 0 || stock <= min / 2
-                return (
-                  <Link key={m.id} to="/materiales" className={styles.listItem}>
-                    <div className={styles.listMain}>
-                      <span className={styles.listTitle}>{m.nombre}</span>
-                      <span className={styles.listSub}>
-                        {m.marca ? `${m.marca} · ` : ''}mínimo: {min} {m.unidad}
+          {insumosMenorStock.length === 0
+            ? <div className={styles.empty}>Todavía no hay materiales cargados.</div>
+            : (
+              <div className={styles.list}>
+                {insumosMenorStock.map(m => {
+                  const stock = Number(m.stock_actual)
+                  const min   = Number(m.stock_minimo)
+                  const enAlerta = stock <= min
+                  const critico  = stock === 0 || (enAlerta && stock <= min / 2)
+                  const severidad = !enAlerta ? '' : (critico ? styles.severidadCritica : styles.severidadBaja)
+                  return (
+                    <Link key={m.id} to="/materiales" className={styles.listItem}>
+                      <div className={styles.listMain}>
+                        <span className={styles.listTitle}>{m.nombre}</span>
+                        <span className={styles.listSub}>
+                          {m.marca ? `${m.marca} · ` : ''}mínimo: {min} {m.unidad}
+                        </span>
+                      </div>
+                      <span className={`${styles.listMeta} ${severidad}`}>
+                        {stock} {m.unidad}
                       </span>
-                    </div>
-                    <span className={`${styles.listMeta} ${critico ? styles.severidadCritica : styles.severidadBaja}`}>
-                      {stock} {m.unidad}
-                    </span>
-                  </Link>
-                )
-              })}
-            </div>
-          </div>
-        )}
+                    </Link>
+                  )
+                })}
+              </div>
+            )
+          }
+        </div>
 
       </div>
 
