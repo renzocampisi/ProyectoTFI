@@ -41,6 +41,7 @@ async function generarNumero() {
 const MEDIOS_PAGO_VALIDOS = new Set([
   'EFECTIVO','TRANSFERENCIA','CHEQUE','TARJETA','CUENTA_CORRIENTE'
 ])
+const MONEDAS_VALIDAS = new Set(['ARS', 'USD'])
 
 function bad(msg, status = 400) {
   const err = new Error(msg)
@@ -68,23 +69,36 @@ export async function getAll({ estado, proveedorId, q } = {}) {
 
   if (!compras?.length) return []
 
-  // Conteo de items por compra. Pedimos solo compra_id y agrupamos en JS.
+  // Conteo de items + desglose de pagos por compra. Dos queries chicas
+  // (solo las columnas que hacen falta) en vez de forzar un join que
+  // multiplicaría filas de cabecera por cada item/pago.
   const ids = compras.map(c => c.id)
-  const { data: items, error: errI } = await supabase
-    .from('compras_items')
-    .select('compra_id')
-    .in('compra_id', ids)
+  const [
+    { data: items, error: errI },
+    { data: pagos, error: errP },
+  ] = await Promise.all([
+    supabase.from('compras_items').select('compra_id').in('compra_id', ids),
+    supabase.from('compra_pagos').select('compra_id, medio_pago, moneda').in('compra_id', ids),
+  ])
   if (errI) throw errI
+  if (errP) throw errP
 
   const counts = new Map()
   for (const it of items ?? []) {
     counts.set(it.compra_id, (counts.get(it.compra_id) ?? 0) + 1)
   }
 
+  const pagosPorCompra = new Map()
+  for (const p of pagos ?? []) {
+    if (!pagosPorCompra.has(p.compra_id)) pagosPorCompra.set(p.compra_id, [])
+    pagosPorCompra.get(p.compra_id).push(p)
+  }
+
   return compras.map(c => ({
     ...c,
     proveedor_nombre: c.proveedor?.nombre ?? null,
     cantidad_items:   counts.get(c.id) ?? 0,
+    pagos:            pagosPorCompra.get(c.id) ?? [],
   }))
 }
 
@@ -93,6 +107,7 @@ export async function getById(id) {
   const [
     { data: compra, error: errC },
     { data: items,  error: errI },
+    { data: pagos,  error: errP },
   ] = await Promise.all([
     supabase
       .from('compras')
@@ -104,10 +119,16 @@ export async function getById(id) {
       .select('*, material:materiales(id, nombre, unidad, stock_actual)')
       .eq('compra_id', id)
       .order('created_at', { ascending: true }),
+    supabase
+      .from('compra_pagos')
+      .select('*')
+      .eq('compra_id', id)
+      .order('created_at', { ascending: true }),
   ])
 
   if (errC) throw errC
   if (errI) throw errI
+  if (errP) throw errP
   if (!compra) return null
 
   return {
@@ -118,6 +139,7 @@ export async function getById(id) {
       material_nombre: it.material?.nombre ?? null,
       material_unidad: it.material?.unidad ?? null,
     })),
+    pagos: pagos ?? [],
   }
 }
 
@@ -127,11 +149,6 @@ export async function getById(id) {
 export async function create(body) {
   if (!body?.proveedorId) throw bad('proveedorId es obligatorio')
 
-  const medioPago = body.medioPago || 'EFECTIVO'
-  if (!MEDIOS_PAGO_VALIDOS.has(medioPago)) {
-    throw bad(`medioPago inválido: ${medioPago}`)
-  }
-
   const numero = await generarNumero()
 
   const { data: compra, error } = await supabase
@@ -140,21 +157,24 @@ export async function create(body) {
       numero,
       proveedor_id:  body.proveedorId,
       estado:        'BORRADOR',
-      medio_pago:    medioPago,
       observaciones: body.observaciones || null,
     })
     .select().single()
   if (error) throw error
 
   const items = Array.isArray(body.items) ? body.items : []
-  if (items.length) {
+  const pagos = Array.isArray(body.pagos) ? body.pagos : []
+  if (items.length || pagos.length) {
     try {
       for (const it of items) {
         await addItem(compra.id, it, { skipEstadoCheck: true })
       }
+      for (const p of pagos) {
+        await addPago(compra.id, p, { skipEstadoCheck: true })
+      }
     } catch (err) {
       // Rollback manual: tiramos la compra recién creada para no dejar
-      // OCs vacías o medio-cargadas si algún item falla la validación.
+      // OCs vacías o medio-cargadas si algún item/pago falla la validación.
       await supabase.from('compras').delete().eq('id', compra.id)
       throw err
     }
@@ -165,7 +185,8 @@ export async function create(body) {
 }
 
 // ── Editar cabecera ──────────────────────────────────────────
-// Solo en BORRADOR. Campos editables: proveedor, medio_pago, observaciones.
+// Solo en BORRADOR. Campos editables: proveedor, observaciones.
+// El medio de pago ya no se edita acá — ver addPago/removePago.
 export async function update(id, body) {
   const { data: compra, error: errC } = await supabase
     .from('compras').select('estado').eq('id', id).single()
@@ -177,12 +198,6 @@ export async function update(id, body) {
 
   const campos = {}
   if (body.proveedorId   !== undefined) campos.proveedor_id  = body.proveedorId
-  if (body.medioPago     !== undefined) {
-    if (!MEDIOS_PAGO_VALIDOS.has(body.medioPago)) {
-      throw bad(`medioPago inválido: ${body.medioPago}`)
-    }
-    campos.medio_pago = body.medioPago
-  }
   if (body.observaciones !== undefined) campos.observaciones = body.observaciones || null
 
   if (!Object.keys(campos).length) throw bad('No hay campos para actualizar')
@@ -278,6 +293,65 @@ export async function updateItem(compraId, itemId, body) {
     .select().single()
   if (error) throw error
   return data
+}
+
+// ── Pagos: agregar ─────────────────────────────────────────────
+// Una compra puede tener N líneas de pago (medio + moneda + monto) — ej.
+// parte en efectivo + parte con cheque, o parte en ARS + parte en USD.
+// No validamos que la suma coincida con `compras.total`: mezclando monedas
+// esa suma no tiene un significado directo sin una cotización, y esa
+// conversión está fuera de alcance acá — son un desglose informativo.
+function validarPago(body) {
+  const medioPago = body?.medioPago
+  if (!medioPago || !MEDIOS_PAGO_VALIDOS.has(medioPago)) {
+    throw bad(`medioPago inválido: ${medioPago}`)
+  }
+  const moneda = body?.moneda || 'ARS'
+  if (!MONEDAS_VALIDAS.has(moneda)) {
+    throw bad(`moneda inválida: ${moneda}`)
+  }
+  const monto = Number(body?.monto)
+  if (!Number.isFinite(monto) || monto <= 0) {
+    throw bad('monto debe ser un número mayor a 0')
+  }
+  return { medio_pago: medioPago, moneda, monto }
+}
+
+export async function addPago(compraId, body, { skipEstadoCheck = false } = {}) {
+  const pago = validarPago(body)
+
+  if (!skipEstadoCheck) {
+    const { data: compra, error: errC } = await supabase
+      .from('compras').select('estado').eq('id', compraId).single()
+    if (errC) throw errC
+    if (compra.estado !== 'BORRADOR') {
+      throw bad('Solo se pueden agregar pagos en estado BORRADOR')
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('compra_pagos')
+    .insert({ compra_id: compraId, ...pago })
+    .select().single()
+  if (error) throw error
+  return data
+}
+
+// ── Pagos: eliminar ────────────────────────────────────────────
+export async function removePago(compraId, pagoId) {
+  const { data: compra, error: errC } = await supabase
+    .from('compras').select('estado').eq('id', compraId).single()
+  if (errC) throw errC
+  if (compra.estado !== 'BORRADOR') {
+    throw bad('Solo se pueden quitar pagos en estado BORRADOR')
+  }
+
+  const { error } = await supabase
+    .from('compra_pagos')
+    .delete()
+    .eq('id', pagoId)
+    .eq('compra_id', compraId)
+  if (error) throw error
 }
 
 // ── Avanzar estado: BORRADOR → CONFIRMADA ────────────────────

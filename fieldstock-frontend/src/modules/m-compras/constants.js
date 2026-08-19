@@ -26,6 +26,8 @@ export const MEDIO_PAGO_LABEL = {
   CUENTA_CORRIENTE: 'Cuenta corriente',
 }
 
+export const MONEDA_LABEL = { ARS: 'ARS', USD: 'USD' }
+
 // ── Helpers de formato ──────────────────────────────────────────
 
 export function formatFecha(iso) {
@@ -49,6 +51,16 @@ export function formatMoney(n) {
   if (!Number.isFinite(num)) return '$0,00'
   return num.toLocaleString('es-AR', {
     style: 'currency', currency: 'ARS', maximumFractionDigits: 2,
+  })
+}
+
+// Para líneas de compra_pagos, que pueden estar en ARS o USD — a diferencia
+// de formatMoney (siempre ARS, usado para compras.total).
+export function formatMontoMoneda(n, moneda = 'ARS') {
+  const num = Number(n)
+  if (!Number.isFinite(num)) return moneda === 'USD' ? 'US$0,00' : '$0,00'
+  return num.toLocaleString('es-AR', {
+    style: 'currency', currency: moneda, maximumFractionDigits: 2,
   })
 }
 

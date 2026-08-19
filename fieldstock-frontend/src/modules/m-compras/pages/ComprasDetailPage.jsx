@@ -23,7 +23,8 @@ import EstadoBadge from '../components/EstadoBadge'
 import RecepcionModal from '../components/RecepcionModal'
 import ComprobantePagoCard from '../components/ComprobantePagoCard'
 import {
-  MEDIO_PAGO_LABEL, formatFecha, formatFechaHora, formatMoney, formatCantidad,
+  MEDIO_PAGO_LABEL, MONEDA_LABEL, formatFecha, formatFechaHora, formatMoney,
+  formatCantidad, formatMontoMoneda,
 } from '../constants'
 import styles from './ComprasDetailPage.module.css'
 
@@ -135,6 +136,80 @@ function AddItemForm({ materiales, onSubmit, onCancel }) {
   )
 }
 
+/**
+ * Form inline para agregar una línea de pago a una compra BORRADOR — mismo
+ * patrón que AddItemForm, pero para medio_pago/moneda/monto.
+ */
+function AddPagoForm({ onSubmit, onCancel }) {
+  const [medioPago, setMedioPago] = useState('EFECTIVO')
+  const [moneda,    setMoneda]    = useState('ARS')
+  const [monto,     setMonto]     = useState('')
+  const [guardando, setGuardando] = useState(false)
+  const [err,       setErr]       = useState(null)
+
+  const handle = async (e) => {
+    e.preventDefault()
+    if (guardando) return
+    const m = Number(monto)
+    if (!Number.isFinite(m) || m <= 0) return setErr('El monto debe ser mayor a 0.')
+
+    setGuardando(true); setErr(null)
+    try {
+      await onSubmit({ medioPago, moneda, monto: m })
+    } catch (e) {
+      setErr(e.message)
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <form className={styles.addItemForm} onSubmit={handle}>
+      <div className={styles.addItemHeader}>
+        <strong>Agregar pago</strong>
+      </div>
+      <div className={styles.addItemFields}>
+        <div className={styles.addItemField}>
+          <label className={styles.campoLabel}>Medio de pago</label>
+          <select className={styles.inputNumInline}
+            value={medioPago} onChange={e => setMedioPago(e.target.value)}>
+            {Object.entries(MEDIO_PAGO_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </div>
+        <div className={styles.addItemField}>
+          <label className={styles.campoLabel}>Moneda</label>
+          <select className={styles.inputNumInline}
+            value={moneda} onChange={e => setMoneda(e.target.value)}>
+            {Object.entries(MONEDA_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </div>
+        <div className={styles.addItemField}>
+          <label className={styles.campoLabel}>Monto</label>
+          <input type="number" min="0.01" step="0.01"
+            className={styles.inputNumInline}
+            placeholder="0,00"
+            value={monto} onChange={e => setMonto(e.target.value)} />
+        </div>
+      </div>
+      {err && <div className={styles.errorBanner}>⚠ {err}</div>}
+      <div className={styles.addItemActions}>
+        <button type="button" className={styles.btnGhost}
+          onClick={onCancel} disabled={guardando}>
+          Cancelar
+        </button>
+        <button type="submit" className={styles.btnConfirmar}
+          disabled={guardando}>
+          {guardando ? 'Agregando...' : 'Agregar'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 export default function ComprasDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -156,6 +231,11 @@ export default function ComprasDetailPage() {
   const [showAddItem, setShowAddItem] = useState(false)
   const [errItems,    setErrItems]    = useState(null)
   const [removingId,  setRemovingId]  = useState(null)
+
+  // ── Edición de pagos (solo BORRADOR) ────────────────────────
+  const [showAddPago,    setShowAddPago]    = useState(false)
+  const [errPagos,       setErrPagos]       = useState(null)
+  const [removingPagoId, setRemovingPagoId] = useState(null)
 
   // Materiales se cargan una vez al detectar estado BORRADOR — sirven
   // tanto para el form de agregar item como para mostrar el nombre del
@@ -228,6 +308,17 @@ export default function ComprasDetailPage() {
       await refetch()
     } catch (err) { setErrItems(err.message) }
     finally { setRemovingId(null) }
+  }
+
+  const handleRemovePago = async (pago) => {
+    if (removingPagoId) return
+    if (!window.confirm(`¿Eliminar este pago (${MEDIO_PAGO_LABEL[pago.medio_pago] || pago.medio_pago})?`)) return
+    setRemovingPagoId(pago.id); setErrPagos(null)
+    try {
+      await ComprasService.removePago(compra.id, pago.id)
+      await refetch()
+    } catch (err) { setErrPagos(err.message) }
+    finally { setRemovingPagoId(null) }
   }
 
   // El form de agregar item es local — se desmonta al cerrar para resetear.
@@ -332,7 +423,6 @@ export default function ComprasDetailPage() {
           <Campo label="CUIT proveedor"   value={compra.proveedor?.cuit} />
           <Campo label="Teléfono"         value={compra.proveedor?.telefono} />
           <Campo label="Email"            value={compra.proveedor?.email} />
-          <Campo label="Medio de pago"    value={MEDIO_PAGO_LABEL[compra.medio_pago] || compra.medio_pago} />
           <Campo label="Fecha creación"   value={formatFechaHora(compra.created_at)} />
           <Campo label="Fecha pedido"     value={formatFechaHora(compra.fecha_pedido)} />
           <Campo label="Fecha recepción"  value={formatFechaHora(compra.fecha_recepcion)} />
@@ -372,11 +462,11 @@ export default function ComprasDetailPage() {
               <thead>
                 <tr>
                   <th>Material</th>
-                  <th>Cantidad</th>
-                  <th>Precio unit.</th>
-                  <th>Subtotal</th>
+                  <th className={styles.thNum}>Cantidad</th>
+                  <th className={styles.thNum}>Precio unit.</th>
+                  <th className={styles.thNum}>Subtotal</th>
                   {compra.items.some(it => Number(it.cantidad_recibida) > 0) && (
-                    <th>Recibido</th>
+                    <th className={styles.thNum}>Recibido</th>
                   )}
                   {compra.estado === 'BORRADOR' && <th></th>}
                 </tr>
@@ -474,6 +564,74 @@ export default function ComprasDetailPage() {
                 await refetch()
                 setShowAddItem(false)
               } catch (err) { setErrItems(err.message); throw err }
+            }} />
+        )}
+      </section>
+
+      {/* ── Pagos ────────────────────────────────────────────── */}
+      <section className={styles.card}>
+        <div className={styles.itemsHeader}>
+          <h2 className={styles.cardTitle}>Pagos ({compra.pagos?.length || 0})</h2>
+          {compra.estado === 'BORRADOR' && !showAddPago && (
+            <button type="button" className={styles.btnLink}
+              onClick={() => setShowAddPago(true)}>
+              + Agregar pago
+            </button>
+          )}
+        </div>
+
+        {errPagos && <div className={styles.errorBanner}>⚠ {errPagos}</div>}
+
+        {(!compra.pagos || compra.pagos.length === 0) && !showAddPago ? (
+          <div className={styles.itemsEmpty}>
+            Todavía no se registró ningún pago para esta compra.
+          </div>
+        ) : (
+          <div className={styles.itemsTableWrapper}>
+            <table className={styles.itemsTable}>
+              <thead>
+                <tr>
+                  <th>Medio de pago</th>
+                  <th>Moneda</th>
+                  <th className={styles.thNum}>Monto</th>
+                  {compra.estado === 'BORRADOR' && <th></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {(compra.pagos || []).map(p => (
+                  <tr key={p.id} className={styles.itemRow}>
+                    <td data-label="Medio de pago">{MEDIO_PAGO_LABEL[p.medio_pago] || p.medio_pago}</td>
+                    <td data-label="Moneda">{MONEDA_LABEL[p.moneda] || p.moneda}</td>
+                    <td className={styles.cellSubtotal} data-label="Monto">
+                      {formatMontoMoneda(p.monto, p.moneda)}
+                    </td>
+                    {compra.estado === 'BORRADOR' && (
+                      <td className={styles.cellActions}>
+                        <button type="button" className={styles.btnRemoveItem}
+                          onClick={() => handleRemovePago(p)}
+                          disabled={removingPagoId === p.id}
+                          title="Eliminar pago">
+                          {removingPagoId === p.id ? '...' : '🗑'}
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {compra.estado === 'BORRADOR' && showAddPago && (
+          <AddPagoForm
+            onCancel={() => setShowAddPago(false)}
+            onSubmit={async (body) => {
+              setErrPagos(null)
+              try {
+                await ComprasService.addPago(compra.id, body)
+                await refetch()
+                setShowAddPago(false)
+              } catch (err) { setErrPagos(err.message); throw err }
             }} />
         )}
       </section>

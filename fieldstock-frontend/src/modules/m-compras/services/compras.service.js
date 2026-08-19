@@ -36,6 +36,10 @@ export const ComprasService = {
   updateItem: (id, itemId, body) => api.patch(`/compras/${id}/items/${itemId}`, body),
   removeItem: (id, itemId)       => api.delete(`/compras/${id}/items/${itemId}`),
 
+  // Pagos: desglose de medio + moneda + monto (solo editable en BORRADOR).
+  addPago:    (id, body)        => api.post(`/compras/${id}/pagos`, body),
+  removePago: (id, pagoId)      => api.delete(`/compras/${id}/pagos/${pagoId}`),
+
   // Comprobante de pago. El backend espera multipart con field `archivo`.
   // getComprobante devuelve { url, path, expiresIn } o lanza 404 si no hay.
   getComprobante: (id) => api.get(`/compras/${id}/comprobante`),

@@ -109,8 +109,6 @@
 .row td { padding: var(--space-3) var(--space-4); vertical-align: middle; }
 
 .cellNombre { color: var(--text-primary); font-weight: 500; }
-.cellEmail  { color: var(--text-secondary); font-family: var(--font-mono); font-size: var(--text-xs); }
-.cellTel    { color: var(--text-secondary); }
 .cellFecha  { color: var(--text-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
 
 .role {
@@ -233,6 +231,20 @@
   justify-content: flex-end;
   margin-top: var(--space-2);
 }
+
+/* Modal de Detalles del empleado */
+.detalleGrid { display: flex; flex-direction: column; gap: var(--space-2); }
+.detalleRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.detalleRow:last-child { border-bottom: none; }
+.detalleLabel { color: var(--text-muted); flex-shrink: 0; }
+.detalleValue { color: var(--text-primary); font-weight: 500; text-align: right; word-break: break-word; }
 
 /* Ventana angosta (laptop achicada, tablet) mientras todavía es tabla:
    la columna Alta es la menos importante — se oculta primero para darle

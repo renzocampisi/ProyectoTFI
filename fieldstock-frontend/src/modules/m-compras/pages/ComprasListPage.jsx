@@ -11,6 +11,17 @@ import { useCompras } from '../hooks/useCompras'
 import { ProveedoresService } from '@modules/m7-directorio/services/directorio.service'
 import EstadoBadge from '../components/EstadoBadge'
 import { ESTADO_INFO, MEDIO_PAGO_LABEL, formatFecha, formatMoney } from '../constants'
+
+// Resume el array de compra_pagos de una compra en un string corto para la
+// columna de la lista: medios distintos separados por coma, + las monedas
+// entre paréntesis si hay más de una (ej. "Efectivo, Cheque (ARS, USD)").
+function resumenPagos(pagos) {
+  if (!pagos?.length) return '—'
+  const medios   = [...new Set(pagos.map(p => MEDIO_PAGO_LABEL[p.medio_pago] || p.medio_pago))]
+  const monedas  = [...new Set(pagos.map(p => p.moneda))]
+  const sufijo    = monedas.length > 1 ? ` (${monedas.join(', ')})` : ''
+  return medios.join(', ') + sufijo
+}
 import styles from './ComprasListPage.module.css'
 
 // Orden de los chips de filtro. TODOS primero, después los estados activos
@@ -175,7 +186,7 @@ export default function ComprasListPage() {
                     {formatMoney(c.total)}
                   </td>
                   <td className={styles.medio} data-label="Medio de pago">
-                    {MEDIO_PAGO_LABEL[c.medio_pago] || c.medio_pago}
+                    {resumenPagos(c.pagos)}
                   </td>
                   <td className={styles.actions}>
                     <button className={styles.btnRow}

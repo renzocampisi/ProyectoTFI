@@ -879,31 +879,44 @@ export async function reportarProblema(id, body = {}) {
   return avanzarEstado(id)
 }
 
-// ── Eliminar remito cerrado ───────────────────────────────────
-// Solo en CERRADO y solo si ya no quedan herramientas del remito EN_OBRA
+// ── Eliminar remito ────────────────────────────────────────────
+// Permitido en BORRADOR (todavía no generó movimientos ni afectó stock)
+// y en CERRADO, siempre que ya no queden herramientas del remito EN_OBRA
 // (puede pasar si alguien marcó QUEDA_EN_OBRA y olvidaron registrar el retorno).
+// Restringido a ADMIN/DUEÑO a nivel de ruta (ver routes/index.js).
+const ESTADOS_ELIMINABLES = ['BORRADOR', 'CERRADO']
+
 export async function eliminar(id) {
   const { data: remito, error: errR } = await supabase
     .from('remitos').select('estado').eq('id', id).single()
   if (errR) throw errR
 
-  if (remito.estado !== 'CERRADO') {
-    const err = new Error('Solo se pueden eliminar remitos en estado CERRADO')
+  if (!ESTADOS_ELIMINABLES.includes(remito.estado)) {
+    const err = new Error('Solo se pueden eliminar remitos en estado BORRADOR o CERRADO')
     err.status = 400; throw err
   }
 
-  const { data: items } = await supabase
-    .from('remito_items').select('herramienta_id').eq('remito_id', id)
+  // El check de "herramientas todavía EN_OBRA" solo tiene sentido para
+  // CERRADO (el caso real es un remito cerrado cuyo retorno de una
+  // herramienta quedó sin registrar). Un BORRADOR nunca confirmó nada —
+  // no generó movimientos ni cambió el estado de ninguna herramienta — así
+  // que correr este check ahí era un falso positivo: si una herramienta
+  // referenciada en el borrador estaba EN_OBRA por OTRO remito activo y
+  // sin relación, bloqueaba el borrado de un borrador que nunca la tocó.
+  if (remito.estado === 'CERRADO') {
+    const { data: items } = await supabase
+      .from('remito_items').select('herramienta_id').eq('remito_id', id)
 
-  if (items?.length) {
-    const { data: herrsEnObra } = await supabase
-      .from('herramientas').select('id')
-      .in('id', items.map(i => i.herramienta_id))
-      .eq('estado', 'EN_OBRA')
+    if (items?.length) {
+      const { data: herrsEnObra } = await supabase
+        .from('herramientas').select('id')
+        .in('id', items.map(i => i.herramienta_id))
+        .eq('estado', 'EN_OBRA')
 
-    if (herrsEnObra?.length) {
-      const err = new Error('No se puede eliminar: hay herramientas del remito que aún están en obra')
-      err.status = 400; throw err
+      if (herrsEnObra?.length) {
+        const err = new Error('No se puede eliminar: hay herramientas del remito que aún están en obra')
+        err.status = 400; throw err
+      }
     }
   }
 

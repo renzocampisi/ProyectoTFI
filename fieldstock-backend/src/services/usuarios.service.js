@@ -83,7 +83,7 @@ async function validarCupoUsuarios() {
  * (UNA SOLA VEZ — la mostramos al dueño en el modal de éxito y no la
  * volvemos a entregar nunca).
  */
-export async function create({ email, nombre, telefono, role }) {
+export async function create({ email, nombre, telefono, dni, direccion, role }) {
   // Validación temprana.
   if (!email?.trim())  { const e = new Error('email es obligatorio');  e.status = 400; throw e }
   if (!nombre?.trim()) { const e = new Error('nombre es obligatorio'); e.status = 400; throw e }
@@ -114,11 +114,13 @@ export async function create({ email, nombre, telefono, role }) {
   const { data: perfil, error: errP } = await supabase
     .from('usuarios')
     .insert({
-      id:       userId,
-      nombre:   nombre.trim(),
-      telefono: telefono?.trim() || null,
+      id:        userId,
+      nombre:    nombre.trim(),
+      telefono:  telefono?.trim() || null,
+      dni:       dni?.trim() || null,
+      direccion: direccion?.trim() || null,
       role,
-      activo:   true,
+      activo:    true,
     })
     .select()
     .single()
@@ -180,8 +182,10 @@ export async function resetPassword(id, customPassword) {
  */
 export async function update(id, body) {
   const campos = {}
-  if (body.nombre   !== undefined) campos.nombre   = body.nombre?.trim() || null
-  if (body.telefono !== undefined) campos.telefono = body.telefono?.trim() || null
+  if (body.nombre    !== undefined) campos.nombre    = body.nombre?.trim() || null
+  if (body.telefono  !== undefined) campos.telefono  = body.telefono?.trim() || null
+  if (body.dni       !== undefined) campos.dni       = body.dni?.trim() || null
+  if (body.direccion !== undefined) campos.direccion = body.direccion?.trim() || null
   if (body.role     !== undefined) {
     if (!ROLES_LIST.includes(body.role)) {
       const e = new Error(`role inválido. Debe ser uno de: ${ROLES_LIST.join(', ')}`)

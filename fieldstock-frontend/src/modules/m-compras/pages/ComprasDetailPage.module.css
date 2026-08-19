@@ -145,6 +145,11 @@
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
 }
+/* Cantidad, Precio unit., Subtotal, Recibido — alineados a la derecha para
+   quedar justo arriba de sus valores numéricos (.cellNum/.cellSubtotal/.cellRecibido
+   también son text-align:right). Antes el header quedaba a la izquierda mientras
+   los valores caían a la derecha, dando la sensación de datos desalineados. */
+.thNum { text-align: right; }
 .itemRow td {
   padding: var(--space-3);
   vertical-align: top;

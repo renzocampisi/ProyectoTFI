@@ -13,8 +13,11 @@
  *     cantidad > 0 en cada item. El backend valida más a fondo (precios >= 0,
  *     material activo, etc.) — si falla, se muestra el error tal cual.
  *
- * Al guardar: POST /compras con { proveedor_id, medio_pago, observaciones,
- * items: [...] } → redirige al detalle de la compra recién creada.
+ * Al guardar: POST /compras con { proveedor_id, observaciones, items: [...],
+ * pagos: [...] } → redirige al detalle de la compra recién creada. Los pagos
+ * reemplazan al viejo campo único `medio_pago` — una compra puede tener
+ * varias líneas de pago (medio + moneda + monto), ej. parte en efectivo +
+ * parte con cheque, o parte en ARS + parte en USD.
  */
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -31,6 +34,11 @@ const MEDIOS_PAGO = [
   { value: 'CUENTA_CORRIENTE', label: 'Cuenta corriente' },
 ]
 
+const MONEDAS = [
+  { value: 'ARS', label: 'ARS' },
+  { value: 'USD', label: 'USD' },
+]
+
 // Cada item del form arranca con esta forma. El uid local sirve solo para
 // la key de React mientras el item no tenga id de DB todavía.
 const nuevoItemVacio = () => ({
@@ -38,6 +46,14 @@ const nuevoItemVacio = () => ({
   material_id:     '',
   cantidad:        '',
   precio_unitario: '',
+})
+
+// Ídem para las líneas de pago — medio + moneda + monto.
+const nuevoPagoVacio = () => ({
+  uid: Math.random().toString(36).slice(2, 9),
+  medio_pago: 'EFECTIVO',
+  moneda:     'ARS',
+  monto:      '',
 })
 
 function formatMoney(n) {
@@ -73,9 +89,9 @@ export default function ComprasNewPage() {
 
   // ── State del form ─────────────────────────────────────────────
   const [proveedorId,    setProveedorId]    = useState('')
-  const [medioPago,      setMedioPago]      = useState('EFECTIVO')
   const [observaciones,  setObservaciones]  = useState('')
   const [items,          setItems]          = useState([nuevoItemVacio()])
+  const [pagos,          setPagos]          = useState([nuevoPagoVacio()])
   const [guardando,      setGuardando]      = useState(false)
   const [errGuardar,     setErrGuardar]     = useState(null)
 
@@ -85,6 +101,13 @@ export default function ComprasNewPage() {
   }
   const addItem = () => setItems(prev => [...prev, nuevoItemVacio()])
   const removeItem = (uid) => setItems(prev => prev.filter(it => it.uid !== uid))
+
+  // ── Helpers de manipulación de pagos ────────────────────────────
+  const updatePago = (uid, campo, valor) => {
+    setPagos(prev => prev.map(p => p.uid === uid ? { ...p, [campo]: valor } : p))
+  }
+  const addPagoRow = () => setPagos(prev => [...prev, nuevoPagoVacio()])
+  const removePagoRow = (uid) => setPagos(prev => prev.filter(p => p.uid !== uid))
 
   // ── Cálculo del total en vivo ──────────────────────────────────
   // Los inputs son strings, pasamos a Number con fallback 0. Si una fila
@@ -113,6 +136,11 @@ export default function ComprasNewPage() {
     // Materiales duplicados en distintas filas: lo permitimos por ahora
     // (puede tener sentido si vienen en distintas tandas/precios), pero
     // valdría warning visual si se vuelve frecuente.
+    if (pagos.length === 0) return 'La compra tiene que tener al menos 1 medio de pago.'
+    for (const [idx, p] of pagos.entries()) {
+      const monto = Number(p.monto)
+      if (!Number.isFinite(monto) || monto <= 0) return `Pago ${idx + 1}: el monto debe ser mayor a 0.`
+    }
     return null
   }
 
@@ -126,12 +154,16 @@ export default function ComprasNewPage() {
     try {
       const compra = await ComprasService.create({
         proveedorId:   proveedorId,
-        medioPago:     medioPago,
         observaciones: observaciones.trim() || null,
         items: items.map(it => ({
           materialId:     it.material_id,
           cantidad:       Number(it.cantidad),
           precioUnitario: Number(it.precio_unitario),
+        })),
+        pagos: pagos.map(p => ({
+          medioPago: p.medio_pago,
+          moneda:    p.moneda,
+          monto:     Number(p.monto),
         })),
       })
       // El backend devuelve la compra creada con su id — redirigimos al detalle.
@@ -181,18 +213,6 @@ export default function ComprasNewPage() {
             </select>
           </div>
 
-          <div className={styles.fieldRow}>
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="medio">Medio de pago</label>
-              <select id="medio" className={styles.select}
-                value={medioPago} onChange={e => setMedioPago(e.target.value)}>
-                {MEDIOS_PAGO.map(m => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
           <div className={styles.field}>
             <label className={styles.label} htmlFor="obs">Observaciones</label>
             <textarea id="obs" className={styles.textarea}
@@ -222,9 +242,9 @@ export default function ComprasNewPage() {
                 <thead>
                   <tr>
                     <th>Material</th>
-                    <th>Cantidad</th>
-                    <th>Precio unit.</th>
-                    <th>Subtotal</th>
+                    <th className={styles.thNum}>Cantidad</th>
+                    <th className={styles.thNum}>Precio unit.</th>
+                    <th className={styles.thNum}>Subtotal</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -286,6 +306,72 @@ export default function ComprasNewPage() {
               </table>
             </div>
           )}
+        </section>
+
+        {/* ── Card 3: Pagos ──────────────────────────────────── */}
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Pagos</h2>
+            <button type="button" className={styles.btnLink} onClick={addPagoRow}>
+              + Agregar pago
+            </button>
+          </div>
+          <p className={styles.pagosHint}>
+            Si se pagó con más de un medio (ej. efectivo + cheque) o en más de
+            una moneda, agregá una línea por cada una.
+          </p>
+
+          <div className={styles.itemsTableWrapper}>
+            <table className={styles.itemsTable}>
+              <thead>
+                <tr>
+                  <th>Medio de pago</th>
+                  <th>Moneda</th>
+                  <th className={styles.thNum}>Monto</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagos.map(p => (
+                  <tr key={p.uid} className={styles.itemRow}>
+                    <td className={styles.cellMaterial} data-label="Medio de pago">
+                      <select className={styles.selectMaterial}
+                        value={p.medio_pago}
+                        onChange={e => updatePago(p.uid, 'medio_pago', e.target.value)}>
+                        {MEDIOS_PAGO.map(m => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className={styles.cellMaterial} data-label="Moneda">
+                      <select className={styles.selectMaterial}
+                        value={p.moneda}
+                        onChange={e => updatePago(p.uid, 'moneda', e.target.value)}>
+                        {MONEDAS.map(m => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className={styles.cellNum} data-label="Monto">
+                      <input type="number" min="0" step="0.01"
+                        className={styles.inputNum}
+                        placeholder="0,00"
+                        value={p.monto}
+                        onChange={e => updatePago(p.uid, 'monto', e.target.value)} />
+                    </td>
+                    <td className={styles.cellActions}>
+                      <button type="button" className={styles.btnRemoveItem}
+                        onClick={() => removePagoRow(p.uid)}
+                        title="Borrar pago"
+                        disabled={pagos.length === 1}>
+                        🗑
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         {/* ── Footer del form: error + botones ──────────────── */}

@@ -47,13 +47,18 @@ const SISTEMA_ITEMS = [
   { to: '/facturacion', label: 'Facturación', icon: LuCreditCard,   activo: true },
 ]
 
-const ADMIN_ITEMS = [
-  { to: '/usuarios',       label: 'Usuarios',       icon: LuUsers,    activo: true },
-  // Volvió al sidebar (issue "datos de la empresa"): antes solo tenía el
-  // % de ganancia default y no ameritaba un ítem propio; ahora también
-  // vive acá el nombre/teléfono/dirección/email de la empresa.
-  { to: '/configuracion',  label: 'Configuración',  icon: LuSettings, activo: true },
-]
+// El label del primer ítem depende del rol: el DUEÑO administra a su propio
+// equipo ("Empleados"); el ADMIN (dueño del sistema) ve "Usuarios" — a la
+// espera de la vista cross-empresa todavía no implementada.
+function getAdminItems(role) {
+  return [
+    { to: '/usuarios', label: esAdminEstricto(role) ? 'Usuarios' : 'Empleados', icon: LuUsers, activo: true },
+    // Volvió al sidebar (issue "datos de la empresa"): antes solo tenía el
+    // % de ganancia default y no ameritaba un ítem propio; ahora también
+    // vive acá el nombre/teléfono/dirección/email de la empresa.
+    { to: '/configuracion', label: 'Configuración', icon: LuSettings, activo: true },
+  ]
+}
 
 // Exclusivo del rol ADMIN (dueño del sistema) — a diferencia de ADMIN_ITEMS
 // de arriba, que también ve DUEÑO. Primera vez que la jerarquía se separa
@@ -198,7 +203,7 @@ export default function AppLayout() {
 
           {/* Administración — solo DUEÑO o ADMIN */}
           {esDueño(role) && (
-            <NavGroup label="Administración" items={ADMIN_ITEMS} collapsed={collapsed} />
+            <NavGroup label="Administración" items={getAdminItems(role)} collapsed={collapsed} />
           )}
 
           {/* Panel de control — exclusivo de ADMIN (dueño del sistema) */}

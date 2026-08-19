@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ClientesService } from '../services/directorio.service'
 import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
+import PhoneCountryInput from '@shared/components/PhoneCountryInput'
 import styles from './DirectorioPage.module.css'
 
 const PROVINCIAS = [
@@ -116,16 +117,20 @@ function FormModal({ titulo, inicial, onSave, onClose, saving, error }) {
                   : <span className={styles.opcional}> (opcional)</span>}
               </label>
 
-              {/* Campo teléfono: solo números, muestra preview formateado */}
+              {/* Campo teléfono: país (bandera + código) + número nacional.
+                  El valor combinado se guarda igual que antes (dial + número,
+                  sin separadores) — ver PhoneCountryInput. */}
               {c.tipo === 'tel' && (
-                <div className={styles.cuitInputWrapper}>
-                  <input type="text" inputMode="numeric" className={styles.input}
-                    placeholder={c.placeholder} value={form[c.key] || ''} maxLength={13}
-                    onChange={e => set(c.key, e.target.value.replace(/\D/g, '').slice(0, 13))} />
+                <>
+                  <PhoneCountryInput
+                    value={form[c.key] || ''}
+                    onChange={v => set(c.key, v)}
+                    placeholder="3410000000"
+                  />
                   {form[c.key] && (
                     <span className={styles.cuitPreview}>{formatearTelefono(form[c.key])}</span>
                   )}
-                </div>
+                </>
               )}
 
               {/* Selector de provincia */}
@@ -168,6 +173,7 @@ export default function ClientesPage() {
   const [saving,     setSaving]     = useState(false)
   const [formError,  setFormError]  = useState(null)
   const [confirmDel, setConfirmDel] = useState(null)
+  const [detalle,    setDetalle]    = useState(null)
 
   const fetchItems = useCallback(async () => {
     setLoading(true); setError(null)
@@ -231,6 +237,51 @@ export default function ClientesPage() {
             <div className={styles.modalActions}>
               <button className={styles.btnGhost} onClick={() => setConfirmDel(null)}>Cancelar</button>
               <button className={styles.btnDanger} onClick={handleDelete}>Sí, eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalles (solo lectura) */}
+      {detalle && (
+        <div className={styles.overlay} onClick={() => setDetalle(null)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>{detalle.nombre}</h3>
+              <button className={styles.btnClose} onClick={() => setDetalle(null)}>✕</button>
+            </div>
+            <div className={styles.detalleGrid}>
+              <div className={styles.detalleRow}>
+                <span className={styles.detalleLabel}>Teléfono</span>
+                <span className={styles.detalleValue}>{formatearTelefono(detalle.telefono) || '—'}</span>
+              </div>
+              <div className={styles.detalleRow}>
+                <span className={styles.detalleLabel}>Dirección</span>
+                <span className={styles.detalleValue}>{detalle.direccion || '—'}</span>
+              </div>
+              <div className={styles.detalleRow}>
+                <span className={styles.detalleLabel}>Localidad</span>
+                <span className={styles.detalleValue}>{detalle.localidad || '—'}</span>
+              </div>
+              <div className={styles.detalleRow}>
+                <span className={styles.detalleLabel}>Provincia</span>
+                <span className={styles.detalleValue}>{detalle.provincia || '—'}</span>
+              </div>
+              <div className={styles.detalleRow}>
+                <span className={styles.detalleLabel}>Email</span>
+                <span className={styles.detalleValue}>{detalle.email || '—'}</span>
+              </div>
+              <div className={styles.detalleRow}>
+                <span className={styles.detalleLabel}>Contacto</span>
+                <span className={styles.detalleValue}>{detalle.contacto || '—'}</span>
+              </div>
+              <div className={styles.detalleRow}>
+                <span className={styles.detalleLabel}>Notas</span>
+                <span className={styles.detalleValue}>{detalle.notas || '—'}</span>
+              </div>
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.btnGhost} onClick={() => setDetalle(null)}>Cerrar</button>
             </div>
           </div>
         </div>
@@ -301,8 +352,11 @@ export default function ClientesPage() {
                       </td>
                       <td className={styles.celda} data-label="Email">{item.email    || '—'}</td>
                       <td className={styles.celda} data-label="Contacto">{item.contacto || '—'}</td>
-                      {/* Botones editar/eliminar: solo visibles en desktop */}
+                      {/* Botones detalles/editar/eliminar: solo visibles en desktop */}
                       <td className={`${styles.actions} ${styles.tdDesktop}`}>
+                        <button className={styles.btnEdit} onClick={() => setDetalle(item)}>
+                          Detalles
+                        </button>
                         <button className={styles.btnEdit}
                           onClick={() => { setEditItem(item); setShowForm(true) }}>
                           ✎ Editar
