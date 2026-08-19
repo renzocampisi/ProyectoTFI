@@ -13,10 +13,12 @@
  * hace falta una env var nueva, `window.location.origin` ya resuelve
  * correcto tanto en dev como en producción.
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@shared/utils/supabaseClient'
 import styles from './LoginPage.module.css'
+
+const SEGUNDOS_AUTO_REDIRECT = 10
 
 export default function RecuperarPasswordPage() {
   const navigate = useNavigate()
@@ -24,6 +26,16 @@ export default function RecuperarPasswordPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error,       setError]     = useState(null)
   const [enviado,     setEnviado]   = useState(false)
+  const [segundos,    setSegundos]  = useState(SEGUNDOS_AUTO_REDIRECT)
+
+  // Al mostrar el mensaje de éxito, volvemos solos al login a los 10s —
+  // el usuario ya terminó acá, no tiene sentido obligarlo a clickear.
+  useEffect(() => {
+    if (!enviado) return
+    if (segundos <= 0) { navigate('/login'); return }
+    const t = setTimeout(() => setSegundos(s => s - 1), 1000)
+    return () => clearTimeout(t)
+  }, [enviado, segundos, navigate])
 
   const handleSubmit = async (ev) => {
     ev.preventDefault()
@@ -66,7 +78,7 @@ export default function RecuperarPasswordPage() {
               la carpeta de spam.
             </p>
             <button type="button" className={styles.btnPrimary} onClick={() => navigate('/login')}>
-              Volver al login
+              Volver al login ({segundos}s)
             </button>
           </>
         ) : (

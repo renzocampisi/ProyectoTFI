@@ -34,11 +34,11 @@ export async function getMe(req, res, next) {
 
 export async function create(req, res, next) {
   try {
-    const { email, nombre, telefono, role } = req.body
+    const { email, nombre, telefono, dni, direccion, role } = req.body
     if (!email || !nombre || !role) {
       return res.status(400).json({ ok: false, error: 'email, nombre y role son obligatorios' })
     }
-    const data = await UsuariosService.create({ email, nombre, telefono, role })
+    const data = await UsuariosService.create({ email, nombre, telefono, dni, direccion, role })
     res.status(201).json({ ok: true, data })
   } catch (err) { next(err) }
 }

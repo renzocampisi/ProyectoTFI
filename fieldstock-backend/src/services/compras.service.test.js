@@ -78,10 +78,19 @@ describe('compras.service.create', () => {
     await expect(ComprasService.create({})).rejects.toThrow('proveedorId')
   })
 
-  it('rechaza medio_pago inválido', async () => {
+  it('rechaza si un pago viene con medioPago inválido', async () => {
+    mockChain.single.mockResolvedValueOnce({
+      data: { id: 'c-1', numero: 'OC-00001', estado: 'BORRADOR' },
+      error: null,
+    })
     await expect(
-      ComprasService.create({ proveedorId: 'p-1', medioPago: 'BITCOIN' })
+      ComprasService.create({
+        proveedorId: 'p-1',
+        pagos: [{ medioPago: 'BITCOIN', monto: 100 }],
+      })
     ).rejects.toThrow('medioPago')
+    // Rollback: la compra recién creada se borra si un pago falla.
+    expect(mockChain.delete).toHaveBeenCalled()
   })
 
   it('genera número OC-NNNNN via RPC', async () => {
@@ -371,6 +380,68 @@ describe('compras.service.addItem (validaciones)', () => {
     await expect(
       ComprasService.addItem('c-1', { materialId: 'm-1', cantidad: 5, precioUnitario: 10 })
     ).rejects.toThrow(/BORRADOR/)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────
+describe('compras.service.addPago / removePago', () => {
+  it('agrega un pago válido (medio + moneda + monto)', async () => {
+    mockChain.single
+      .mockResolvedValueOnce({ data: { estado: 'BORRADOR' }, error: null }) // check estado
+      .mockResolvedValueOnce({ data: { id: 'pago-1', medio_pago: 'EFECTIVO', moneda: 'ARS', monto: 500 }, error: null }) // insert
+
+    const result = await ComprasService.addPago('c-1', { medioPago: 'EFECTIVO', moneda: 'ARS', monto: 500 })
+
+    expect(mockChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ compra_id: 'c-1', medio_pago: 'EFECTIVO', moneda: 'ARS', monto: 500 })
+    )
+    expect(result.id).toBe('pago-1')
+  })
+
+  it('default de moneda es ARS si no viene', async () => {
+    mockChain.single
+      .mockResolvedValueOnce({ data: { estado: 'BORRADOR' }, error: null })
+      .mockResolvedValueOnce({ data: { id: 'pago-1' }, error: null })
+
+    await ComprasService.addPago('c-1', { medioPago: 'CHEQUE', monto: 100 })
+
+    expect(mockChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ moneda: 'ARS' })
+    )
+  })
+
+  it('rechaza moneda inválida', async () => {
+    mockChain.single.mockResolvedValueOnce({ data: { estado: 'BORRADOR' }, error: null })
+    await expect(
+      ComprasService.addPago('c-1', { medioPago: 'EFECTIVO', moneda: 'JPY', monto: 100 })
+    ).rejects.toThrow(/moneda/)
+  })
+
+  it('rechaza monto <= 0', async () => {
+    mockChain.single.mockResolvedValueOnce({ data: { estado: 'BORRADOR' }, error: null })
+    await expect(
+      ComprasService.addPago('c-1', { medioPago: 'EFECTIVO', monto: 0 })
+    ).rejects.toThrow(/monto/)
+  })
+
+  it('rechaza agregar pago si la compra no está en BORRADOR', async () => {
+    mockChain.single.mockResolvedValueOnce({ data: { estado: 'CONFIRMADA' }, error: null })
+    await expect(
+      ComprasService.addPago('c-1', { medioPago: 'EFECTIVO', monto: 100 })
+    ).rejects.toThrow(/BORRADOR/)
+  })
+
+  it('removePago elimina el pago si la compra está en BORRADOR', async () => {
+    mockChain.single.mockResolvedValueOnce({ data: { estado: 'BORRADOR' }, error: null })
+    await ComprasService.removePago('c-1', 'pago-1')
+    expect(mockChain.delete).toHaveBeenCalled()
+    expect(mockChain.eq).toHaveBeenCalledWith('id', 'pago-1')
+  })
+
+  it('removePago rechaza si la compra no está en BORRADOR', async () => {
+    mockChain.single.mockResolvedValueOnce({ data: { estado: 'RECIBIDA' }, error: null })
+    await expect(ComprasService.removePago('c-1', 'pago-1')).rejects.toThrow(/BORRADOR/)
+    expect(mockChain.delete).not.toHaveBeenCalled()
   })
 })
 

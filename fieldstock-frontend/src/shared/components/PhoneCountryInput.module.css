@@ -1,0 +1,70 @@
+/* PhoneCountryInput.module.css */
+
+.wrapper { position: relative; display: flex; gap: var(--space-2); }
+
+.paisBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.paisBtn:hover { background: var(--color-surface-alt); }
+
+.bandera {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 2px;
+  overflow: hidden;
+  line-height: 0;
+}
+.caret { color: var(--text-muted); font-size: var(--text-xs); }
+
+.input {
+  flex: 1;
+  min-width: 0;
+  background: var(--color-bg, var(--color-surface));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+.input:focus, .paisBtn:focus { outline: none; border-color: var(--color-primary); }
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  min-width: 220px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  padding: var(--space-1);
+}
+
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  text-align: left;
+}
+.opcion:hover { background: var(--color-surface-alt); }
+.opcionNombre { flex: 1; }
+.opcionDial { color: var(--text-muted); font-size: var(--text-xs); }

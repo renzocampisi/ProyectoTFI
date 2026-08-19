@@ -9,7 +9,7 @@
 import { useState } from 'react'
 import { useUsuarios } from '../hooks/useUsuarios'
 import { UsuariosService } from '../services/usuarios.service'
-import { ROLE_LABELS } from '@shared/constants/roles'
+import { ROLE_LABELS, esAdminEstricto } from '@shared/constants/roles'
 import { useAuth } from '@shared/hooks/useAuth'
 import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
 import UsuarioFormModal from '../components/UsuarioFormModal'
@@ -26,11 +26,17 @@ function formatFecha(iso) {
 export default function UsuariosListPage() {
   const { usuarios, loading, error, refetch } = useUsuarios()
   const { profile } = useAuth()
+  // El DUEÑO administra a su propio equipo ("Empleados"); el ADMIN (dueño
+  // del sistema) todavía ve "Usuarios" — la vista cross-empresa por ahora
+  // muestra los mismos datos de esta instancia, a la espera de esa feature.
+  const esAdmin = esAdminEstricto(profile?.role)
+  const etiquetaSingular = esAdmin ? 'usuario' : 'empleado'
 
   // Estado de modales
   const [showForm, setShowForm] = useState(false)        // create
   const [showInvitar, setShowInvitar] = useState(false)  // invitar empleado
   const [editando, setEditando] = useState(null)         // user en edición (o null)
+  const [detalle,  setDetalle]  = useState(null)         // user a mostrar en el modal de Detalles
   const [reveal,   setReveal]   = useState(null)         // { usuario, passwordPlano, modo? } — post-create o post-reset
   const [confDesact, setConfDesact] = useState(null)     // confirm desactivar
   const [errDesact,  setErrDesact]  = useState(null)
@@ -83,9 +89,9 @@ export default function UsuariosListPage() {
 
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>Usuarios del sistema</h1>
+          <h1 className={styles.title}>{esAdmin ? 'Usuarios del sistema' : 'Empleados'}</h1>
           <p className={styles.subtitle}>
-            {loading ? 'Cargando...' : `${usuarios.length} usuario${usuarios.length !== 1 ? 's' : ''}`}
+            {loading ? 'Cargando...' : `${usuarios.length} ${etiquetaSingular}${usuarios.length !== 1 ? 's' : ''}`}
           </p>
         </div>
         <div className={styles.headerActions}>
@@ -93,7 +99,7 @@ export default function UsuariosListPage() {
             Invitar
           </button>
           <button className={styles.btnPrimary} onClick={() => setShowForm(true)}>
-            + Nuevo usuario
+            + Nuevo {etiquetaSingular}
           </button>
         </div>
       </div>
@@ -130,10 +136,8 @@ export default function UsuariosListPage() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Nombre</th>
-                <th>Email</th>
+                <th>Nombre completo</th>
                 <th>Rol</th>
-                <th>Teléfono</th>
                 <th>Estado</th>
                 <th className={styles.thFecha}>Alta</th>
                 <th></th>
@@ -142,15 +146,17 @@ export default function UsuariosListPage() {
             <tbody>
               {usuariosOrdenados.map(u => {
                 const esYo = u.id === profile?.id
+                // El usuario ADMIN es la cuenta especial del dueño del sistema
+                // para probar funciones sin restricciones — no tiene sentido
+                // ver detalles ni editarla desde esta lista.
+                const esUsuarioAdmin = u.role === 'ADMIN'
                 return (
                   <tr key={u.id} className={styles.row}>
                     <td className={styles.cellNombre}>
                       {u.nombre}
                       {esYo && <span className={styles.tagYo}>vos</span>}
                     </td>
-                    <td className={styles.cellEmail}>{u.email}</td>
                     <td><span className={styles.role}>{ROLE_LABELS[u.role] || u.role}</span></td>
-                    <td className={styles.cellTel}>{u.telefono || '—'}</td>
                     <td>
                       {u.activo
                         ? <span className={styles.estadoActivo}>Activo</span>
@@ -159,9 +165,16 @@ export default function UsuariosListPage() {
                     </td>
                     <td className={styles.cellFecha}>{formatFecha(u.created_at)}</td>
                     <td className={styles.actions}>
-                      <button className={styles.btnRow} onClick={() => setEditando(u)}>
-                        Editar
-                      </button>
+                      {!esUsuarioAdmin && (
+                        <button className={styles.btnRow} onClick={() => setDetalle(u)}>
+                          Detalles
+                        </button>
+                      )}
+                      {!esUsuarioAdmin && (
+                        <button className={styles.btnRow} onClick={() => setEditando(u)}>
+                          Editar
+                        </button>
+                      )}
                       {u.activo && !esYo && (
                         <button className={styles.btnReset} onClick={() => setConfReset(u)}
                           title="Resetear contraseña">
@@ -184,6 +197,47 @@ export default function UsuariosListPage() {
       )}
 
       {/* Modales */}
+      {detalle && (
+        <div className={styles.confirmOverlay} onClick={() => setDetalle(null)}>
+          <div className={styles.confirmCard} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.confirmTitle}>{detalle.nombre}</h3>
+            <div className={styles.detalleGrid}>
+              <div className={styles.detalleRow}>
+                <span className={styles.detalleLabel}>Email</span>
+                <span className={styles.detalleValue}>{detalle.email || '—'}</span>
+              </div>
+              <div className={styles.detalleRow}>
+                <span className={styles.detalleLabel}>Teléfono</span>
+                <span className={styles.detalleValue}>{detalle.telefono || '—'}</span>
+              </div>
+              <div className={styles.detalleRow}>
+                <span className={styles.detalleLabel}>DNI</span>
+                <span className={styles.detalleValue}>{detalle.dni || '—'}</span>
+              </div>
+              <div className={styles.detalleRow}>
+                <span className={styles.detalleLabel}>Dirección</span>
+                <span className={styles.detalleValue}>{detalle.direccion || '—'}</span>
+              </div>
+              <div className={styles.detalleRow}>
+                <span className={styles.detalleLabel}>Rol</span>
+                <span className={styles.detalleValue}>{ROLE_LABELS[detalle.role] || detalle.role}</span>
+              </div>
+              <div className={styles.detalleRow}>
+                <span className={styles.detalleLabel}>Estado</span>
+                <span className={styles.detalleValue}>{detalle.activo ? 'Activo' : 'Desactivado'}</span>
+              </div>
+              <div className={styles.detalleRow}>
+                <span className={styles.detalleLabel}>Alta</span>
+                <span className={styles.detalleValue}>{formatFecha(detalle.created_at)}</span>
+              </div>
+            </div>
+            <div className={styles.confirmActions}>
+              <button className={styles.btnGhost} onClick={() => setDetalle(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showForm && (
         <UsuarioFormModal
           onClose={() => setShowForm(false)}

@@ -92,6 +92,22 @@
   padding: var(--space-4) var(--space-6);
   overflow-y: auto;
 }
+
+/* Modal de Detalles (solo lectura) */
+.detalleGrid {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-4) var(--space-6);
+  overflow-y: auto;
+}
+.detalleRow {
+  display: flex; justify-content: space-between; gap: var(--space-4);
+  font-size: var(--text-sm);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.detalleRow:last-child { border-bottom: none; }
+.detalleLabel { color: var(--text-muted); flex-shrink: 0; }
+.detalleValue { color: var(--text-primary); font-weight: 500; text-align: right; word-break: break-word; }
 .field     { display: flex; flex-direction: column; gap: var(--space-2); }
 .label     { font-size: var(--text-sm); font-weight: 500; color: var(--text-secondary); }
 .req       { color: var(--color-danger); margin-left: 2px; }

@@ -578,3 +578,71 @@ describe('remitos.service.reportarProblema (issue #7)', () => {
     expect(result.estado).toBe('EN_OBRA')
   })
 })
+
+describe('remitos.service.eliminar', () => {
+  it('permite eliminar un remito en BORRADOR', async () => {
+    mockChain.single.mockResolvedValueOnce({ data: { estado: 'BORRADOR' }, error: null })
+
+    await expect(RemitosService.eliminar('r-1')).resolves.toBeUndefined()
+
+    expect(mockChain.delete).toHaveBeenCalled()
+  })
+
+  it('permite eliminar un BORRADOR aunque una herramienta suya esté EN_OBRA por OTRO remito (bug reportado)', async () => {
+    mockChain.single.mockResolvedValueOnce({ data: { estado: 'BORRADOR' }, error: null })
+
+    // Si el check de herramientas EN_OBRA corriera para BORRADOR (bug),
+    // este dispatcher haría que se rechace. El fix debe ni siquiera
+    // consultar remito_items/herramientas cuando el estado es BORRADOR.
+    supabase.from.mockImplementation((tabla) => {
+      if (tabla === 'remito_items') {
+        return { ...mockChain, then: (resolve) => resolve({ data: [{ herramienta_id: 'h-1' }], error: null }) }
+      }
+      if (tabla === 'herramientas') {
+        return { ...mockChain, then: (resolve) => resolve({ data: [{ id: 'h-1' }], error: null }) }
+      }
+      return mockChain
+    })
+
+    await expect(RemitosService.eliminar('r-1')).resolves.toBeUndefined()
+    expect(mockChain.delete).toHaveBeenCalled()
+  })
+
+  it('permite eliminar un remito en CERRADO sin herramientas EN_OBRA', async () => {
+    mockChain.single.mockResolvedValueOnce({ data: { estado: 'CERRADO' }, error: null })
+
+    await expect(RemitosService.eliminar('r-1')).resolves.toBeUndefined()
+
+    expect(mockChain.delete).toHaveBeenCalled()
+  })
+
+  it('rechaza eliminar un remito en un estado intermedio (ej. CONFIRMADO)', async () => {
+    mockChain.single.mockResolvedValueOnce({ data: { estado: 'CONFIRMADO' }, error: null })
+
+    await expect(RemitosService.eliminar('r-1'))
+      .rejects.toThrow('Solo se pueden eliminar remitos en estado BORRADOR o CERRADO')
+
+    expect(mockChain.delete).not.toHaveBeenCalled()
+  })
+
+  it('rechaza eliminar un CERRADO si todavía hay herramientas del remito EN_OBRA', async () => {
+    mockChain.single.mockResolvedValueOnce({ data: { estado: 'CERRADO' }, error: null })
+
+    // Dispatcher por tabla: remito_items devuelve una herramienta asociada,
+    // herramientas devuelve esa misma herramienta como EN_OBRA.
+    supabase.from.mockImplementation((tabla) => {
+      if (tabla === 'remito_items') {
+        return { ...mockChain, then: (resolve) => resolve({ data: [{ herramienta_id: 'h-1' }], error: null }) }
+      }
+      if (tabla === 'herramientas') {
+        return { ...mockChain, then: (resolve) => resolve({ data: [{ id: 'h-1' }], error: null }) }
+      }
+      return mockChain
+    })
+
+    await expect(RemitosService.eliminar('r-1'))
+      .rejects.toThrow('No se puede eliminar: hay herramientas del remito que aún están en obra')
+
+    expect(mockChain.delete).not.toHaveBeenCalled()
+  })
+})

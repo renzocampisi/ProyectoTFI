@@ -90,6 +90,28 @@ export async function updateItem(req, res, next) {
   } catch (err) { next(err) }
 }
 
+// ── Pagos ─────────────────────────────────────────────────────
+export async function addPago(req, res, next) {
+  try {
+    const { medioPago, monto } = req.body || {}
+    if (!medioPago) {
+      return res.status(400).json({ ok: false, error: 'medioPago es obligatorio' })
+    }
+    if (monto === undefined) {
+      return res.status(400).json({ ok: false, error: 'monto es obligatorio' })
+    }
+    const data = await ComprasService.addPago(req.params.id, req.body)
+    res.status(201).json({ ok: true, data })
+  } catch (err) { next(err) }
+}
+
+export async function removePago(req, res, next) {
+  try {
+    await ComprasService.removePago(req.params.id, req.params.pagoId)
+    res.json({ ok: true })
+  } catch (err) { next(err) }
+}
+
 // ── Comprobante de pago ───────────────────────────────────────
 // GET devuelve { url, path, expiresIn } o 404 si la compra no tiene
 // comprobante asignado todavía. El frontend usa esa url para mostrar/

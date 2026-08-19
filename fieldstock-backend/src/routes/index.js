@@ -214,7 +214,8 @@ router.get   ('/remitos/:id/sugerencias-presupuesto',        RemitosCtrl.getSuge
 router.post  ('/remitos/:id/volver-borrador',   requireRole(ROLES_ADMIN_LEVEL), RemitosCtrl.volverABorrador)
 router.post  ('/remitos/:id/confirmar-escaneo',              RemitosCtrl.confirmarEscaneo)
 router.post  ('/remitos/:id/reportar-problema',              RemitosCtrl.reportarProblema)
-router.delete('/remitos/:id',                                RemitosCtrl.eliminar)
+// Eliminar remito: solo ADMIN/DUEÑO — es una operación destructiva.
+router.delete('/remitos/:id',   requireRole(ROLES_ADMIN_LEVEL), RemitosCtrl.eliminar)
 router.post  ('/remitos/:id/items',                          RemitosCtrl.addItem)
 router.delete('/remitos/:id/items/:itemId',                  RemitosCtrl.removeItem)
 router.patch ('/remitos/:id/items/:itemId/retorno',          RemitosCtrl.updateItemRetorno)
@@ -268,6 +269,8 @@ router.post  ('/compras/:id/recibir',                ComprasCtrl.recibir)
 router.post  ('/compras/:id/items',                  ComprasCtrl.addItem)
 router.patch ('/compras/:id/items/:itemId',          ComprasCtrl.updateItem)
 router.delete('/compras/:id/items/:itemId',          ComprasCtrl.removeItem)
+router.post  ('/compras/:id/pagos',                  ComprasCtrl.addPago)
+router.delete('/compras/:id/pagos/:pagoId',          ComprasCtrl.removePago)
 
 // Comprobante de pago: bucket privado en Supabase Storage, ver service.
 // memoryStorage porque el archivo se reenvía a Supabase sin tocar disco

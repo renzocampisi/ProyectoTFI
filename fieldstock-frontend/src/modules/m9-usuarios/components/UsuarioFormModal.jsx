@@ -22,11 +22,13 @@ const ROLES_OPTIONS = [
 export default function UsuarioFormModal({ usuario, onClose, onCreated, onUpdated }) {
   const esEdicion = Boolean(usuario)
   const [form, setForm] = useState({
-    email:    usuario?.email    || '',
-    nombre:   usuario?.nombre   || '',
-    telefono: usuario?.telefono || '',
-    role:     usuario?.role     || ROLES.OPERARIO,
-    activo:   usuario?.activo ?? true,
+    email:     usuario?.email     || '',
+    nombre:    usuario?.nombre    || '',
+    telefono:  usuario?.telefono  || '',
+    dni:       usuario?.dni       || '',
+    direccion: usuario?.direccion || '',
+    role:      usuario?.role      || ROLES.OPERARIO,
+    activo:    usuario?.activo ?? true,
   })
   const [errores, setErrores] = useState({})
   const [saving,  setSaving]  = useState(false)
@@ -36,11 +38,13 @@ export default function UsuarioFormModal({ usuario, onClose, onCreated, onUpdate
   useEffect(() => {
     if (usuario) {
       setForm({
-        email:    usuario.email    || '',
-        nombre:   usuario.nombre   || '',
-        telefono: usuario.telefono || '',
-        role:     usuario.role     || ROLES.OPERARIO,
-        activo:   usuario.activo ?? true,
+        email:     usuario.email     || '',
+        nombre:    usuario.nombre    || '',
+        telefono:  usuario.telefono  || '',
+        dni:       usuario.dni       || '',
+        direccion: usuario.direccion || '',
+        role:      usuario.role      || ROLES.OPERARIO,
+        activo:    usuario.activo ?? true,
       })
     }
   }, [usuario])
@@ -67,18 +71,22 @@ export default function UsuarioFormModal({ usuario, onClose, onCreated, onUpdate
     try {
       if (esEdicion) {
         const updated = await UsuariosService.update(usuario.id, {
-          nombre:   form.nombre.trim(),
-          telefono: form.telefono.trim() || null,
-          role:     form.role,
-          activo:   form.activo,
+          nombre:    form.nombre.trim(),
+          telefono:  form.telefono.trim() || null,
+          dni:       form.dni.trim() || null,
+          direccion: form.direccion.trim() || null,
+          role:      form.role,
+          activo:    form.activo,
         })
         onUpdated?.(updated)
       } else {
         const result = await UsuariosService.create({
-          email:    form.email.trim().toLowerCase(),
-          nombre:   form.nombre.trim(),
-          telefono: form.telefono.trim() || null,
-          role:     form.role,
+          email:     form.email.trim().toLowerCase(),
+          nombre:    form.nombre.trim(),
+          telefono:  form.telefono.trim() || null,
+          dni:       form.dni.trim() || null,
+          direccion: form.direccion.trim() || null,
+          role:      form.role,
         })
         // result = { usuario, passwordPlano }
         onCreated?.(result)
@@ -127,6 +135,22 @@ export default function UsuarioFormModal({ usuario, onClose, onCreated, onUpdate
             className={styles.input}
             placeholder="+54 9 11 ..."
             value={form.telefono} onChange={e => set('telefono', e.target.value)} />
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="dni">DNI <span className={styles.optional}>(opcional)</span></label>
+          <input id="dni" type="text" inputMode="numeric"
+            className={styles.input}
+            placeholder="30123456"
+            value={form.dni} onChange={e => set('dni', e.target.value.replace(/\D/g, ''))} />
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="direccion">Dirección <span className={styles.optional}>(opcional)</span></label>
+          <input id="direccion" type="text"
+            className={styles.input}
+            placeholder="Av. Siempreviva 742"
+            value={form.direccion} onChange={e => set('direccion', e.target.value)} />
         </div>
 
         <div className={styles.field}>

@@ -4,10 +4,14 @@ import { useNavigate } from 'react-router-dom'
 import { useRemitos } from '../hooks/useRemitos'
 import { RemitosService } from '../services/remitos.service'
 import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
+import { useAuth } from '@shared/hooks/useAuth'
+import { esDueño } from '@shared/constants/roles'
 import EstadoRemitoBadge from '../components/EstadoRemitoBadge'
 import styles from './RemitosListPage.module.css'
 
 const ESTADOS_ACTIVOS = ['BORRADOR','CONFIRMADO','EN_TRANSITO','EN_OBRA','EN_RETORNO','EN_TRANSITO_RETORNO']
+// Debe coincidir con ESTADOS_ELIMINABLES del backend (remitos.service.js).
+const ESTADOS_ELIMINABLES = ['BORRADOR', 'CERRADO']
 
 function formatFecha(iso) {
   if (!iso) return '—'
@@ -15,7 +19,7 @@ function formatFecha(iso) {
   return `${d}/${m}/${y}`
 }
 
-function TablaRemitos({ remitos, navigate, onEliminar, mostrarEliminar }) {
+function TablaRemitos({ remitos, navigate, onEliminar, puedeEliminar }) {
   return (
     <div className={styles.tableWrapper}>
       <table className={styles.table}>
@@ -54,7 +58,7 @@ function TablaRemitos({ remitos, navigate, onEliminar, mostrarEliminar }) {
                   onClick={e => { e.stopPropagation(); navigate(`/remitos/${r.id}`) }}>
                   Ver →
                 </button>
-                {mostrarEliminar && (
+                {puedeEliminar(r) && (
                   <button className={styles.btnEliminar}
                     onClick={e => { e.stopPropagation(); onEliminar(r) }}
                     title="Eliminar remito">
@@ -72,16 +76,19 @@ function TablaRemitos({ remitos, navigate, onEliminar, mostrarEliminar }) {
 
 export default function RemitosListPage() {
   const navigate = useNavigate()
+  const { profile } = useAuth()
+  const puedeEliminarRol = esDueño(profile?.role)
   const [seccion,     setSeccion]     = useState('activos')
   const [busqueda,    setBusqueda]    = useState('')
   const [confirmando, setConfirmando] = useState(null)
   const [eliminando,  setEliminando]  = useState(false)
   const [errEliminar, setErrEliminar] = useState(null)
 
-  const { remitos: todos,    loading: loadingA, error: errorA }              = useRemitos({ q: busqueda || undefined })
-  const { remitos: cerrados, loading: loadingC, error: errorC, refetch }     = useRemitos({ estado: 'CERRADO', q: busqueda || undefined })
+  const { remitos: todos,    loading: loadingA, error: errorA, refetch: refetchTodos }     = useRemitos({ q: busqueda || undefined })
+  const { remitos: cerrados, loading: loadingC, error: errorC, refetch: refetchCerrados }  = useRemitos({ estado: 'CERRADO', q: busqueda || undefined })
 
   const activos = todos.filter(r => ESTADOS_ACTIVOS.includes(r.estado))
+  const puedeEliminar = (r) => puedeEliminarRol && ESTADOS_ELIMINABLES.includes(r.estado)
 
   const handleEliminar = async () => {
     if (!confirmando) return
@@ -89,7 +96,7 @@ export default function RemitosListPage() {
     try {
       await RemitosService.eliminar(confirmando.id)
       setConfirmando(null)
-      await refetch()
+      await Promise.all([refetchTodos(), refetchCerrados()])
     } catch (err) { setErrEliminar(err.message) }
     finally { setEliminando(false) }
   }
@@ -202,7 +209,7 @@ export default function RemitosListPage() {
           remitos={listaVisible}
           navigate={navigate}
           onEliminar={setConfirmando}
-          mostrarEliminar={seccion === 'cerrados'}
+          puedeEliminar={puedeEliminar}
         />
       )}
 
