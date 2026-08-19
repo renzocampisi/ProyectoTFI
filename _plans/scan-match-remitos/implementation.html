@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Scan &amp; Match — Etapa 2: Implementación</title>
+<style>
+  :root {
+    --ink:   #1a1a1a;
+    --muted: #6b6b6b;
+    --line:  #e6e6e6;
+    --card:  #fafafa;
+    --accent:#3b6eea;
+    --warn:  #b07b00;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    margin: 0;
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  main {
+    max-width: 720px;
+    margin: 56px auto 80px;
+    padding: 0 24px;
+  }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 26px;
+    margin: 0 0 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 18px 0;
+  }
+  section.card > h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    font-weight: 600;
+  }
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  ul, ol { padding-left: 18px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  strong { color: var(--ink); }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.9em;
+    background: #eef0f3;
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  .pill {
+    display: inline-block;
+    background: #eef3ff;
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .pill-warn { background: #fff5e0; color: var(--warn); }
+  .diagram-card { padding: 18px; background: #fff; }
+  .mermaid { font-family: inherit; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+    font-size: 14px;
+  }
+  th, td {
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    padding: 8px 6px;
+    vertical-align: top;
+  }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .step {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 10px 0;
+    background: #fff;
+  }
+  .step .num {
+    display: inline-block;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    text-align: center;
+    line-height: 22px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-right: 8px;
+  }
+  .step .file {
+    display: block;
+    margin-top: 6px;
+    font-size: 13px;
+  }
+  .step .verify {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--line);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .meta {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 28px;
+    text-align: center;
+  }
+  @media print {
+    body { font-size: 13px; }
+    main { margin: 0 auto; padding: 0 16px; }
+    section.card { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="eyebrow">FieldStock AI · Liber-Plan · Etapa 2 de 2</div>
+  <h1>Scan &amp; Match de remitos de proveedores</h1>
+  <div class="sub">Implementación · arquitectura aprobada</div>
+</header>
+
+<section class="card">
+  <h2>Patrones de diseño</h2>
+  <table>
+    <tr><th style="width:30%">Patrón</th><th>Aplicación</th></tr>
+    <tr>
+      <td><strong>Controller → Service</strong></td>
+      <td>Toda la lógica (validar estado, armar el prompt, orquestar la
+      confirmación) vive en <code>scanMatch.service.js</code>. El controller
+      solo lee <code>req.file</code>/<code>req.body</code> y llama al service.</td>
+    </tr>
+    <tr>
+      <td><strong>Adapter existente, sin duplicar</strong></td>
+      <td><code>panel/provider.js</code> ya aísla el SDK de Gemini detrás de
+      <code>chat()</code>. Se extiende (no se reemplaza) con un parámetro
+      opcional para pedir salida en JSON estructurado — los callers
+      actuales (<code>panel.service.js</code>) no lo usan y no cambian de
+      comportamiento.</td>
+    </tr>
+    <tr>
+      <td><strong>Reuso de servicios existentes</strong></td>
+      <td>La confirmación no reinventa nada: usa
+      <code>MaterialesService.create()</code>,
+      <code>ComprasService.addItem(..., {skipEstadoCheck: true})</code>
+      (mismo bypass que ya usa <code>create()</code> de compras) y
+      <code>ComprasService.recibir()</code> tal cual existen hoy.</td>
+    </tr>
+    <tr>
+      <td><strong>Upload con multer + memoryStorage</strong></td>
+      <td>Mismo patrón que el comprobante de pago y el PDF de presupuestos:
+      el archivo nunca toca disco de Fly.io, se procesa en memoria y se
+      descarta al terminar el request (acá ni siquiera se persiste en
+      Storage — ver límites aceptados en la Etapa 1).</td>
+    </tr>
+    <tr>
+      <td><strong>Hook por módulo</strong></td>
+      <td><code>useScanMatch</code> encapsula los dos calls a
+      <code>api.*</code> y la máquina de estados del flujo (captura →
+      proponiendo → revisión → confirmando). El componente no llama a
+      <code>api</code> directo.</td>
+    </tr>
+    <tr>
+      <td><strong>CSS Modules</strong></td>
+      <td><code>ScanMatchModal.module.css</code> propio, sin estilos inline
+      para layout.</td>
+    </tr>
+  </table>
+</section>
+
+<section class="card diagram-card">
+  <h2 style="padding: 0 6px;">Secuencia completa</h2>
+  <pre class="mermaid">
+sequenceDiagram
+    actor U as Usuario
+    participant FE as ComprasDetailPage
+    participant Modal as ScanMatchModal
+    participant BE as scanMatch.controller/service
+    participant Gemini as Gemini (provider.js)
+    participant Compras as compras.service
+    participant Materiales as materiales.service
+
+    U->>FE: abre compra CONFIRMADA / RECIBIDA_PARCIAL
+    FE->>U: botón "Cargar remito del proveedor"
+    U->>Modal: foto o PDF
+    Modal->>BE: POST /compras/:id/scan-match (multipart)
+    BE->>BE: valida estado de la compra
+    BE->>Gemini: 1 llamada · imagen/PDF + items de ESTA orden
+    Gemini-->>BE: JSON: [{textoProveedor, cantidad, itemId|null, confianza}]
+    BE-->>Modal: propuesta (nada escrito aún)
+    Modal->>U: tabla editable para revisar/corregir
+    U->>Modal: confirma (ajustó cantidades / eligió o creó materiales)
+    Modal->>BE: POST /compras/:id/scan-match/confirmar
+    loop por cada línea sin match previo
+        BE->>Materiales: create() si es material nuevo
+        BE->>Compras: addItem(skipEstadoCheck) para sumarlo a la orden
+    end
+    BE->>Compras: recibir({items: [...]}) — igual que la recepción manual
+    Compras-->>BE: compra actualizada
+    BE-->>Modal: éxito
+    Modal-->>FE: refresca detalle
+  </pre>
+</section>
+
+<section class="card">
+  <h2>Riesgos puntuales</h2>
+  <ul>
+    <li><strong><code>skipEstadoCheck</code> es un bypass deliberado</strong>
+    del guard "solo se agregan ítems en BORRADOR". Tiene que quedar
+    encapsulado dentro de <code>scanMatch.service.js</code> — nunca exponer
+    ese flag como parámetro controlable desde el body de un endpoint HTTP.</li>
+    <li><strong>Payload de la imagen/PDF</strong>: sube la latencia y el
+    costo de la llamada a Gemini. Mismo límite que ya usa el comprobante de
+    pago (multer <code>fileSize</code>) evita casos degenerados; no hace
+    falta compresión del lado del cliente para la v1.</li>
+    <li><strong>Parseo de la respuesta del LLM</strong>: aunque se pide
+    <code>responseSchema</code>, un <code>JSON.parse</code> sin catch puede
+    tirar un 500 críptico si Gemini devuelve algo inesperado. Envolver en
+    try/catch con un mensaje claro ("no se pudo leer el documento, probá con
+    otra foto").</li>
+    <li><strong>Precio de los ítems nuevos</strong>: un remito de entrega
+    normalmente no trae precio unitario (eso lo trae la factura). Los ítems
+    agregados vía <code>addItem</code> se cargan con
+    <code>precioUnitario: 0</code> — el usuario lo corrige después desde el
+    detalle de la compra, que ya soporta editar el precio de un ítem.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Pasos ordenados</h2>
+
+  <div class="step">
+    <span class="num">1</span><strong>Extender el provider de Gemini para salida estructurada</strong>
+    <span class="file">📄 <code>fieldstock-backend/src/services/panel/provider.js</code></span>
+    <p style="margin-top:8px">
+      Sumar un parámetro opcional <code>responseSchema</code> a <code>chat()</code>.
+      Si viene, setear <code>config.responseMimeType = 'application/json'</code>
+      y <code>config.responseSchema</code> antes de llamar a
+      <code>generateContent</code>. Sin <code>responseSchema</code>, el
+      comportamiento es idéntico al actual — <code>panel.service.js</code>
+      no lo pasa y sigue funcionando igual.
+    </p>
+    <div class="verify">Verificación: <code>npm run dev --prefix fieldstock-backend</code>
+    y probar una pregunta cualquiera del Panel IA — debe responder igual que antes.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">2</span><strong>Service nuevo: proponer + confirmar</strong>
+    <span class="file">📄 <code>fieldstock-backend/src/services/scanMatch.service.js</code> (nuevo)</span>
+    <p style="margin-top:8px">
+      <code>proponer(compraId, {buffer, mimeType})</code>: carga la
+      compra vía <code>ComprasService.getById</code>, valida
+      <code>estado ∈ {CONFIRMADA, RECIBIDA_PARCIAL}</code>, arma el
+      prompt con los ítems de esa orden (nombre, marca, unidad, cantidad
+      pedida/recibida) y la parte <code>inlineData</code> de la
+      imagen/PDF en base64, llama a <code>Provider.chat()</code> con
+      <code>responseSchema</code>, parsea y devuelve la propuesta. No
+      escribe nada en la base.
+    </p>
+    <p>
+      <code>confirmar(compraId, itemsConfirmados)</code>: por cada línea sin
+      <code>compraItemId</code> (material nuevo o existente-pero-no-pedido),
+      crea el material si hace falta y lo suma a la orden vía
+      <code>addItem(..., {skipEstadoCheck: true})</code>. Con todos
+      los ítems ya resueltos a un <code>itemId</code> real, llama a
+      <code>ComprasService.recibir(compraId, {items})</code> tal
+      cual existe hoy.
+    </p>
+    <div class="verify">Verificación: tests unitarios mockeando
+    <code>Provider.chat</code> y el cliente Supabase (mismo estilo que
+    <code>compras.service.test.js</code>) — casos: match directo, sin
+    match + material nuevo, estado de compra inválido rechazado.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">3</span><strong>Controller nuevo</strong>
+    <span class="file">📄 <code>fieldstock-backend/src/controllers/scanMatch.controller.js</code> (nuevo)</span>
+    <p style="margin-top:8px">
+      Thin. <code>proponer(req, res, next)</code> lee
+      <code>req.file.buffer</code> / <code>req.file.mimetype</code> de multer
+      y <code>req.params.id</code>. <code>confirmar(req, res, next)</code>
+      lee <code>req.body.items</code>.
+    </p>
+  </div>
+
+  <div class="step">
+    <span class="num">4</span><strong>Rutas nuevas</strong>
+    <span class="file">📄 <code>fieldstock-backend/src/routes/index.js</code></span>
+    <p style="margin-top:8px">
+      Instancia <code>uploadScanMatch = multer({storage: memoryStorage,
+      limits: {fileSize}})</code> (mismo patrón que
+      <code>uploadComprobante</code>, límite igual o levemente mayor por los
+      PDF). Dos rutas, ambas <code>requireRole(ROLES_OPERATIVOS)</code>
+      —deliberadamente más restrictivo que <code>/recibir</code> (que hoy no
+      tiene guard), porque esta ruta dispara una llamada paga a Gemini y
+      puede dar de alta materiales nuevos:
+    </p>
+    <ul>
+      <li><code>POST /compras/:id/scan-match</code> →
+      <code>uploadScanMatch.single('archivo')</code>, <code>ScanMatchCtrl.proponer</code></li>
+      <li><code>POST /compras/:id/scan-match/confirmar</code> →
+      <code>ScanMatchCtrl.confirmar</code></li>
+    </ul>
+    <div class="verify">Verificación: <code>curl</code> o Thunder Client
+    contra ambos endpoints con una compra de prueba en CONFIRMADA.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">5</span><strong>Service HTTP del frontend</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/modules/m-compras/services/scanMatch.service.js</code> (nuevo)</span>
+    <p style="margin-top:8px">
+      <code>proponer(compraId, file)</code> arma <code>FormData</code> y
+      llama <code>api.post</code> (o el wrapper que ya use el módulo para
+      multipart — ver cómo lo resuelve <code>ComprobantePagoCard.jsx</code>
+      y seguir el mismo patrón). <code>confirmar(compraId, items)</code> es
+      un POST JSON normal.
+    </p>
+  </div>
+
+  <div class="step">
+    <span class="num">6</span><strong>Hook del módulo</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/modules/m-compras/hooks/useScanMatch.js</code> (nuevo)</span>
+    <p style="margin-top:8px">
+      Máquina de estados simple: <code>captura → proponiendo → revision →
+      confirmando → exito | error</code>. Expone la propuesta, funciones
+      para editar una línea (reasignar match, cambiar cantidad, marcar
+      "crear material nuevo") y <code>confirmar()</code>.
+    </p>
+  </div>
+
+  <div class="step">
+    <span class="num">7</span><strong>Modal de captura + revisión</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/modules/m-compras/components/ScanMatchModal.jsx</code> + <code>.module.css</code> (nuevo)</span>
+    <p style="margin-top:8px">
+      Paso 1 — captura: botón "Sacar foto" (mismo patrón
+      <code>getUserMedia</code> + <code>&lt;video&gt;</code> + canvas que ya
+      usa <code>QRScannerPage.jsx</code>, pero una sola captura, sin loop de
+      decodificación) o "Subir PDF" (input file). Paso 2 — revisión: tabla
+      editable con la propuesta; líneas sin match resaltadas con buscador de
+      catálogo + opción "crear material nuevo".
+    </p>
+    <div class="verify">Verificación: <code>npm run dev</code> (HTTPS, la
+    cámara lo requiere) desde el celular en la misma LAN.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">8</span><strong>Punto de entrada</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/modules/m-compras/pages/ComprasDetailPage.jsx</code></span>
+    <p style="margin-top:8px">
+      Botón "Cargar remito del proveedor" junto al de "Recibir" existente,
+      misma condición de estado (<code>CONFIRMADA</code> /
+      <code>RECIBIDA_PARCIAL</code>). Abre <code>ScanMatchModal</code>; al
+      confirmar, refresca el detalle de la compra.
+    </p>
+    <div class="verify">Verificación final: flujo completo end-to-end
+    contra una compra de prueba — foto de un remito real o simulado,
+    revisar la propuesta, confirmar, chequear que
+    <code>cantidad_recibida</code> y <code>stock_actual</code> quedaron
+    correctos.</div>
+  </div>
+
+</section>
+
+<section class="card">
+  <h2>Verificación general</h2>
+  <ul>
+    <li><code>npm run dev</code> desde la raíz — levanta backend (3000) y frontend HTTPS (5173).</li>
+    <li><code>npm run lint --prefix fieldstock-frontend</code> — 0 errores nuevos.</li>
+    <li><code>npm test --prefix fieldstock-backend</code> — 267 tests actuales + los nuevos de <code>scanMatch.service.test.js</code> en verde.</li>
+    <li>Requiere <code>GEMINI_API_KEY</code> ya configurada (la misma que usa el Panel IA) — sin variables de entorno nuevas.</li>
+  </ul>
+</section>
+
+<div class="meta">
+  Lista para ejecutar.
+</div>
+
+</main>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' })
+</script>
+</body>
+</html>

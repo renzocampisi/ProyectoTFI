@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Scan &amp; Match — Etapa 1: Arquitectura</title>
+<style>
+  :root {
+    --ink:   #1a1a1a;
+    --muted: #6b6b6b;
+    --line:  #e6e6e6;
+    --card:  #fafafa;
+    --accent:#3b6eea;
+    --warn:  #b07b00;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    margin: 0;
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  main {
+    max-width: 720px;
+    margin: 56px auto 80px;
+    padding: 0 24px;
+  }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 26px;
+    margin: 0 0 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 18px 0;
+  }
+  section.card > h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    font-weight: 600;
+  }
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  ul { padding-left: 18px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  strong { color: var(--ink); }
+  .pill {
+    display: inline-block;
+    background: #eef3ff;
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .pill-warn { background: #fff5e0; color: var(--warn); }
+  .diagram-card { padding: 18px; background: #fff; }
+  .mermaid { font-family: inherit; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+    font-size: 14px;
+  }
+  th, td {
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    padding: 8px 6px;
+    vertical-align: top;
+  }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .meta {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 28px;
+    text-align: center;
+  }
+  @media print {
+    body { font-size: 13px; }
+    main { margin: 0 auto; padding: 0 16px; }
+    section.card { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="eyebrow">FieldStock AI · Liber-Plan · Etapa 1 de 2</div>
+  <h1>Scan &amp; Match de remitos de proveedores</h1>
+  <div class="sub">Arquitectura de alto nivel · pendiente de aprobación</div>
+</header>
+
+<section class="card">
+  <h2>Problema</h2>
+  <p>
+    Al recibir un remito o factura de un proveedor de cañerías/válvulas contra
+    una orden de compra ya cargada en el sistema, el usuario tiene que
+    revisar cada línea del papel a mano y tildar/completar la recepción en
+    <span class="pill">/compras/:id</span>, traduciendo mentalmente la
+    nomenclatura abreviada del proveedor (<em>"VÁLV. ESF. BR. INOX DN50
+    150#"</em>) a la del catálogo interno (<em>"Válvula esférica bradada
+    AISI 316 2 pulgadas ANSI 150"</em>).
+  </p>
+  <p>
+    La meta: sacar una foto (o subir el PDF) del remito del proveedor y que
+    el sistema proponga automáticamente qué ítem de <strong>esa orden de
+    compra puntual</strong> corresponde a cada línea del documento, dejando
+    al usuario solo confirmar o corregir antes de que se aplique la
+    recepción real.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Forma de la solución</h2>
+  <p>
+    Pantalla dedicada dentro del detalle de una compra (no el chat del Panel
+    IA): revisar y corregir una lista de N ítems pide una tabla editable, no
+    una conversación. Reusa el mismo proveedor Gemini que ya usa el Panel IA
+    (<span class="pill">panel/provider.js</span>), pero como una llamada
+    puntual de extracción + matching — sin pasar por el loop de tools de
+    <span class="pill">panel.service.js</span>.
+  </p>
+  <p>
+    Mismo principio que ya rige las acciones del Panel IA: la IA solo
+    <strong>propone</strong>. Nada se escribe en la base hasta que el
+    usuario confirma línea por línea — ahí recién se llama a
+    <span class="pill">compras.recibir()</span>, el mismo endpoint que ya
+    existe para la recepción manual.
+  </p>
+</section>
+
+<section class="card diagram-card">
+  <h2 style="padding: 0 6px;">Flujo de un remito escaneado</h2>
+  <pre class="mermaid">
+flowchart TB
+    U([Usuario]) -->|abre una compra CONFIRMADA<br/>o RECIBIDA_PARCIAL| DET[Frontend<br/>ComprasDetailPage]
+    DET -->|"Cargar remito<br/>del proveedor"| CAP[Frontend<br/>Captura: foto o PDF]
+    CAP -->|imagen / PDF| BE[Backend<br/>scan-match service · nuevo]
+    BE -->|1. extraer items crudos| LLM[Gemini API<br/>mismo provider del Panel IA]
+    LLM -->|descripcion + cantidad<br/>tal como las escribio el proveedor| BE
+    BE -->|2. matchear contra<br/>compras_items de ESTA orden| LLM
+    LLM -->|match + confianza<br/>por cada linea| BE
+    BE -->|propuesta, nada aplicado| REV[Frontend<br/>Revision: tabla editable]
+    REV -->|usuario ajusta / crea<br/>material si falta| REV
+    REV -->|confirma| BE2[Backend<br/>compras.recibir · existente]
+    BE2 -->|actualiza cantidad_recibida<br/>+ stock| DB[(Supabase)]
+  </pre>
+</section>
+
+<section class="card">
+  <h2>Bloques y responsabilidades</h2>
+  <table>
+    <tr>
+      <th>Bloque</th>
+      <th>Responsabilidad</th>
+    </tr>
+    <tr>
+      <td><strong>Punto de entrada</strong> <span class="pill">frontend</span></td>
+      <td>Botón "Cargar remito del proveedor" en el detalle de una compra,
+      visible solo si su estado es <span class="pill">CONFIRMADA</span> o
+      <span class="pill">RECIBIDA_PARCIAL</span> (los únicos estados donde
+      <span class="pill">recibir()</span> ya acepta escribir).</td>
+    </tr>
+    <tr>
+      <td><strong>Captura</strong> <span class="pill">frontend · nuevo</span></td>
+      <td>Foto por cámara (mismo patrón que M3 QR Scanner) o subir un
+      archivo PDF (mismo patrón que <span class="pill">comprobante_url</span>
+      en Compras). Ambas vías conviven desde el arranque.</td>
+    </tr>
+    <tr>
+      <td><strong>Extracción + matching</strong> <span class="pill">backend · nuevo</span></td>
+      <td>Service nuevo que llama dos veces al provider Gemini existente:
+      primero para leer los ítems crudos del documento, después para
+      matchearlos contra el universo acotado de los ítems de <em>esa</em>
+      orden de compra (no contra todo el catálogo).</td>
+    </tr>
+    <tr>
+      <td><strong>Provider adapter</strong> <span class="pill">backend · reusado</span></td>
+      <td><span class="pill">panel/provider.js</span> ya acepta
+      <span class="pill">contents</span> genéricos — se le suma soporte para
+      una part de imagen/PDF (Gemini 2.5 Flash es multimodal). Sin nuevo SDK
+      ni nueva cuenta de IA que facturar.</td>
+    </tr>
+    <tr>
+      <td><strong>Revisión</strong> <span class="pill">frontend · nuevo</span></td>
+      <td>Tabla: una fila por línea del remito, con el match propuesto
+      (editable) y la cantidad detectada (editable). Las líneas sin match
+      quedan resaltadas con buscador manual + opción de crear el material
+      ahí mismo. Nada se aplica hasta confirmar.</td>
+    </tr>
+    <tr>
+      <td><strong>Aplicación</strong> <span class="pill">backend · reusado</span></td>
+      <td>Al confirmar: alta de materiales nuevos vía
+      <span class="pill">materiales.create()</span> (si hizo falta) y
+      recepción real vía <span class="pill">compras.recibir()</span> —
+      ambos ya existen, sin tocarlos.</td>
+    </tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Decisiones tomadas</h2>
+  <table>
+    <tr>
+      <th style="width:35%">Decisión</th>
+      <th>Por qué</th>
+    </tr>
+    <tr>
+      <td><strong>Matching acotado a una orden de compra puntual</strong></td>
+      <td>No contra todo el catálogo de materiales. El universo de
+      candidatos por línea queda reducido a los pocos ítems de esa orden —
+      mucha más precisión, y confirma que lo que llegó coincide con lo que
+      se pidió.</td>
+    </tr>
+    <tr>
+      <td><strong>Entrada: foto Y PDF, ambas desde el arranque</strong></td>
+      <td>Foto cubre el caso del remito en papel que trae el transporte;
+      PDF cubre la factura que el proveedor manda por mail.</td>
+    </tr>
+    <tr>
+      <td><strong>Ítem sin match → crear material nuevo ahí mismo</strong></td>
+      <td>Mismo patrón que ya usa el flujo guiado de presupuestos del Panel
+      IA (<span class="pill">crear_material</span>) — no se pierde el
+      ítem ni obliga a salir del flujo para cargarlo a mano después.</td>
+    </tr>
+    <tr>
+      <td><strong>Reuso del provider Gemini existente</strong></td>
+      <td>Mismo <span class="pill">GEMINI_API_KEY</span>, mismo adapter. Sin
+      nuevo proveedor de IA que configurar o facturar por separado.</td>
+    </tr>
+    <tr>
+      <td><strong>Pantalla dedicada, no el chat del Panel IA</strong></td>
+      <td>Revisar y corregir 8-15 líneas en una ventana de chat angosta es
+      mala UX. Esto pide una tabla.</td>
+    </tr>
+    <tr>
+      <td><strong>Nunca auto-commit</strong></td>
+      <td>Extracción y matching son solo una propuesta. El usuario confirma
+      línea por línea antes de que se escriba nada — mismo principio que ya
+      rige las acciones del Panel IA.</td>
+    </tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Límites aceptados para esta versión</h2>
+  <ul>
+    <li><strong>Solo recepción de compras ya creadas</strong>: no cubre un
+    ingreso de depósito libre sin orden de compra asociada. Si hace falta
+    más adelante, es una extensión — no rompe esta arquitectura.</li>
+    <li><strong>Precisión depende de la calidad del documento</strong>: una
+    foto borrosa o una impresión térmica desteñida van a dar peores
+    extracciones. Se mitiga (no se elimina) mostrando siempre la propuesta
+    para revisión — nunca se aplica directo.</li>
+    <li><strong>Sin memoria entre remitos</strong>: cada matching es
+    independiente. El sistema no "aprende" que tal abreviatura de tal
+    proveedor siempre corresponde a tal material — podría sumarse en una
+    v2.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Cosas que NO entran en esta etapa</h2>
+  <p>
+    Esta etapa define <em>qué</em> hace la feature y la <em>forma</em> de la
+    solución. El <em>cómo</em> concreto (rutas de archivo, contrato exacto
+    del endpoint nuevo, los dos prompts de extracción/matching, formato del
+    nivel de confianza, manejo de errores de imagen ilegible o PDF corrupto,
+    diseño puntual de la tabla de revisión) se acuerda en la Etapa 2, una
+    vez aprobada esta.
+  </p>
+</section>
+
+<div class="meta">
+  Esperando aprobación para pasar a Etapa 2 (implementación).
+</div>
+
+</main>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral', flowchart: { curve: 'basis' } })
+</script>
+</body>
+</html>

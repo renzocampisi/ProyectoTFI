@@ -120,6 +120,8 @@ export const api = {
   delete:   (path)           => request(path, { method: 'DELETE' }),
   // postForm: para uploads multipart. body es un FormData ya armado por el
   // caller (ej. fd.append('archivo', file)). El header Content-Type lo deja
-  // que lo arme el browser para incluir el boundary correcto.
-  postForm: (path, formData) => request(path, { method: 'POST',   body: formData }),
+  // que lo arme el browser para incluir el boundary correcto. `opts` pasa
+  // por (ej. timeoutMs) igual que post() — necesario para uploads que además
+  // disparan una llamada a un LLM del otro lado (más lentos que un upload plano).
+  postForm: (path, formData, opts) => request(path, { ...(opts || {}), method: 'POST', body: formData }),
 }
