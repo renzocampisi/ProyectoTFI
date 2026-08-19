@@ -43,6 +43,12 @@ export default function UsuariosListPage() {
   const [confReset,  setConfReset]  = useState(null)     // confirm reset password
   const [errReset,   setErrReset]   = useState(null)
   const [loadingReset, setLoadingReset] = useState(false)
+  // Nueva contraseña a elección (solo para el ADMIN): solo DUEÑO/ADMIN llegan
+  // a esta pantalla (guard de router), así que ya queda acotado a "vos".
+  const [nuevaPassAdmin,   setNuevaPassAdmin]   = useState(null) // usuario admin objetivo
+  const [passInput,        setPassInput]        = useState('')
+  const [errNuevaPass,     setErrNuevaPass]     = useState(null)
+  const [loadingNuevaPass, setLoadingNuevaPass] = useState(false)
 
   const {
     listaOrdenada: usuariosOrdenados,
@@ -81,6 +87,29 @@ export default function UsuariosListPage() {
       setErrReset(err.message)
     } finally {
       setLoadingReset(false)
+    }
+  }
+
+  // Nueva contraseña a elección del ADMIN — mismo endpoint que el reset
+  // automático, pero mandando la password elegida en vez de dejar que el
+  // backend la autogenere.
+  const handleGuardarNuevaPass = async () => {
+    if (!nuevaPassAdmin || loadingNuevaPass) return
+    const pass = passInput.trim()
+    if (pass.length < 8) {
+      setErrNuevaPass('La contraseña debe tener al menos 8 caracteres.')
+      return
+    }
+    setErrNuevaPass(null)
+    setLoadingNuevaPass(true)
+    try {
+      await UsuariosService.resetPassword(nuevaPassAdmin.id, pass)
+      setNuevaPassAdmin(null)
+      setPassInput('')
+    } catch (err) {
+      setErrNuevaPass(err.message)
+    } finally {
+      setLoadingNuevaPass(false)
     }
   }
 
@@ -175,13 +204,24 @@ export default function UsuariosListPage() {
                           Editar
                         </button>
                       )}
-                      {u.activo && !esYo && (
+                      {/* El Admin conserva la llave incluso siendo "vos": es la
+                          cuenta especial de verificación y necesitás poder
+                          recuperarla si te olvidás la contraseña. Solo
+                          DUEÑO/ADMIN llegan a esta pantalla, así que ya
+                          está acotado a vos. */}
+                      {u.activo && (esUsuarioAdmin || !esYo) && (
                         <button className={styles.btnReset} onClick={() => setConfReset(u)}
-                          title="Resetear contraseña">
+                          title="Resetear contraseña (genera una al azar)">
                           🔑
                         </button>
                       )}
-                      {u.activo && !esYo && (
+                      {u.activo && esUsuarioAdmin && (
+                        <button className={styles.btnRow}
+                          onClick={() => { setNuevaPassAdmin(u); setPassInput(''); setErrNuevaPass(null) }}>
+                          Nueva contraseña
+                        </button>
+                      )}
+                      {u.activo && !esUsuarioAdmin && !esYo && (
                         <button className={styles.btnDesact} onClick={() => setConfDesact(u)}
                           title="Desactivar usuario">
                           🗑
@@ -278,6 +318,37 @@ export default function UsuariosListPage() {
               </button>
               <button className={styles.btnPrimary} onClick={handleResetPassword} disabled={loadingReset}>
                 {loadingReset ? 'Generando...' : 'Sí, generar nueva'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {nuevaPassAdmin && (
+        <div className={styles.confirmOverlay} onClick={() => !loadingNuevaPass && setNuevaPassAdmin(null)}>
+          <div className={styles.confirmCard} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.confirmTitle}>Nueva contraseña para {nuevaPassAdmin.nombre}</h3>
+            <p className={styles.confirmText}>
+              Elegí la contraseña nueva. La anterior deja de funcionar de inmediato.
+            </p>
+            <input
+              type="text"
+              className={styles.input}
+              placeholder="Mínimo 8 caracteres"
+              value={passInput}
+              onChange={e => setPassInput(e.target.value)}
+              disabled={loadingNuevaPass}
+              autoFocus
+            />
+            {errNuevaPass && <p className={styles.errorBanner}>⚠ {errNuevaPass}</p>}
+            <div className={styles.confirmActions}>
+              <button className={styles.btnGhost}
+                onClick={() => { setNuevaPassAdmin(null); setErrNuevaPass(null) }}
+                disabled={loadingNuevaPass}>
+                Cancelar
+              </button>
+              <button className={styles.btnPrimary} onClick={handleGuardarNuevaPass} disabled={loadingNuevaPass}>
+                {loadingNuevaPass ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
           </div>

@@ -225,6 +225,16 @@
 .confirmTitle { font-size: var(--text-lg); font-weight: 600; color: var(--text-primary); margin: 0; }
 .confirmText  { font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.6; margin: 0; }
 .confirmText strong { color: var(--text-primary); }
+.input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+.input:focus { outline: none; border-color: var(--color-primary); }
 .confirmActions {
   display: flex;
   gap: var(--space-3);

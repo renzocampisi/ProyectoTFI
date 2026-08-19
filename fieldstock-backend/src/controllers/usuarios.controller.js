@@ -67,9 +67,11 @@ export async function updateMe(req, res, next) {
 
 export async function resetPassword(req, res, next) {
   try {
-    // Guard: el dueño no puede resetearse a sí mismo via este endpoint
-    // (debería usar el flujo de "olvidé mi password" desde el login).
-    if (req.params.id === req.user.id) {
+    // Guard: nadie puede resetearse a sí mismo via este endpoint, EXCEPTO el
+    // ADMIN — es la cuenta especial de verificación y necesita poder
+    // recuperarse a sí misma si se pierde el acceso. El DUEÑO sigue teniendo
+    // que usar el flujo de "olvidé mi password" desde el login.
+    if (req.params.id === req.user.id && req.user.role !== 'ADMIN') {
       return res.status(400).json({ ok: false, error: 'Para cambiar tu propia password usá la opción desde tu perfil' })
     }
     // Body opcional `{ password }`. Si no viene, el service autogenera.
