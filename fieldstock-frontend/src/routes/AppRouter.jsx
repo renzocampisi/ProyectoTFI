@@ -28,6 +28,7 @@ import ObrasDetailPage from '@modules/m4-obra/pages/ObrasDetailPage'
 import ObrasEditPage   from '@modules/m4-obra/pages/ObrasEditPage'
 
 import RemitosListPage   from '@modules/m5-remito/pages/RemitosListPage'
+import ArmadoPage        from '@modules/m-armado/pages/ArmadoPage'
 import RemitosNewPage    from '@modules/m5-remito/pages/RemitosNewPage'
 import RemitosDetailPage from '@modules/m5-remito/pages/RemitosDetailPage'
 
@@ -131,6 +132,10 @@ export default function AppRouter() {
             <Route path="nuevo" element={<RemitosNewPage />} />
             <Route path=":id"   element={<RemitosDetailPage />} />
           </Route>
+
+          {/* Kits de Montaje — arma presupuesto o remito describiendo el
+              tramo en lenguaje natural (ver _plans/kits-montaje/). */}
+          <Route path="armado" element={<ArmadoPage />} />
 
           <Route path="materiales">
             <Route index             element={<MateriasListPage />} />

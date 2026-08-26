@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kits de Montaje — Etapa 1: Arquitectura</title>
+<style>
+  :root {
+    --ink:   #1a1a1a;
+    --muted: #6b6b6b;
+    --line:  #e6e6e6;
+    --card:  #fafafa;
+    --accent:#3b6eea;
+    --warn:  #b07b00;
+    --ok:    #16a34a;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    margin: 0;
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  main { max-width: 720px; margin: 56px auto 80px; padding: 0 24px; }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 26px;
+    margin: 0 0 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header .sub { color: var(--muted); font-size: 14px; }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 18px 0;
+  }
+  section.card > h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    font-weight: 600;
+  }
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  ul { padding-left: 18px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  strong { color: var(--ink); }
+  em.quote { color: var(--muted); font-style: italic; }
+  .pill {
+    display: inline-block;
+    background: #eef3ff;
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .pill-ok   { background: #e9f9ef; color: var(--ok); }
+  .pill-warn { background: #fff5e0; color: var(--warn); }
+  .diagram-card { padding: 18px; background: #fff; }
+  .mermaid { font-family: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 14px; }
+  th, td {
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    padding: 8px 6px;
+    vertical-align: top;
+  }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: #f4f7ff;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 14px 0;
+    font-size: 14px;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fffaf0; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1fbf5; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 28px; text-align: center; }
+  @media print {
+    body { font-size: 13px; }
+    main { margin: 0 auto; padding: 0 16px; }
+    section.card { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="eyebrow">FieldStock AI · Liber-Plan · Etapa 1 de 2 · rev. 2</div>
+  <h1>Kits de Montaje</h1>
+  <div class="sub">Armado de remitos y presupuestos por descripción en lenguaje natural</div>
+</header>
+
+<section class="card">
+  <h2>Problema</h2>
+  <p>
+    Cargar un remito para una línea de aire comprimido o vapor implica
+    seleccionar a mano docenas de ítems chicos — caños, codos, cuplas,
+    niples, bridas, juntas, bulones, sellador. Es tedioso, lento y es fácil
+    olvidarse una pieza, que después falta en obra.
+  </p>
+  <p>
+    La meta: elegir para qué obra es y si va a presupuesto o a remito,
+    describir el tramo en una sola frase —
+    <em class="quote">"3 metros de caño Sch 40 de 2 pulgadas, 2 codos de 90,
+    una válvula esférica de 2 pulgadas"</em> — y que el sistema arme el
+    desglose solo, resolviendo contra el catálogo real.
+  </p>
+</section>
+
+<section class="card">
+  <h2>La decisión que define la forma</h2>
+  <p>
+    El pedido original hablaba de que la IA <em>estimara</em> el desglose a
+    partir de parámetros (<em class="quote">"ramal de vapor de 2 pulgadas,
+    18 metros"</em> → calcular cuántos codos y soportes).
+    <strong>Ese camino queda descartado</strong>: no existe una fórmula real
+    que aplique, porque las cañerías no son estándar ni cumplen todas la
+    misma especificación técnica. Una fórmula inventada daría números
+    plausibles pero incorrectos, y el error sale caro.
+  </p>
+  <p>
+    En cambio, <strong>vos enunciás las cantidades</strong> y la IA solo
+    entiende la frase y resuelve cada ítem contra el catálogo. La IA nunca
+    decide <em>cuánto</em> lleva algo. Eso elimina por completo la capa de
+    motor de reglas — la parte más pesada y frágil que iba a tener esta
+    feature.
+  </p>
+  <div class="callout">
+    <strong>Consecuencia:</strong> el corazón de esto es casi el mismo patrón
+    que <strong>Scan &amp; Match</strong> (ya en producción), cambiando la
+    entrada: texto dictado o escrito, en vez de la foto de un remito.
+    Extracción estructurada → matcheo contra catálogo → revisión humana →
+    confirmación.
+  </div>
+</section>
+
+<section class="card diagram-card">
+  <h2 style="padding: 0 6px;">Flujo completo</h2>
+  <pre class="mermaid">
+flowchart TB
+    U([Usuario]) --> P1{"1· ¿Para qué obra?"}
+    P1 -->|obra existente| P2
+    P1 -->|obra nueva| NUEVA[Se crea la obra] --> P2
+    P2{"2· ¿Presupuesto<br/>o remito?"}
+
+    P2 -->|presupuesto| DICT1[3· Describe el tramo]
+    P2 -->|remito| DICT2[3· Describe el tramo]
+
+    DICT1 --> IA1[IA extrae líneas<br/>+ matchea catálogo]
+    DICT2 --> IA2[IA extrae líneas<br/>+ matchea catálogo]
+
+    IA1 --> REV1[4· Revisión editable]
+    IA2 --> CLAS{Clasifica por stock}
+
+    CLAS -->|hay stock| OK1[/al remito/]
+    CLAS -->|"stock parcial<br/>pedís 10, hay 4"| SPLIT[/4 al remito<br/>6 a comprar/]
+    CLAS -->|"sin stock o<br/>no está en catálogo"| FALTA[/a comprar/]
+    OK1 --> REV2[4· Revisión editable]
+    SPLIT --> REV2
+    FALTA --> REV2
+
+    REV1 -->|confirma| PRES[(Presupuesto<br/>BORRADOR)]
+    REV2 -->|confirma| REM[(Remito BORRADOR)]
+    REV2 -->|confirma| OC[(Orden de compra<br/>BORRADOR)]
+
+    PRES -.->|"se aprueba"| YA["RPC aprobar_presupuesto<br/>YA EXISTE"]
+    YA -.->|"copia los insumos<br/>automáticamente"| REM
+    REM -.->|"después, a mano"| HERR[Se anexan<br/>las herramientas]
+
+    style YA fill:#e9f9ef,stroke:#16a34a
+  </pre>
+</section>
+
+<section class="card">
+  <h2>El puente presupuesto → remito ya está construido</h2>
+  <div class="callout ok">
+    <p style="margin-bottom:8px">
+      Pediste que <em class="quote">"si es para un presupuesto, y el mismo se
+      aprueba, automáticamente pase esa lista de materiales al borrador del
+      remito, para luego anexar las herramientas"</em>.
+    </p>
+    <p style="margin-bottom:0">
+      <strong>Eso ya funciona hoy.</strong> Aprobar un presupuesto dispara
+      una operación transaccional en la base que crea un remito en
+      <span class="pill">BORRADOR</span> a nombre de esa obra, le copia todos
+      los insumos del presupuesto como materiales, y devuelve el remito
+      generado para que el sistema te lleve directo ahí. Como queda en
+      BORRADOR, las herramientas se anexan después con los medios que ya
+      existen.
+    </p>
+  </div>
+  <p style="font-size:14px">
+    O sea que esta feature <strong>no construye ese puente</strong>: solo
+    tiene que dejar el presupuesto bien armado y el resto del camino ya está
+    hecho. Es la mitad del trabajo que parecía tener tu agregado.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Los dos primeros pasos: el contexto</h2>
+  <p>
+    Antes de describir nada, el asistente pregunta dos cosas. Esto es lo que
+    sumaste y cambia el punto de entrada: ya no arranca dentro de un remito
+    que existe, sino que el contexto se define primero.
+  </p>
+  <table>
+    <tr><th style="width:26%">Paso</th><th>Qué resuelve</th></tr>
+    <tr>
+      <td><strong>1 · Obra</strong></td>
+      <td>Elegís una obra existente o creás una nueva ahí mismo. Es
+      obligatorio para presupuestos (van siempre asociados a una obra) y
+      define a nombre de quién sale el remito.</td>
+    </tr>
+    <tr>
+      <td><strong>2 · Destino</strong></td>
+      <td><strong>Presupuesto</strong> si primero hay que cotizarlo, o
+      <strong>remito</strong> si el material sale ya. Esta elección define
+      todo lo que sigue.</td>
+    </tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Por qué el destino cambia el comportamiento</h2>
+  <p>
+    La diferencia clave: <strong>el reparto por stock solo tiene sentido en
+    un remito</strong>. Un presupuesto es una cotización — no mueve material,
+    así que no importa si hay o no en depósito al momento de armarlo.
+  </p>
+  <table>
+    <tr>
+      <th style="width:22%">Destino</th>
+      <th>Qué pasa con las líneas</th>
+    </tr>
+    <tr>
+      <td><strong>Presupuesto</strong></td>
+      <td>Todas las líneas entran como insumos, sin mirar stock. Cuando se
+      apruebe, el sistema arma el remito solo — y recién <em>ahí</em>
+      aparece qué falta comprar, por el camino que ya existe.</td>
+    </tr>
+    <tr>
+      <td><strong>Remito</strong></td>
+      <td>Se aplica el reparto por disponibilidad (abajo), porque acá sí se
+      está sacando material del depósito.</td>
+    </tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2>El reparto por disponibilidad (solo destino remito)</h2>
+  <table>
+    <tr><th style="width:38%">Situación</th><th>Qué pasa</th></tr>
+    <tr>
+      <td>Está en el catálogo y hay stock de sobra</td>
+      <td>Entra completo <strong>al remito</strong>.</td>
+    </tr>
+    <tr>
+      <td>Está en el catálogo pero no alcanza<br/><span style="color:var(--muted);font-size:13px">(pedís 10, hay 4)</span></td>
+      <td><strong>Se parte la línea</strong>: las 4 que hay salen al remito,
+      las 6 que faltan van a la orden de compra. La obra arranca con lo que
+      hay.</td>
+    </tr>
+    <tr>
+      <td>Está en el catálogo pero el stock es cero</td>
+      <td>Va entero <strong>a la orden de compra</strong>.</td>
+    </tr>
+    <tr>
+      <td>No existe en el catálogo</td>
+      <td>Va <strong>a la orden de compra</strong>, y se da de alta el
+      material nuevo al confirmar.</td>
+    </tr>
+  </table>
+  <p style="margin-top:14px">
+    Todo es una <strong>propuesta</strong>: tabla editable donde corregís el
+    material asignado, cambiás cantidades, movés una línea de un lado al
+    otro o la descartás. Nada se escribe hasta que confirmás.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Qué se reusa</h2>
+  <table>
+    <tr><th style="width:38%">Pieza</th><th>Estado</th></tr>
+    <tr>
+      <td><strong>Puente presupuesto → remito</strong></td>
+      <td>Ya existe y hace exactamente lo pedido. <span class="pill pill-ok">sin cambios</span></td>
+    </tr>
+    <tr>
+      <td><strong>Alta de obras</strong></td>
+      <td>Ya existe; se invoca desde el paso 1. <span class="pill pill-ok">sin cambios</span></td>
+    </tr>
+    <tr>
+      <td><strong>Adapter de Gemini con salida estructurada</strong></td>
+      <td>De la feature anterior. <span class="pill pill-ok">sin cambios</span></td>
+    </tr>
+    <tr>
+      <td><strong>Carga a remito / presupuesto / orden de compra</strong></td>
+      <td>Los tres ya validan y persisten bien. <span class="pill pill-ok">sin cambios</span></td>
+    </tr>
+    <tr>
+      <td><strong>Matcheo contra catálogo</strong></td>
+      <td>Resuelto en Scan &amp; Match; cambia el universo de candidatos
+      (el catálogo entero en vez de los ítems de una orden).
+      <span class="pill pill-warn">adaptar</span></td>
+    </tr>
+    <tr>
+      <td><strong>Kits existentes</strong></td>
+      <td>Sirven tal cual para guardar un armado y repetirlo después.
+      <span class="pill pill-ok">sin cambios</span></td>
+    </tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Punto abierto: el proveedor de la orden de compra</h2>
+  <div class="callout warn">
+    <p style="margin-bottom:8px">
+      Dijiste <em class="quote">"luego yo completo dónde se va a realizar la
+      compra"</em>, o sea que preferís no elegir proveedor en el momento.
+      Pero hoy el sistema <strong>exige un proveedor para crear una orden de
+      compra</strong>.
+    </p>
+    <p style="margin-bottom:0">
+      <strong>Propuesta:</strong> en la revisión, si hay faltantes, un
+      selector de proveedor con opción <em>"decidir después"</em>. Con
+      proveedor elegido se crea la orden en BORRADOR; con "decidir después"
+      se te muestran los faltantes en pantalla sin crear nada. No te obliga,
+      y no toca el modelo de datos de Compras.
+    </p>
+  </div>
+  <p style="font-size:14px;color:var(--muted)">
+    La alternativa —permitir órdenes de compra sin proveedor— toca el schema
+    y afecta a todo el módulo de Compras, no solo a esta feature.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Límites aceptados para esta versión</h2>
+  <ul>
+    <li><strong>La IA no estima cantidades, nunca</strong>: solo interpreta
+    las que enunciás. Si decís "un ramal de 18 metros" sin detallar piezas,
+    devuelve esa sola línea — no inventa los codos.</li>
+    <li><strong>Solo materiales, no herramientas</strong>: el desglose de un
+    tramo son consumibles. Las herramientas se anexan después por los medios
+    actuales (kit o buscador), sobre el remito ya armado.</li>
+    <li><strong>Dictado por voz sujeto al navegador</strong>: anda bien en
+    Chrome/Android, despareja en otros. Escribir siempre funciona.</li>
+    <li><strong>Sin memoria entre usos</strong>: cada frase se interpreta de
+    cero. Para repetir un armado, se guarda como kit.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Cosas que NO entran en esta etapa</h2>
+  <p>
+    Esta etapa define <em>qué</em> hace la feature y la <em>forma</em> de la
+    solución. El <em>cómo</em> concreto (rutas de archivo, contrato de los
+    endpoints, el prompt de extracción, cómo se busca el candidato en un
+    catálogo grande, el diseño puntual del asistente y la tabla de revisión)
+    se acuerda en la Etapa 2.
+  </p>
+</section>
+
+<div class="meta">
+  Esperando aprobación para pasar a Etapa 2 (implementación).
+</div>
+
+</main>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral', flowchart: { curve: 'basis' } })
+</script>
+</body>
+</html>

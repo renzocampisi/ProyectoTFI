@@ -5,7 +5,7 @@ import {
   LuHouse, LuWrench, LuPackage, LuArchive, LuClipboardList, LuConstruction,
   LuQrCode, LuTruck, LuBuilding2, LuFactory, LuShoppingCart, LuCreditCard,
   LuSparkles, LuUsers, LuSettings, LuSun, LuMoon, LuUser, LuLogOut, LuChevronDown,
-  LuRadar,
+  LuRadar, LuListChecks,
 } from 'react-icons/lu'
 import { useAuth } from '@shared/hooks/useAuth'
 import { useTema } from '@shared/hooks/useTema'
@@ -31,9 +31,10 @@ const DEPOSITO_ITEMS = [
 ]
 
 const OPERATIVO_ITEMS = [
-  { to: '/remitos', label: 'Remitos',     icon: LuClipboardList, activo: true },
-  { to: '/obras',   label: 'Obras',       icon: LuConstruction,  activo: true },
-  { to: '/qr',      label: 'Escanear QR', icon: LuQrCode,        activo: true },
+  { to: '/remitos', label: 'Remitos',        icon: LuClipboardList, activo: true },
+  { to: '/armado',  label: 'Kits de Montaje', icon: LuListChecks,   activo: true },
+  { to: '/obras',   label: 'Obras',          icon: LuConstruction,  activo: true },
+  { to: '/qr',      label: 'Escanear QR',    icon: LuQrCode,        activo: true },
 ]
 
 const DIRECTORIO_ITEMS = [
