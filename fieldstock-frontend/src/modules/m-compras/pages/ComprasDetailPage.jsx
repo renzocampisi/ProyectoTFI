@@ -21,6 +21,7 @@ import { ComprasService } from '../services/compras.service'
 import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
 import EstadoBadge from '../components/EstadoBadge'
 import RecepcionModal from '../components/RecepcionModal'
+import ScanMatchModal from '../components/ScanMatchModal'
 import ComprobantePagoCard from '../components/ComprobantePagoCard'
 import {
   MEDIO_PAGO_LABEL, MONEDA_LABEL, formatFecha, formatFechaHora, formatMoney,
@@ -225,6 +226,7 @@ export default function ComprasDetailPage() {
   const [accionando,      setAccionando]      = useState(false)
   const [errAccion,       setErrAccion]       = useState(null)
   const [showRecepcion,   setShowRecepcion]   = useState(false)
+  const [showScanMatch,   setShowScanMatch]   = useState(false)
 
   // ── Edición de items (solo BORRADOR) ────────────────────────
   // Form mini de "Agregar item" se muestra/oculta inline al pie de la tabla.
@@ -337,6 +339,10 @@ export default function ComprasDetailPage() {
     await refetch()
   }
 
+  // ScanMatchModal se cierra solo (tiene su propio paso "éxito") — acá solo
+  // refrescamos el detalle para reflejar cantidad_recibida + stock nuevos.
+  const handleScanMatchSuccess = () => { refetch() }
+
   const handleAvanzar = async () => {
     if (accionando) return
     setAccionando(true); setErrAccion(null)
@@ -360,7 +366,14 @@ export default function ComprasDetailPage() {
     finally { setAccionando(false) }
   }
 
-  if (loading) {
+  // Solo el load inicial pinta el skeleton de página completa. Un refetch
+  // en segundo plano (después de recibir, confirmar, etc.) también pasa
+  // loading=true, pero acá NO hay que reemplazar el árbol — eso desmontaría
+  // cualquier modal abierto que dependa de refetch() para refrescar sin
+  // cerrarse (ScanMatchModal, que muestra su propio paso "éxito" después de
+  // confirmar: si este guard corriera en cada refetch, lo desmontaría antes
+  // de que el usuario llegue a verlo — bug encontrado probando en vivo).
+  if (loading && !compra) {
     return (
       <div className={styles.page}>
         <div className={styles.loading}>
@@ -674,6 +687,13 @@ export default function ComprasDetailPage() {
                   Registrar recepción
                 </button>
               )}
+              {acciones.recibir && (
+                <button type="button" className={styles.btnGhost}
+                  onClick={() => setShowScanMatch(true)}
+                  disabled={accionando}>
+                  📷 Cargar remito del proveedor
+                </button>
+              )}
             </div>
           </section>
         )
@@ -716,6 +736,13 @@ export default function ComprasDetailPage() {
           compra={compra}
           onClose={() => setShowRecepcion(false)}
           onSuccess={handleRecepcionSuccess} />
+      )}
+
+      {showScanMatch && (
+        <ScanMatchModal
+          compra={compra}
+          onClose={() => setShowScanMatch(false)}
+          onSuccess={handleScanMatchSuccess} />
       )}
 
       {/* ── Modal cancelar ──────────────────────────────────── */}

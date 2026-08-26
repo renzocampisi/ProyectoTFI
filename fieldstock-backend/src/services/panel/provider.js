@@ -45,6 +45,13 @@ function getClient() {
  *                                     [{ role: 'user'|'model', parts: [...] }]
  * @param {Array=}  params.tools     - Array de function declarations Gemini:
  *                                     [{ name, description, parameters }]
+ * @param {object=} params.responseSchema - JSON Schema (mismo subset que
+ *                                     `tools[].parameters`) para forzar salida
+ *                                     estructurada. Si viene, el modelo
+ *                                     devuelve JSON crudo en `text` en vez de
+ *                                     prosa — el caller lo parsea. Opcional:
+ *                                     los callers existentes (panel.service)
+ *                                     no lo usan y no cambian de comportamiento.
  * @returns {Promise<{ text: string|null, functionCalls: Array<{ id?, name, args }> }>}
  *
  * Shape de salida estable:
@@ -55,11 +62,15 @@ function getClient() {
  * `.status` mapeado para el errorHandler. Sin reintentos automaticos:
  * un fallo se reporta al usuario y este reformula.
  */
-export async function chat({ system, contents, tools }) {
+export async function chat({ system, contents, tools, responseSchema }) {
   const client = getClient()
   const config = { systemInstruction: system }
   if (tools && tools.length) {
     config.tools = [{ functionDeclarations: tools }]
+  }
+  if (responseSchema) {
+    config.responseMimeType = 'application/json'
+    config.responseSchema   = responseSchema
   }
 
   let response

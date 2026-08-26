@@ -49,4 +49,17 @@ export const ComprasService = {
     return api.postForm(`/compras/${id}/comprobante`, fd)
   },
   deleteComprobante: (id) => api.delete(`/compras/${id}/comprobante`),
+
+  // Scan & Match: lee un remito/factura de proveedor y propone el matching
+  // contra los items de esta compra. proponer() es multipart (foto o PDF);
+  // confirmar() aplica la propuesta ya revisada. Ver scanMatch.service.js
+  // del backend para el contrato completo.
+  // timeoutMs alto porque el backend hace una llamada a Gemini con la
+  // imagen/PDF adjunto antes de responder (mismo criterio que panel.service.js).
+  scanMatchProponer: (id, file) => {
+    const fd = new FormData()
+    fd.append('archivo', file)
+    return api.postForm(`/compras/${id}/scan-match`, fd, { timeoutMs: 60_000 })
+  },
+  scanMatchConfirmar: (id, items) => api.post(`/compras/${id}/scan-match/confirmar`, { items }),
 }

@@ -43,6 +43,7 @@ import * as PresupuestosCtrl    from '../controllers/presupuestos.controller.js'
 import * as ConfigCtrl          from '../controllers/config.controller.js'
 import * as EmpresaCtrl         from '../controllers/empresa.controller.js'
 import * as PanelCtrl           from '../controllers/panel.controller.js'
+import * as ScanMatchCtrl       from '../controllers/scanMatch.controller.js'
 import * as PlanesCtrl          from '../controllers/planes.controller.js'
 import * as SuscripcionCtrl     from '../controllers/suscripcion.controller.js'
 import * as AddonsCtrl          from '../controllers/addons.controller.js'
@@ -286,6 +287,22 @@ router.post  ('/compras/:id/comprobante',
                 requireRole(ROLES_OPERATIVOS),
                 uploadComprobante.single('archivo'),  ComprasCtrl.uploadComprobante)
 router.delete('/compras/:id/comprobante',            requireRole(ROLES_OPERATIVOS), ComprasCtrl.deleteComprobante)
+
+// Scan & Match: lee un remito/factura de proveedor (foto o PDF) y propone el
+// matching contra los items de ESTA compra puntual. Mismo patrón multer que
+// el comprobante; límite un poco mayor porque puede venir un PDF de varias
+// páginas. Restringido a ROLES_OPERATIVOS — a diferencia de /recibir (sin
+// guard hoy), esta ruta dispara una llamada paga a Gemini y puede dar de
+// alta materiales nuevos.
+const uploadScanMatch = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+})
+router.post('/compras/:id/scan-match',
+                requireRole(ROLES_OPERATIVOS),
+                uploadScanMatch.single('archivo'), ScanMatchCtrl.proponer)
+router.post('/compras/:id/scan-match/confirmar',
+                requireRole(ROLES_OPERATIVOS),      ScanMatchCtrl.confirmar)
 
 // ── Presupuestos ──────────────────────────────────────────────
 // Lista/detalle/CRUD para DUEÑO, ADMIN y ENCARGADO. Aprobar/rechazar
