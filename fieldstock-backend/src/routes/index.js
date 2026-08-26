@@ -44,6 +44,7 @@ import * as ConfigCtrl          from '../controllers/config.controller.js'
 import * as EmpresaCtrl         from '../controllers/empresa.controller.js'
 import * as PanelCtrl           from '../controllers/panel.controller.js'
 import * as ScanMatchCtrl       from '../controllers/scanMatch.controller.js'
+import * as ArmadoCtrl          from '../controllers/armado.controller.js'
 import * as PlanesCtrl          from '../controllers/planes.controller.js'
 import * as SuscripcionCtrl     from '../controllers/suscripcion.controller.js'
 import * as AddonsCtrl          from '../controllers/addons.controller.js'
@@ -180,6 +181,14 @@ router.get   ('/kits/:id', KitsCtrl.getById)
 router.put   ('/kits/:id', KitsCtrl.update)
 router.delete('/kits/:id', KitsCtrl.remove)
 router.post  ('/remitos/:remitoId/kits/:kitId', KitsCtrl.agregarARemito)
+
+// ── Kits de Montaje (armado por descripción en lenguaje natural) ─
+// La IA solo interpreta la frase y matchea contra el catálogo; nunca
+// estima cantidades (ver _plans/kits-montaje/). Restringido a
+// ROLES_OPERATIVOS: dispara una llamada paga a Gemini y puede crear obras,
+// materiales, presupuestos, remitos y órdenes de compra.
+router.post('/armado/interpretar', requireRole(ROLES_OPERATIVOS), ArmadoCtrl.interpretar)
+router.post('/armado/confirmar',   requireRole(ROLES_OPERATIVOS), ArmadoCtrl.confirmar)
 
 // ── Materiales ────────────────────────────────────────────────
 // IMPORTANTE: rutas literales antes de las paramétricas (ej. /marcas

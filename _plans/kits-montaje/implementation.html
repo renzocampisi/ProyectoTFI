@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kits de Montaje — Etapa 2: Implementación</title>
+<style>
+  :root {
+    --ink:   #1a1a1a;
+    --muted: #6b6b6b;
+    --line:  #e6e6e6;
+    --card:  #fafafa;
+    --accent:#3b6eea;
+    --warn:  #b07b00;
+    --ok:    #16a34a;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    margin: 0;
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  main { max-width: 720px; margin: 56px auto 80px; padding: 0 24px; }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 26px;
+    margin: 0 0 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header .sub { color: var(--muted); font-size: 14px; }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 18px 0;
+  }
+  section.card > h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    font-weight: 600;
+  }
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  ul, ol { padding-left: 18px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  strong { color: var(--ink); }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.9em;
+    background: #eef0f3;
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  .pill {
+    display: inline-block;
+    background: #eef3ff;
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .pill-ok { background: #e9f9ef; color: var(--ok); }
+  .diagram-card { padding: 18px; background: #fff; }
+  .mermaid { font-family: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 14px; }
+  th, td {
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    padding: 8px 6px;
+    vertical-align: top;
+  }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .step {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 10px 0;
+    background: #fff;
+  }
+  .step .num {
+    display: inline-block;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    text-align: center;
+    line-height: 22px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-right: 8px;
+  }
+  .step .file { display: block; margin-top: 6px; font-size: 13px; }
+  .step .verify {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--line);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .grupo {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+    margin: 20px 0 4px;
+  }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 28px; text-align: center; }
+  @media print {
+    body { font-size: 13px; }
+    main { margin: 0 auto; padding: 0 16px; }
+    section.card { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="eyebrow">FieldStock AI · Liber-Plan · Etapa 2 de 2</div>
+  <h1>Kits de Montaje</h1>
+  <div class="sub">Implementación · arquitectura aprobada</div>
+</header>
+
+<section class="card">
+  <h2>Patrones de diseño</h2>
+  <table>
+    <tr><th style="width:30%">Patrón</th><th>Aplicación</th></tr>
+    <tr>
+      <td><strong>Controller → Service</strong></td>
+      <td>Toda la lógica (armar el prompt, clasificar por stock, orquestar
+      la confirmación) vive en <code>armado.service.js</code>. El controller
+      solo lee <code>req.body</code> y delega.</td>
+    </tr>
+    <tr>
+      <td><strong>Composición sobre servicios existentes</strong></td>
+      <td>El service nuevo no escribe una sola query propia de negocio:
+      compone <code>obras.create</code>, <code>presupuestos.create</code> +
+      <code>addInsumo</code>, <code>remitos.create</code> +
+      <code>addMaterial</code>, <code>compras.create</code> y
+      <code>materiales.create</code>. Todos ya validan lo suyo.</td>
+    </tr>
+    <tr>
+      <td><strong>Validar todo antes de escribir</strong></td>
+      <td>Mismo criterio que <code>kits.agregarARemito</code>: se chequea
+      disponibilidad de <em>todas</em> las líneas antes de insertar ninguna,
+      para no dejar un remito a medio armar si una falla.</td>
+    </tr>
+    <tr>
+      <td><strong>Adapter de Gemini, sin tocar</strong></td>
+      <td><code>panel/provider.js</code> ya acepta
+      <code>responseSchema</code> desde Scan &amp; Match. Se usa tal cual —
+      cero cambios en el adapter esta vez.</td>
+    </tr>
+    <tr>
+      <td><strong>Hook por módulo</strong></td>
+      <td><code>useArmado</code> encapsula los llamados a <code>api.*</code>
+      y la máquina de pasos del asistente. El componente no llama a
+      <code>api</code> directo.</td>
+    </tr>
+    <tr>
+      <td><strong>CSS Modules</strong></td>
+      <td>Un <code>.module.css</code> por página/componente, sin estilos
+      inline para layout.</td>
+    </tr>
+  </table>
+</section>
+
+<section class="card diagram-card">
+  <h2 style="padding: 0 6px;">Secuencia</h2>
+  <pre class="mermaid">
+sequenceDiagram
+    actor U as Usuario
+    participant W as ArmadoPage (wizard)
+    participant BE as armado.service
+    participant G as Gemini
+    participant S as Servicios existentes
+
+    U->>W: paso 1 · elige obra (o crea una nueva)
+    U->>W: paso 2 · elige destino (presupuesto o remito)
+    U->>W: paso 3 · describe el tramo (texto o dictado)
+    W->>BE: POST /armado/interpretar
+    BE->>S: lee catálogo de materiales
+    BE->>G: texto + catálogo · responseSchema
+    G-->>BE: líneas con cantidad, unidad y material sugerido
+    BE->>BE: si destino=remito, clasifica por stock
+    BE-->>W: propuesta (nada escrito)
+    W->>U: paso 4 · tabla editable
+    U->>W: ajusta y confirma
+    W->>BE: POST /armado/confirmar
+    BE->>BE: valida TODAS las líneas primero
+    alt destino presupuesto
+        BE->>S: presupuestos.create + addInsumo por línea
+    else destino remito
+        BE->>S: remitos.create + addMaterial (lo disponible)
+        BE->>S: compras.create + addItem (lo faltante)
+    end
+    BE-->>W: ids creados
+    W->>U: enlaces al presupuesto / remito / orden de compra
+  </pre>
+</section>
+
+<section class="card">
+  <h2>Riesgos puntuales</h2>
+  <ul>
+    <li><strong>El catálogo entero va en el prompt.</strong> En Scan &amp;
+    Match el universo eran los pocos ítems de una orden; acá son todos los
+    materiales. Hoy son ~21 y entran cómodos, pero si crece a cientos el
+    prompt se infla y el matcheo empeora. Se manda completo con un tope
+    (~200); pasado eso, hay que prefiltrar por palabras del texto antes de
+    llamar al modelo. Queda documentado como límite conocido, no se
+    resuelve ahora.</li>
+
+    <li><strong><code>presupuesto_insumos</code> exige
+    <code>precio_unitario</code>.</strong> No lo tenemos del texto dictado.
+    Se resuelve con <code>materiales.getPrecioReferencia()</code> —que ya
+    existe y devuelve el precio de la última compra o el de referencia— y
+    cae a <code>0</code> si el material nunca se compró. El usuario lo
+    corrige en el presupuesto, que ya permite editarlo.</li>
+
+    <li><strong>Carrera entre proponer y confirmar.</strong> El stock puede
+    cambiar entre que se arma la propuesta y que se confirma.
+    <code>addMaterial</code> revalida y falla, pero si eso pasa a mitad de
+    la carga el remito queda incompleto. Por eso la confirmación revalida
+    <em>todas</em> las líneas antes de insertar la primera.</li>
+
+    <li><strong>Un remito nuevo necesita <code>responsable</code>.</strong>
+    El wizard no lo pide. Se usa el mismo placeholder que ya usa la RPC de
+    aprobación de presupuestos (<code>'-- por completar --'</code>), para
+    que ambos caminos se comporten igual y el usuario lo complete después
+    en el detalle.</li>
+
+    <li><strong>Una orden de compra exige proveedor.</strong> Resuelto en la
+    revisión con un selector que incluye <em>"decidir después"</em>: sin
+    proveedor no se crea la orden, solo se listan los faltantes en
+    pantalla.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Pasos ordenados</h2>
+
+  <div class="grupo">Backend</div>
+
+  <div class="step">
+    <span class="num">1</span><strong>Service de armado</strong>
+    <span class="file">📄 <code>fieldstock-backend/src/services/armado.service.js</code> <span class="pill">nuevo</span></span>
+    <p style="margin-top:8px">
+      <code>interpretar({ texto, destino })</code>: lee el catálogo de
+      materiales, arma el prompt con esa lista como universo de candidatos,
+      llama a <code>Provider.chat</code> con <code>responseSchema</code>
+      (líneas con descripción, cantidad, unidad, material sugerido y nivel
+      de confianza). Si <code>destino === 'REMITO'</code>, clasifica cada
+      línea por stock — completo / parcial con el corte / faltante — y si es
+      <code>'PRESUPUESTO'</code> las devuelve todas sin clasificar. Defensivo
+      igual que Scan &amp; Match: un <code>materialId</code> alucinado que no
+      esté en el catálogo se trata como "sin match".
+    </p>
+    <p>
+      <code>confirmar(payload)</code>: revalida todas las líneas, resuelve
+      la obra (usa la existente o crea una), y según el destino compone los
+      servicios existentes. Devuelve los ids creados.
+    </p>
+    <div class="verify">Verificación: tests unitarios mockeando el provider
+    y los services (mismo estilo que <code>scanMatch.service.test.js</code>).
+    Casos: destino presupuesto, destino remito con split parcial, material
+    inexistente, obra nueva, y el rechazo cuando el stock cambió.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">2</span><strong>Controller</strong>
+    <span class="file">📄 <code>fieldstock-backend/src/controllers/armado.controller.js</code> <span class="pill">nuevo</span></span>
+    <p style="margin-top:8px">Thin, dos handlers: <code>interpretar</code> y
+    <code>confirmar</code>.</p>
+  </div>
+
+  <div class="step">
+    <span class="num">3</span><strong>Rutas</strong>
+    <span class="file">📄 <code>fieldstock-backend/src/routes/index.js</code></span>
+    <p style="margin-top:8px">
+      <code>POST /armado/interpretar</code> y
+      <code>POST /armado/confirmar</code>, ambas con
+      <code>requireRole(ROLES_OPERATIVOS)</code> — mismo criterio que Scan
+      &amp; Match: dispara una llamada paga a Gemini y puede crear obras,
+      materiales y órdenes de compra.
+    </p>
+    <div class="verify">Verificación: <code>npm test --prefix fieldstock-backend</code>
+    en verde (280 actuales + los nuevos).</div>
+  </div>
+
+  <div class="grupo">Frontend</div>
+
+  <div class="step">
+    <span class="num">4</span><strong>Service HTTP</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/modules/m-armado/services/armado.service.js</code> <span class="pill">nuevo</span></span>
+    <p style="margin-top:8px">
+      Dos métodos. <code>interpretar</code> con
+      <code>timeoutMs: 60_000</code> — el default de 15s no alcanza para una
+      llamada a Gemini, lección de la feature anterior.
+    </p>
+  </div>
+
+  <div class="step">
+    <span class="num">5</span><strong>Hook del asistente</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/modules/m-armado/hooks/useArmado.js</code> <span class="pill">nuevo</span></span>
+    <p style="margin-top:8px">
+      Máquina de pasos: <code>obra → destino → describir → interpretando →
+      revision → confirmando → exito</code>. Guarda el contexto elegido, las
+      líneas propuestas y expone las funciones para editarlas.
+    </p>
+  </div>
+
+  <div class="step">
+    <span class="num">6</span><strong>Página del asistente</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/modules/m-armado/pages/ArmadoPage.jsx</code> + <code>.module.css</code> <span class="pill">nuevo</span></span>
+    <p style="margin-top:8px">
+      Página (no modal): son cuatro pasos y una tabla de revisión de varias
+      líneas, necesita el ancho. Paso 3 incluye el botón de dictado usando la
+      API de voz del navegador, con degradación silenciosa a solo texto donde
+      no esté disponible. Paso 4 reusa la forma de tabla editable de
+      <code>ScanMatchModal</code>, agregando la columna de destino de cada
+      línea (remito / comprar) cuando corresponde.
+    </p>
+    <div class="verify">Verificación: <code>npm run dev</code> y recorrer el
+    asistente completo con una obra real, en los dos destinos.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">7</span><strong>Ruta y acceso</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/routes/AppRouter.jsx</code> · <code>src/layouts/AppLayout.jsx</code></span>
+    <p style="margin-top:8px">
+      Ruta <code>/armado</code>. En el sidebar entra en
+      <code>OPERATIVO_ITEMS</code>, junto a Remitos y Obras, que es donde
+      encaja conceptualmente. Título visible <strong>"Kits de Montaje"</strong>;
+      la carpeta se llama <code>m-armado</code> para no confundirla con el
+      módulo <code>m-kits</code> que ya existe y es otra cosa.
+    </p>
+    <div class="verify">Verificación final: crear un presupuesto por
+    dictado, aprobarlo, y confirmar que el remito se generó solo con esos
+    materiales — o sea, que el puente que ya existía sigue funcionando con
+    lo que produce esta feature.</div>
+  </div>
+
+</section>
+
+<section class="card">
+  <h2>Verificación general</h2>
+  <ul>
+    <li><code>npm run dev</code> desde la raíz — backend 3000, frontend 5173.</li>
+    <li><code>npm run lint --prefix fieldstock-frontend</code> — 0 errores nuevos.</li>
+    <li><code>npm test --prefix fieldstock-backend</code> — los 280 actuales + los nuevos.</li>
+    <li>Sin migraciones de base y sin variables de entorno nuevas:
+    <code>GEMINI_API_KEY</code> ya está en local y en producción.</li>
+  </ul>
+</section>
+
+<div class="meta">
+  Lista para ejecutar.
+</div>
+
+</main>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' })
+</script>
+</body>
+</html>
