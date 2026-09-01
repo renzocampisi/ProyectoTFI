@@ -10,9 +10,8 @@
  *   - Clamping: el FAB no puede salirse del viewport (8px de padding).
  *   - Re-clamp en resize: si rotás el dispositivo y la posición guardada
  *     queda fuera de los nuevos límites, se ajusta automaticamente.
- *   - `touchmove` con `passive: false` (vía addEventListener manual,
- *     no se puede via prop de React) para poder `preventDefault()` y
- *     bloquear el scroll de la página durante el drag.
+ *   - Pointer Events (no touch): funciona igual con dedo y con mouse.
+ *     El scroll durante el gesto lo bloquea `touch-action: none` del CSS.
  *
  * Solo se monta en mobile/tablet (≤768px) — en desktop el sidebar
  * lateral ya tiene el item "Escanear QR" normal y no hace falta FAB.
@@ -49,65 +48,86 @@ export default function DraggableFAB() {
   const [pos, setPos] = useState(leerPosicionGuardada)
   const [dragging, setDragging] = useState(false)
 
-  // ── Drag con touch ──────────────────────────────────────────
+  // ── Drag con Pointer Events ─────────────────────────────────
+  // Un solo camino para mouse, touch y stylus. Antes esto escuchaba solo
+  // eventos touch, así que en una notebook el FAB no se podía arrastrar
+  // aunque el CSS mostrara `cursor: grab` prometiendo lo contrario.
+  //
+  // `setPointerCapture` hace que el elemento siga recibiendo los eventos
+  // aunque el puntero se salga de él a mitad del arrastre — sin eso, mover
+  // rápido "suelta" el FAB. El scroll durante el gesto lo bloquea
+  // `touch-action: none` desde el CSS, no hace falta preventDefault.
   useEffect(() => {
     const el = fabRef.current
     if (!el) return
 
-    const state = { startX: 0, startY: 0, fabX: 0, fabY: 0, moved: false }
+    const state = { startX: 0, startY: 0, fabX: 0, fabY: 0, moved: false, activo: false }
 
-    const onTouchStart = (e) => {
-      const touch = e.touches[0]
-      const rect  = el.getBoundingClientRect()
-      state.startX = touch.clientX
-      state.startY = touch.clientY
+    const onPointerDown = (e) => {
+      // Solo botón principal: con el secundario se abre el menú contextual.
+      if (e.button !== 0) return
+      const rect = el.getBoundingClientRect()
+      state.startX = e.clientX
+      state.startY = e.clientY
       state.fabX   = rect.left
       state.fabY   = rect.top
       state.moved  = false
+      state.activo = true
+      el.setPointerCapture(e.pointerId)
     }
 
-    const onTouchMove = (e) => {
-      const touch = e.touches[0]
-      const dx = touch.clientX - state.startX
-      const dy = touch.clientY - state.startY
+    const onPointerMove = (e) => {
+      if (!state.activo) return
+      const dx = e.clientX - state.startX
+      const dy = e.clientY - state.startY
 
       if (!state.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
         state.moved = true
         setDragging(true)
       }
-
       if (state.moved) {
-        e.preventDefault()  // bloquea scroll de la página
-        const next = clampPosition(state.fabX + dx, state.fabY + dy)
-        setPos(next)
+        setPos(clampPosition(state.fabX + dx, state.fabY + dy))
       }
     }
 
-    const onTouchEnd = () => {
+    const onPointerUp = (e) => {
+      if (!state.activo) return
+      state.activo = false
+      if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
+
       if (state.moved) {
         setDragging(false)
       } else {
-        // tap sin drag — navegar
-        navigate('/qr')
+        navigate('/qr')   // fue un tap/click, no un arrastre
       }
     }
 
-    // Prevenir el click "fantasma" después de un drag (en mobile el browser
-    // dispara click ~300ms después del touchend en algunos casos).
-    const onClick = (e) => {
-      if (state.moved) e.preventDefault()
+    // Si el gesto se cancela (ej. el sistema se queda con el puntero),
+    // cerramos el estado para no dejar el FAB "pegado" al cursor.
+    const onPointerCancel = () => {
+      state.activo = false
+      state.moved  = false
+      setDragging(false)
     }
 
-    el.addEventListener('touchstart', onTouchStart, { passive: true })
-    el.addEventListener('touchmove',  onTouchMove,  { passive: false })
-    el.addEventListener('touchend',   onTouchEnd,   { passive: true })
-    el.addEventListener('click',      onClick)
+    // Bloquea el click sintético posterior a un arrastre, que si no
+    // navegaría a /qr apenas soltás el FAB en su nueva posición.
+    const onClick = (e) => {
+      if (state.moved) { e.preventDefault(); e.stopPropagation() }
+    }
+
+    el.addEventListener('pointerdown',   onPointerDown)
+    el.addEventListener('pointermove',   onPointerMove)
+    el.addEventListener('pointerup',     onPointerUp)
+    el.addEventListener('pointercancel', onPointerCancel)
+    el.addEventListener('click',         onClick)
 
     return () => {
-      el.removeEventListener('touchstart', onTouchStart)
-      el.removeEventListener('touchmove',  onTouchMove)
-      el.removeEventListener('touchend',   onTouchEnd)
-      el.removeEventListener('click',      onClick)
+      el.removeEventListener('pointerdown',   onPointerDown)
+      el.removeEventListener('pointermove',   onPointerMove)
+      el.removeEventListener('pointerup',     onPointerUp)
+      el.removeEventListener('pointercancel', onPointerCancel)
+      el.removeEventListener('click',         onClick)
     }
   }, [navigate])
 
@@ -128,18 +148,8 @@ export default function DraggableFAB() {
     return () => window.removeEventListener('resize', onResize)
   }, [pos])
 
-  // ── Handler para desktop (mouse click — sin drag) ───────────
-  // Si el user tiene mouse en una tablet o ventana de DevTools, queremos
-  // que el click siga llevando a /qr (el touch handler no se dispara).
-  const onMouseClick = (e) => {
-    // Si llegamos acá vía touchend, el touch handler ya navegó — el
-    // browser dispara click después, lo bloqueamos en el listener manual.
-    // En desktop, navegamos manualmente.
-    if (!('ontouchstart' in window)) {
-      e.preventDefault()
-      navigate('/qr')
-    }
-  }
+  // Ya no hace falta un handler de click aparte para desktop: pointerup
+  // cubre mouse y touch por igual, y navega solo si el gesto no fue drag.
 
   // Si hay posición custom, usar coordenadas absolutas (left/top).
   // Si no, dejar que el CSS por default lo ancle a bottom-right.
@@ -151,7 +161,6 @@ export default function DraggableFAB() {
     <button ref={fabRef} type="button"
       className={`${styles.fabQr} ${dragging ? styles.dragging : ''}`}
       style={style}
-      onClick={onMouseClick}
       title="Escanear QR — arrastrá para mover"
       aria-label="Escanear QR">
       <span className={styles.fabQrIcon}><LuQrCode size={28} /></span>
