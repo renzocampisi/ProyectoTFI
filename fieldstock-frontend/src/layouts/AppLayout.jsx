@@ -34,7 +34,12 @@ const OPERATIVO_ITEMS = [
   { to: '/remitos', label: 'Remitos',        icon: LuClipboardList, activo: true },
   { to: '/armado',  label: 'Kits de Montaje', icon: LuListChecks,   activo: true },
   { to: '/obras',   label: 'Obras',          icon: LuConstruction,  activo: true },
-  { to: '/qr',      label: 'Escanear QR',    icon: LuQrCode,        activo: true },
+  // `soloDesktop`: en ≤768px este ítem se oculta porque ahí aparece el FAB
+  // flotante de QR, que cumple la misma función y queda más a mano. El corte
+  // usa el mismo breakpoint que DraggableFAB.module.css, así que siempre hay
+  // exactamente una de las dos formas de llegar al escáner, nunca ninguna
+  // ni las dos.
+  { to: '/qr',      label: 'Escanear QR',    icon: LuQrCode,        activo: true, soloDesktop: true },
 ]
 
 const DIRECTORIO_ITEMS = [
@@ -43,10 +48,16 @@ const DIRECTORIO_ITEMS = [
   { to: '/directorio/proveedores', label: 'Proveedores', icon: LuFactory,   activo: true },
 ]
 
-const SISTEMA_ITEMS = [
-  { to: '/compras',     label: 'Compras',     icon: LuShoppingCart, activo: true },
-  { to: '/facturacion', label: 'Facturación', icon: LuCreditCard,   activo: true },
-]
+// Igual que getAdminItems: el label depende del rol. El ADMIN (dueño del
+// sistema) ve "Facturación" porque para él es el módulo de cobro; para el
+// cliente de la app es simplemente el plan que tiene contratado. Solo cambia
+// la etiqueta del sidebar — la ruta y la página siguen siendo las mismas.
+function getSistemaItems(role) {
+  return [
+    { to: '/compras',     label: 'Compras', icon: LuShoppingCart, activo: true },
+    { to: '/facturacion', label: esAdminEstricto(role) ? 'Facturación' : 'Plan', icon: LuCreditCard, activo: true },
+  ]
+}
 
 // El label del primer ítem depende del rol: el DUEÑO administra a su propio
 // equipo ("Empleados"); el ADMIN (dueño del sistema) ve "Usuarios" — a la
@@ -81,7 +92,8 @@ function NavGroup({ label, items, collapsed }) {
             title={item.label}
             onClick={e => !item.activo && e.preventDefault()}
             className={({ isActive }) =>
-              [styles.navItem, isActive && styles.active, !item.activo && styles.disabled]
+              [styles.navItem, isActive && styles.active, !item.activo && styles.disabled,
+               item.soloDesktop && styles.soloDesktop]
                 .filter(Boolean).join(' ')
             }>
             <span className={styles.navIcon}><Icono size={18} /></span>
@@ -213,7 +225,7 @@ export default function AppLayout() {
           )}
 
           {/* Sistema */}
-          <NavGroup label="Sistema" items={SISTEMA_ITEMS} collapsed={collapsed} />
+          <NavGroup label="Sistema" items={getSistemaItems(role)} collapsed={collapsed} />
 
           {/* Panel IA — suelto, siempre visible. Va con su propio NavLink
               fuera de NavGroup para poder estilar el icono ✨ destacado. */}

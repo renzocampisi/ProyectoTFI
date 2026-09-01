@@ -626,3 +626,22 @@
 
 }
 /* Los estilos del FAB se movieron a shared/components/DraggableFAB.module.css */
+
+/* El FAB de "Escanear QR" es position:fixed abajo a la derecha y solo
+   aparece en ≤768px, donde se montaba encima de los botones que varias
+   páginas dejan al pie (el "Cambiar contraseña" de /perfil, "Guardar" en
+   los formularios, las acciones del detalle de una compra). Reservamos su
+   alto al final del área scrolleable para que el contenido siempre pueda
+   subir lo suficiente. 96px = 64 del FAB + su separación del borde.
+   Arreglarlo acá lo resuelve para todas las páginas de una. */
+@media (max-width: 768px) {
+  .main { padding-bottom: 96px; }
+
+  /* Ítems marcados con `soloDesktop` en AppLayout.jsx. Hoy es solo
+     "Escanear QR": abajo de este ancho aparece el FAB flotante, que hace
+     lo mismo y queda más a mano, así que tenerlo también en el sidebar
+     sería duplicar el acceso. Mismo breakpoint que DraggableFAB.module.css
+     — si se cambia uno hay que cambiar el otro, o queda un rango de anchos
+     sin ninguna forma de abrir el escáner. */
+  .soloDesktop { display: none; }
+}
