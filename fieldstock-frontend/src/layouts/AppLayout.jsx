@@ -43,10 +43,16 @@ const DIRECTORIO_ITEMS = [
   { to: '/directorio/proveedores', label: 'Proveedores', icon: LuFactory,   activo: true },
 ]
 
-const SISTEMA_ITEMS = [
-  { to: '/compras',     label: 'Compras',     icon: LuShoppingCart, activo: true },
-  { to: '/facturacion', label: 'Facturación', icon: LuCreditCard,   activo: true },
-]
+// Igual que getAdminItems: el label depende del rol. El ADMIN (dueño del
+// sistema) ve "Facturación" porque para él es el módulo de cobro; para el
+// cliente de la app es simplemente el plan que tiene contratado. Solo cambia
+// la etiqueta del sidebar — la ruta y la página siguen siendo las mismas.
+function getSistemaItems(role) {
+  return [
+    { to: '/compras',     label: 'Compras', icon: LuShoppingCart, activo: true },
+    { to: '/facturacion', label: esAdminEstricto(role) ? 'Facturación' : 'Plan', icon: LuCreditCard, activo: true },
+  ]
+}
 
 // El label del primer ítem depende del rol: el DUEÑO administra a su propio
 // equipo ("Empleados"); el ADMIN (dueño del sistema) ve "Usuarios" — a la
@@ -213,7 +219,7 @@ export default function AppLayout() {
           )}
 
           {/* Sistema */}
-          <NavGroup label="Sistema" items={SISTEMA_ITEMS} collapsed={collapsed} />
+          <NavGroup label="Sistema" items={getSistemaItems(role)} collapsed={collapsed} />
 
           {/* Panel IA — suelto, siempre visible. Va con su propio NavLink
               fuera de NavGroup para poder estilar el icono ✨ destacado. */}
