@@ -34,7 +34,12 @@ const OPERATIVO_ITEMS = [
   { to: '/remitos', label: 'Remitos',        icon: LuClipboardList, activo: true },
   { to: '/armado',  label: 'Kits de Montaje', icon: LuListChecks,   activo: true },
   { to: '/obras',   label: 'Obras',          icon: LuConstruction,  activo: true },
-  { to: '/qr',      label: 'Escanear QR',    icon: LuQrCode,        activo: true },
+  // `soloDesktop`: en ≤768px este ítem se oculta porque ahí aparece el FAB
+  // flotante de QR, que cumple la misma función y queda más a mano. El corte
+  // usa el mismo breakpoint que DraggableFAB.module.css, así que siempre hay
+  // exactamente una de las dos formas de llegar al escáner, nunca ninguna
+  // ni las dos.
+  { to: '/qr',      label: 'Escanear QR',    icon: LuQrCode,        activo: true, soloDesktop: true },
 ]
 
 const DIRECTORIO_ITEMS = [
@@ -87,7 +92,8 @@ function NavGroup({ label, items, collapsed }) {
             title={item.label}
             onClick={e => !item.activo && e.preventDefault()}
             className={({ isActive }) =>
-              [styles.navItem, isActive && styles.active, !item.activo && styles.disabled]
+              [styles.navItem, isActive && styles.active, !item.activo && styles.disabled,
+               item.soloDesktop && styles.soloDesktop]
                 .filter(Boolean).join(' ')
             }>
             <span className={styles.navIcon}><Icono size={18} /></span>

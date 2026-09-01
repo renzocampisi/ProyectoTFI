@@ -636,4 +636,12 @@
    Arreglarlo acá lo resuelve para todas las páginas de una. */
 @media (max-width: 768px) {
   .main { padding-bottom: 96px; }
+
+  /* Ítems marcados con `soloDesktop` en AppLayout.jsx. Hoy es solo
+     "Escanear QR": abajo de este ancho aparece el FAB flotante, que hace
+     lo mismo y queda más a mano, así que tenerlo también en el sidebar
+     sería duplicar el acceso. Mismo breakpoint que DraggableFAB.module.css
+     — si se cambia uno hay que cambiar el otro, o queda un rango de anchos
+     sin ninguna forma de abrir el escáner. */
+  .soloDesktop { display: none; }
 }
