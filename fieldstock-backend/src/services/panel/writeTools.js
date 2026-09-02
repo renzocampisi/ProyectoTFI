@@ -30,7 +30,10 @@ import * as Directorio    from '../directorio.service.js'
 import * as Notificaciones from '../notificaciones.service.js'
 import * as Herramientas  from '../herramientas.service.js'
 import * as Obras         from '../obras.service.js'
-import * as Presupuestos  from '../presupuestos.service.js'
+// Motor compartido con Kits de Montaje (/armado): `crear_presupuesto_guiado`
+// delega ahí en vez de repetir la lógica de armar el presupuesto. Por eso ya
+// no se importa presupuestos.service acá — lo usa armado.service.
+import * as Armado        from '../armado.service.js'
 
 const ESTADOS_HERRAMIENTA_VALIDOS = ['DISPONIBLE', 'EN_MANTENIMIENTO', 'RESERVADA']
 
@@ -467,39 +470,39 @@ export const WRITE_TOOLS = [
         detalle: { obraId, obraNombre: obra.nombre, items, empleados: emp, diasEstimados: dias, costoPorEmpleadoDia: costoDia, costoManoObra },
       }
     },
+    // Delega en armado.service, que es el mismo motor que usa Kits de Montaje
+    // (`/armado`). Antes esta tool tenía su propia copia de "crear presupuesto
+    // + cargar insumos con precio de referencia + agregar mano de obra"; era
+    // idéntica salvo el formato de las líneas, y cualquier arreglo en una de
+    // las dos se olvidaba en la otra. Acá solo queda la traducción de formato.
+    //
+    // Sin transacción: si algo falla a mitad, el presupuesto BORRADOR queda
+    // editable a mano en la UI — no hace falta rollback.
     execute: async ({ obraId, materiales, empleados, diasEstimados, costoPorEmpleadoDia }) => {
-      const presupuesto = await Presupuestos.create({ obraId })
-
-      // Sin transacción: si algo falla a mitad de camino, el presupuesto
-      // BORRADOR ya creado (con lo que se haya alcanzado a cargar) queda
-      // completamente editable a mano en la UI — no hace falta rollback.
-      for (const m of materiales) {
-        let materialId = m.materialId
-        if (!materialId) {
-          const nuevo = await Materiales.create({
-            nombre: m.materialNuevoNombre, marca: m.materialNuevoMarca,
-            unidad: m.materialNuevoUnidad || 'unidad',
-          })
-          materialId = nuevo.id
-        }
-        const precioRef = await Materiales.getPrecioReferencia(materialId).catch(() => null)
-        await Presupuestos.addInsumo(presupuesto.id, {
-          materialId, cantidad: Number(m.cantidad), precioUnitario: precioRef?.precio ?? 0,
-        })
-      }
-
-      const emp = Number(empleados), dias = Number(diasEstimados), costoDia = Number(costoPorEmpleadoDia)
-      await Presupuestos.addCosto(presupuesto.id, {
-        categoria: 'MANO_OBRA',
-        descripcion: `Mano de obra (${emp} empleado${emp === 1 ? '' : 's'} x ${dias} día${dias === 1 ? '' : 's'})`,
-        cantidad: emp * dias,
-        unidad: 'jornal',
-        costoUnitario: costoDia,
+      const out = await Armado.confirmar({
+        destino: 'PRESUPUESTO',
+        obraId,
+        lineas: materiales.map(m => ({
+          cantidad: Number(m.cantidad),
+          ...(m.materialId
+            ? { materialId: m.materialId }
+            : { materialNuevo: {
+                  nombre: m.materialNuevoNombre,
+                  marca:  m.materialNuevoMarca || null,
+                  unidad: m.materialNuevoUnidad || 'unidad',
+                } }),
+        })),
+        manoObra: {
+          empleados:           Number(empleados),
+          dias:                Number(diasEstimados),
+          costoPorEmpleadoDia: Number(costoPorEmpleadoDia),
+        },
       })
 
+      const n = out.insumos
       return {
-        resumen: `Listo — presupuesto Nº ${presupuesto.numero} creado con ${materiales.length} insumo${materiales.length === 1 ? '' : 's'} y mano de obra por $${emp * dias * costoDia}.`,
-        detalle: presupuesto,
+        resumen: `Listo — presupuesto Nº ${out.presupuestoNumero} creado con ${n} insumo${n === 1 ? '' : 's'} y mano de obra por $${out.costoManoObra}.`,
+        detalle: out,
       }
     },
   },

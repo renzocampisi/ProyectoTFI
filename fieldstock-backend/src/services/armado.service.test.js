@@ -7,7 +7,7 @@ jest.mock('./materiales.service.js',  () => ({
   getAll: jest.fn(), getById: jest.fn(), create: jest.fn(), getPrecioReferencia: jest.fn(),
 }))
 jest.mock('./obras.service.js',       () => ({ getById: jest.fn(), create: jest.fn() }))
-jest.mock('./presupuestos.service.js',() => ({ create: jest.fn(), addInsumo: jest.fn() }))
+jest.mock('./presupuestos.service.js',() => ({ create: jest.fn(), addInsumo: jest.fn(), addCosto: jest.fn() }))
 jest.mock('./remitos.service.js',     () => ({ create: jest.fn(), addMaterial: jest.fn() }))
 jest.mock('./compras.service.js',     () => ({ create: jest.fn() }))
 
@@ -121,6 +121,52 @@ describe('armado.service.confirmar', () => {
       materialId: 'mat-cano', cantidad: 3, precioUnitario: 1200,
     })
     expect(out).toMatchObject({ destino: 'PRESUPUESTO', presupuestoId: 'pres-1', insumos: 1 })
+  })
+
+  // La mano de obra es lo que necesitaba el Panel IA y el service no tenía;
+  // es la razón por la que `crear_presupuesto_guiado` podía delegar acá.
+  it('PRESUPUESTO con manoObra: agrega la linea de MANO_OBRA en jornales', async () => {
+    Presupuestos.create.mockResolvedValue({ id: 'pres-mo', numero: 'PR-00009' })
+    Materiales.getPrecioReferencia.mockResolvedValue(null)
+
+    const out = await ArmadoService.confirmar({
+      destino: 'PRESUPUESTO', obraId: 'obra-1',
+      lineas: [{ materialId: 'mat-cano', cantidad: 2 }],
+      manoObra: { empleados: 3, dias: 5, costoPorEmpleadoDia: 20000 },
+    })
+
+    expect(Presupuestos.addCosto).toHaveBeenCalledWith('pres-mo', expect.objectContaining({
+      categoria:     'MANO_OBRA',
+      cantidad:      15,      // 3 empleados x 5 dias
+      unidad:        'jornal',
+      costoUnitario: 20000,
+    }))
+    expect(out.costoManoObra).toBe(300000)
+    expect(out.presupuestoNumero).toBe('PR-00009')
+  })
+
+  it('PRESUPUESTO sin manoObra: no agrega ninguna linea de costo', async () => {
+    Presupuestos.create.mockResolvedValue({ id: 'pres-sin-mo', numero: 'PR-00010' })
+    Materiales.getPrecioReferencia.mockResolvedValue(null)
+
+    const out = await ArmadoService.confirmar({
+      destino: 'PRESUPUESTO', obraId: 'obra-1',
+      lineas: [{ materialId: 'mat-cano', cantidad: 2 }],
+    })
+
+    expect(Presupuestos.addCosto).not.toHaveBeenCalled()
+    expect(out.costoManoObra).toBeNull()
+  })
+
+  it('PRESUPUESTO: rechaza manoObra con valores invalidos', async () => {
+    Presupuestos.create.mockResolvedValue({ id: 'pres-x', numero: 'PR-00011' })
+    Materiales.getPrecioReferencia.mockResolvedValue(null)
+
+    await expect(ArmadoService.confirmar({
+      destino: 'PRESUPUESTO', obraId: 'obra-1',
+      lineas: [{ materialId: 'mat-cano', cantidad: 1 }],
+      manoObra: { empleados: 0, dias: 5, costoPorEmpleadoDia: 100 },
+    })).rejects.toThrow('empleados')
   })
 
   it('PRESUPUESTO: cae a precio 0 si el material nunca se compró', async () => {

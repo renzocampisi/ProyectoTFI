@@ -16,6 +16,11 @@
  */
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+// El logo viene como data URI ya embebido (ver el módulo generado). Tiene que
+// estar disponible de forma síncrona: si hubiera que bajarlo por red,
+// construirPdf() se volvería async y con él sus tres funciones exportadas y
+// todos sus llamadores. jsPDF además no acepta SVG, por eso el PNG.
+import logoDataUri from '../../../assets/logo.base64.js'
 import { CATEGORIA_INFO, formatMoney, formatCantidad, formatFecha } from '../constants'
 
 // Colores de la paleta del sistema (matchea el theme oscuro de la app
@@ -28,12 +33,23 @@ const COLOR_HEADER   = [245, 245, 245]
 
 const MARGIN = 14
 
+// Logo cuadrado a la izquierda del nombre. LOGO_SIZE también define cuánto
+// se corren los textos hacia la derecha, así que alcanza con tocar estas dos
+// constantes para reacomodar todo el bloque.
+const LOGO_SIZE = 14   // mm
+const LOGO_GAP  = 4    // mm entre el logo y el texto
+const TEXTO_X   = MARGIN + LOGO_SIZE + LOGO_GAP
+
 function header(doc, presupuesto) {
+  // El logo ocupa de y=10 a y=24, que es justo el alto que cubren las dos
+  // líneas de texto de al lado ("FieldStock AI" en 18 y "Presupuesto" en 24).
+  doc.addImage(logoDataUri, 'PNG', MARGIN, 10, LOGO_SIZE, LOGO_SIZE)
+
   doc.setFontSize(20).setTextColor(...COLOR_PRIMARY).setFont('helvetica', 'bold')
-  doc.text('FieldStock AI', MARGIN, 18)
+  doc.text('FieldStock AI', TEXTO_X, 18)
 
   doc.setFontSize(10).setTextColor(...COLOR_MUTED).setFont('helvetica', 'normal')
-  doc.text('Presupuesto', MARGIN, 24)
+  doc.text('Presupuesto', TEXTO_X, 24)
 
   // Caja derecha con número + fecha
   const pageW = doc.internal.pageSize.getWidth()
