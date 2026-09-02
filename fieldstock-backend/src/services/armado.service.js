@@ -26,6 +26,8 @@ import * as Provider     from './panel/provider.js'
 import * as Materiales   from './materiales.service.js'
 import * as Obras        from './obras.service.js'
 import * as Presupuestos from './presupuestos.service.js'
+// Nota: este service NO importa panel/writeTools.js — es al revés, la tool
+// `crear_presupuesto_guiado` delega acá. Mantenerlo así evita un ciclo.
 import * as Remitos      from './remitos.service.js'
 import * as Compras      from './compras.service.js'
 
@@ -176,9 +178,16 @@ function repartirPorStock({ materialId, cantidad, stockActual }) {
  *                                     Si destino REMITO, además alRemito / aComprar.
  * @param {string=} payload.proveedorId Para la orden de compra de faltantes.
  *                                     Sin esto no se crea orden (opción "decidir después").
+ * @param {object=} payload.manoObra   { empleados, dias, costoPorEmpleadoDia }.
+ *                                     Solo aplica a destino PRESUPUESTO: agrega la
+ *                                     línea de MANO_OBRA además de los insumos. Lo
+ *                                     usa el Panel IA, que arma presupuestos
+ *                                     completos; el asistente de Kits de Montaje
+ *                                     no lo manda y el presupuesto sale solo con
+ *                                     materiales.
  */
 export async function confirmar(payload = {}) {
-  const { destino, obraId, obraNueva, lineas, proveedorId } = payload
+  const { destino, obraId, obraNueva, lineas, proveedorId, manoObra } = payload
 
   if (!DESTINOS.includes(destino)) throw bad(`destino inválido: ${destino}`)
   if (!Array.isArray(lineas) || !lineas.length) throw bad('No hay líneas para confirmar')
@@ -250,11 +259,11 @@ export async function confirmar(payload = {}) {
   }
 
   return destino === 'PRESUPUESTO'
-    ? confirmarPresupuesto(obra, resueltas)
+    ? confirmarPresupuesto(obra, resueltas, manoObra)
     : confirmarRemito(obra, resueltas, proveedorId)
 }
 
-async function confirmarPresupuesto(obra, lineas) {
+async function confirmarPresupuesto(obra, lineas, manoObra) {
   const presupuesto = await Presupuestos.create({ obraId: obra.id })
 
   for (const l of lineas) {
@@ -269,11 +278,35 @@ async function confirmarPresupuesto(obra, lineas) {
     })
   }
 
+  // Mano de obra: opcional, se carga como una línea de costo aparte de los
+  // insumos. Se modela en jornales (empleados x días) para que el costo
+  // unitario del presupuesto sea el costo por empleado-día.
+  let costoManoObra = null
+  if (manoObra) {
+    const emp      = Number(manoObra.empleados)
+    const dias     = Number(manoObra.dias)
+    const costoDia = Number(manoObra.costoPorEmpleadoDia)
+    if (!Number.isFinite(emp) || emp <= 0)          throw bad('La cantidad de empleados debe ser mayor a 0')
+    if (!Number.isFinite(dias) || dias <= 0)        throw bad('La cantidad de días debe ser mayor a 0')
+    if (!Number.isFinite(costoDia) || costoDia < 0) throw bad('El costo por empleado/día debe ser 0 o mayor')
+
+    await Presupuestos.addCosto(presupuesto.id, {
+      categoria:     'MANO_OBRA',
+      descripcion:   `Mano de obra (${emp} empleado${emp === 1 ? '' : 's'} x ${dias} día${dias === 1 ? '' : 's'})`,
+      cantidad:      emp * dias,
+      unidad:        'jornal',
+      costoUnitario: costoDia,
+    })
+    costoManoObra = emp * dias * costoDia
+  }
+
   return {
-    destino:       'PRESUPUESTO',
-    obraId:        obra.id,
-    presupuestoId: presupuesto.id,
-    insumos:       lineas.length,
+    destino:        'PRESUPUESTO',
+    obraId:         obra.id,
+    presupuestoId:  presupuesto.id,
+    presupuestoNumero: presupuesto.numero,
+    insumos:        lineas.length,
+    costoManoObra,
   }
 }
 
