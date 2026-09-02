@@ -36,7 +36,15 @@ export default function RemitoPrint({ remito }) {
 
       {/* Encabezado */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #1a1a1a', paddingBottom: '12px', marginBottom: '16px' }}>
-        <div style={{ fontSize: '22px', fontWeight: '700', letterSpacing: '-0.5px' }}>FieldStock AI</div>
+        {/* Logo a la izquierda del nombre. Acá sí se usa el SVG (no el PNG
+            del PDF de presupuestos) porque esto se imprime desde HTML y el
+            vectorial sale nítido a cualquier resolución. La ventana de
+            impresión espera el `window.onload`, que incluye las imágenes, así
+            que no se imprime sin el logo. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <img src="/favicon.svg" alt="" width="34" height="34" style={{ display: 'block' }} />
+          <div style={{ fontSize: '22px', fontWeight: '700', letterSpacing: '-0.5px' }}>FieldStock AI</div>
+        </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '13px', fontWeight: '600' }}>{remito.numero}</div>
           <div style={{ fontSize: '10px', color: '#666', marginTop: '2px' }}>Fecha: {formatFecha(remito.fecha_egreso)}</div>
