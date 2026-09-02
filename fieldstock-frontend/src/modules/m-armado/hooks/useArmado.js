@@ -16,11 +16,19 @@ function idLocal() {
     : `${Date.now()}-${Math.random()}`
 }
 
-/** Una línea es válida si tiene cantidad > 0 y un material resuelto. */
+/**
+ * Una línea es válida si tiene cantidad > 0 y un material resuelto.
+ *
+ * `buscar` es un estado intermedio (el usuario abrió el buscador pero todavía
+ * no eligió nada), así que nunca es válido: antes caía en el `return` de
+ * abajo y, si la línea traía texto en materialNuevoNombre, se daba por buena
+ * y terminaba creando un material que el usuario en realidad estaba buscando.
+ */
 function lineaValida(l) {
   const cantidad = Number(l.cantidad)
   if (!Number.isFinite(cantidad) || cantidad <= 0) return false
   if (l.modo === 'catalogo') return !!l.materialId
+  if (l.modo === 'buscar')   return false
   return !!l.materialNuevoNombre?.trim()
 }
 
@@ -69,7 +77,14 @@ export function useArmado() {
         alRemito:            l.alRemito ?? null,
         aComprar:            l.aComprar ?? null,
         motivo:              l.motivo   ?? null,
-        materialNuevoNombre: l.materialId ? '' : (l.textoOriginal || ''),
+        // Se deja vacío a propósito. Antes se precargaba con textoOriginal,
+        // pero ese texto es la frase tal como se dictó e incluye la cantidad
+        // ("5 codos de 90"), así que confirmar sin tocarlo daba de alta
+        // materiales con el número adentro del nombre — pasó de verdad y
+        // quedó un "5 codos" en el catálogo. El texto original igual queda a
+        // la vista en la columna "Leído", que alcanza como referencia para
+        // escribir el nombre real.
+        materialNuevoNombre: '',
         materialNuevoMarca:  '',
         incluida:            true,
       })))
