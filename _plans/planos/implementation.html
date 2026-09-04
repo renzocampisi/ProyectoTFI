@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Lectura de planos + aprendizaje de vocabulario — Etapa 2: Implementación</title>
+<style>
+  :root {
+    --ink:   #1a1a1a;
+    --muted: #6b6b6b;
+    --line:  #e6e6e6;
+    --card:  #fafafa;
+    --accent:#3b6eea;
+    --warn:  #b07b00;
+    --ok:    #16a34a;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    margin: 0;
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  main { max-width: 720px; margin: 56px auto 80px; padding: 0 24px; }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 26px;
+    margin: 0 0 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header .sub { color: var(--muted); font-size: 14px; }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 18px 0;
+  }
+  section.card > h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    font-weight: 600;
+  }
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  ul, ol { padding-left: 18px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  strong { color: var(--ink); }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    background: #f0f0f0;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  .pill {
+    display: inline-block;
+    background: #eef3ff;
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .pill-ok   { background: #e9f9ef; color: var(--ok); }
+  .pill-warn { background: #fff5e0; color: var(--warn); }
+  .diagram-card { padding: 18px; background: #fff; }
+  .mermaid { font-family: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 14px; }
+  th, td { border-bottom: 1px solid var(--line); text-align: left; padding: 8px 6px; vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .step {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 10px 0;
+    background: #fff;
+  }
+  .step .num {
+    display: inline-block;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    text-align: center;
+    line-height: 22px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-right: 8px;
+  }
+  .step .file { display: block; margin-top: 6px; font-size: 13px; }
+  .step .verify {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--line);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .grupo {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+    margin: 20px 0 4px;
+  }
+  .riesgo {
+    border-left: 3px solid var(--warn);
+    background: #fffaf0;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    margin: 10px 0;
+  }
+  .riesgo .titulo { font-weight: 600; margin-bottom: 4px; }
+  footer { color: var(--muted); font-size: 13px; margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); }
+  @media print { main { max-width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="eyebrow">FieldStock AI · Plan de feature · Etapa 2 de 2</div>
+  <h1>Lectura de planos + aprendizaje de vocabulario</h1>
+  <div class="sub">Implementación — arquitectura aprobada en <code>architecture.html</code></div>
+</header>
+
+<section class="card diagram-card">
+  <h2>Secuencia</h2>
+  <pre class="mermaid">
+sequenceDiagram
+    actor U as Usuario
+    participant FE as ArmadoPage (front)
+    participant BE as armado.service (back)
+    participant Voc as armadoVocabulario.service
+    participant IA as Gemini
+
+    U->>FE: escribe texto + (opcional) adjunta 1 foto
+    FE->>BE: POST /armado/interpretar
+    BE->>Voc: buscarRelevante(texto)
+    Voc-->>BE: sinónimos aprendidos (si hay)
+    BE->>IA: texto + catálogo + vocabulario + foto (si vino)
+    IA-->>BE: líneas propuestas (+ advertencia si la foto contradice el texto)
+    BE-->>FE: propuesta
+    FE-->>U: paso "revisión" (advertencias visibles, no bloqueantes)
+    U->>FE: corrige el material de una línea
+    U->>FE: confirma
+    FE->>BE: POST /armado/confirmar (incluye lo propuesto vs. lo corregido)
+    BE->>Voc: registrarCorreccion(texto, material final) — solo si hubo corrección
+    BE-->>FE: presupuesto o remito creado
+  </pre>
+</section>
+
+<section class="card">
+  <h2>Patrones de diseño</h2>
+  <ul>
+    <li><strong>Controller → Service, sin excepción:</strong> toda la lógica nueva
+      (leer/escribir vocabulario, armar el prompt con foto) vive en los services.
+      El controller gana una responsabilidad puntual — distinguir si vino
+      <code>req.file</code> o no — mismo alcance que ya tiene
+      <code>scanMatch.controller.js</code> al extraer <code>buffer</code>/<code>mimetype</code>.</li>
+    <li><strong>Multer memoryStorage condicional:</strong> mismo patrón exacto que
+      <code>/compras/:id/scan-match</code> y <code>/compras/:id/comprobante</code> —
+      <code>multer({ storage: memoryStorage(), limits: { fileSize } }).single(campo)</code>.
+      La diferencia es que acá se monta sobre una ruta que hoy ya recibe JSON puro;
+      multer solo actúa si el <code>Content-Type</code> es multipart, así que el
+      caso existente (sin foto) sigue exactamente igual.</li>
+    <li><strong>Hook por módulo:</strong> <code>useArmado.js</code> gana el estado
+      de la foto y arma el <code>FormData</code> cuando corresponde — mismo criterio
+      que ya usa <code>compras.service.js</code> para <code>scanMatchProponer</code>.
+      El componente sigue sin llamar a <code>api</code> directo.</li>
+    <li><strong>Extensión aditiva de contrato:</strong> tanto el <code>responseSchema</code>
+      de Gemini como el payload de <code>POST /armado/confirmar</code> suman campos
+      opcionales (<code>advertenciaFoto</code>, <code>materialIdPropuesto</code>).
+      Nada de lo que ya existe cambia de forma — los tests actuales de
+      <code>armado.service.test.js</code> siguen pasando sin tocarlos.</li>
+    <li><strong>Sin ORM, sin RLS manual:</strong> el vocabulario aprendido es una
+      tabla más leída con el SDK de Supabase directo. No lleva <code>empresa_id</code>
+      — el sistema es single-tenant por instancia (confirmado en
+      <code>auth-publico.service.js</code>: "sin empresa_id"), así que el
+      aislamiento por empresa que pedía la arquitectura ya viene gratis: cada
+      cliente tiene su propia base.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Riesgos puntuales</h2>
+
+  <div class="riesgo">
+    <div class="titulo">Orden de middlewares en la ruta dual JSON/multipart</div>
+    <p>Para que <code>POST /armado/interpretar</code> siga aceptando JSON puro
+    (caso de hoy) Y multipart con foto (caso nuevo) en la misma URL, hace falta
+    que <code>express.json()</code> global corra antes que el <code>multer</code>
+    de esta ruta en la cadena de middlewares — así, ante un request JSON, multer
+    ve un <code>Content-Type</code> que no le corresponde y no toca
+    <code>req.body</code>. Confirmar el orden actual en <code>routes/index.js</code>
+    antes de agregar el middleware; si hiciera falta, este multer se monta
+    después del <code>express.json()</code> global, nunca antes.</p>
+  </div>
+
+  <div class="riesgo">
+    <div class="titulo">Qué cuenta como "corrección" para el aprendizaje</div>
+    <p>Solo se graba en <code>armado_vocabulario_aprendido</code> cuando el
+    material final de la línea difiere de <code>materialIdPropuesto</code>
+    (la IA se equivocó y el usuario ajustó) o cuando la línea usó
+    <code>materialNuevo</code> con un nombre bien distinto al texto. Si el
+    usuario simplemente acepta lo que propuso la IA, no se graba nada —
+    grabar aciertos no aporta señal y ensucia la tabla.</p>
+  </div>
+
+  <div class="riesgo">
+    <div class="titulo">El registro de aprendizaje nunca bloquea la confirmación</div>
+    <p><code>registrarCorreccion()</code> se llama en un <code>try/catch</code>
+    aislado dentro de <code>confirmar()</code>: si falla (problema de red puntual
+    con Supabase), se loguea y se sigue — el presupuesto o remito ya escrito no
+    se pierde ni se revierte por esto.</p>
+  </div>
+
+  <div class="riesgo">
+    <div class="titulo">Tope de vocabulario en el prompt</div>
+    <p>Mismo problema que ya documenta <code>CAP_CATALOGO</code>: si con el
+    tiempo se acumulan muchas correcciones, no entran todas en el prompt.
+    <code>buscarRelevante()</code> aplica un tope (mismo orden de magnitud que
+    <code>CAP_CATALOGO</code>) filtrando por coincidencia simple de palabras
+    entre el texto actual y <code>texto_normalizado</code> — no es búsqueda
+    semántica, es una heurística de primera versión.</p>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Pasos ordenados</h2>
+
+  <div class="grupo">Backend</div>
+
+  <div class="step">
+    <span class="num">1</span><strong>Migración: tabla de vocabulario aprendido</strong>
+    <span class="file">📄 <code>_sql/migrations/2026_09_03_armado_vocabulario_aprendido.sql</code> <span class="pill">nuevo</span></span>
+    <p style="margin-top:8px">
+      Tabla <code>armado_vocabulario_aprendido</code>: <code>id</code>,
+      <code>texto_normalizado</code> (el texto que motivó la línea, en minúsculas
+      y recortado), <code>material_id</code> (FK a <code>materiales(id)</code>,
+      <code>ON DELETE CASCADE</code> — si se borra el material, sus sinónimos
+      dejan de tener sentido), <code>veces_confirmado</code> (entero, default 1),
+      <code>updated_at</code>. Índice sobre <code>texto_normalizado</code> para
+      el lookup de <code>buscarRelevante()</code>.
+    </p>
+    <div class="verify">Verificación: correrla en el editor SQL de Supabase,
+    confirmar la tabla y el índice desde ahí antes de seguir.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">2</span><strong>Service de vocabulario aprendido</strong>
+    <span class="file">📄 <code>fieldstock-backend/src/services/armadoVocabulario.service.js</code> <span class="pill">nuevo</span></span>
+    <p style="margin-top:8px">
+      <code>buscarRelevante(texto, { limite })</code>: normaliza el texto de
+      entrada y devuelve las filas cuyo <code>texto_normalizado</code> comparte
+      palabras con él, ordenadas por <code>veces_confirmado</code> descendente,
+      topeadas a <code>limite</code>.
+    </p>
+    <p>
+      <code>registrarCorreccion({ textoOriginal, materialId })</code>: upsert —
+      si ya existe una fila con ese <code>texto_normalizado</code> +
+      <code>materialId</code>, incrementa <code>veces_confirmado</code>; si no,
+      la crea con 1.
+    </p>
+    <div class="verify">Verificación: test unitario mockeando el chain de
+    <code>config/supabase.js</code>, mismo criterio que <code>compras.service.test.js</code>.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">3</span><strong>Extender <code>armado.service.js</code></strong>
+    <span class="file">📄 <code>fieldstock-backend/src/services/armado.service.js</code></span>
+    <p style="margin-top:8px">
+      <code>ARMADO_SCHEMA</code>: cada línea suma <code>advertenciaFoto</code>
+      (string, opcional, no entra en <code>required</code>).
+    </p>
+    <p>
+      <code>construirPrompt(catalogo, { conFoto, vocabulario })</code>: si
+      <code>conFoto</code>, agrega el párrafo explícito — la imagen es apoyo
+      y verificación, la cantidad y el tipo siempre salen del texto, nunca de
+      lo dibujado. Si <code>vocabulario.length</code>, agrega una sección de
+      "equivalencias ya confirmadas antes" con esos pares texto→material.
+    </p>
+    <p>
+      <code>interpretar({ texto, destino, foto })</code>: <code>foto</code> es
+      opcional (<code>{ buffer, mimeType }</code>, mismo shape que ya usa
+      Scan &amp; Match). Llama primero a <code>ArmadoVocabulario.buscarRelevante(texto)</code>,
+      arma <code>contents</code> con una o dos <code>parts</code> según haya foto
+      o no (mismo patrón que <code>scanMatch.service.js</code>). Cada línea de
+      salida ahora también incluye <code>materialIdPropuesto</code> — el mismo
+      valor que <code>materialId</code> en este momento, pero conservado aparte
+      porque el usuario lo puede cambiar en la revisión y <code>confirmar()</code>
+      necesita comparar ambos.
+    </p>
+    <p>
+      <code>confirmar(payload)</code>: después de resolver cada línea (igual que
+      hoy), si <code>materialIdPropuesto</code> difiere del material final, o la
+      línea vino con <code>materialNuevo</code>, llama a
+      <code>ArmadoVocabulario.registrarCorreccion()</code> dentro de un
+      <code>try/catch</code> que solo loguea (ver riesgos).
+    </p>
+    <div class="verify">Verificación: extender <code>armado.service.test.js</code>
+    (ver sección Testing abajo).</div>
+  </div>
+
+  <div class="step">
+    <span class="num">4</span><strong>Controller</strong>
+    <span class="file">📄 <code>fieldstock-backend/src/controllers/armado.controller.js</code></span>
+    <p style="margin-top:8px">
+      <code>interpretar</code>: si <code>req.file</code> existe, arma
+      <code>foto: { buffer: req.file.buffer, mimeType: req.file.mimetype }</code>
+      y se lo pasa al service junto con <code>texto</code>/<code>destino</code>
+      de <code>req.body</code> (llegan como string en ambos casos, JSON o
+      multipart, así que no hace falta normalizar tipos).
+    </p>
+    <div class="verify">Depende del paso 3.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">5</span><strong>Ruta</strong>
+    <span class="file">📄 <code>fieldstock-backend/src/routes/index.js</code></span>
+    <p style="margin-top:8px">
+      Nuevo <code>multer</code> memoryStorage (mismo límite que scan-match,
+      8&nbsp;MiB) montado como <code>.single('foto')</code> en
+      <code>POST /armado/interpretar</code>, antes de <code>ArmadoCtrl.interpretar</code>.
+    </p>
+    <div class="verify">Verificación: probar la ruta con body JSON puro (caso
+    existente, sin <code>Content-Type</code> multipart) y con multipart + campo
+    <code>foto</code> — confirmar que ambos responden 200 y que el caso JSON no
+    cambió de comportamiento.</div>
+  </div>
+
+  <div class="grupo">Frontend</div>
+
+  <div class="step">
+    <span class="num">6</span><strong>Service</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/modules/m-armado/services/armado.service.js</code></span>
+    <p style="margin-top:8px">
+      <code>interpretar(texto, destino, foto)</code>: si <code>foto</code>
+      viene, arma <code>FormData</code> (<code>texto</code>, <code>destino</code>,
+      <code>foto</code>) y usa <code>api.postForm</code>; si no, sigue mandando
+      JSON con <code>api.post</code> tal cual hoy. <code>timeoutMs: 60_000</code>
+      en ambos casos.
+    </p>
+  </div>
+
+  <div class="step">
+    <span class="num">7</span><strong>Hook</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/modules/m-armado/hooks/useArmado.js</code></span>
+    <p style="margin-top:8px">
+      Estado nuevo <code>foto</code>/<code>setFoto</code> (File o null).
+      <code>interpretar()</code> se lo pasa al service. Al mapear
+      <code>data.lineas</code>, conserva también <code>materialIdPropuesto</code>
+      y <code>advertenciaFoto</code> en cada línea del estado. Donde arma el
+      payload para <code>ArmadoService.confirmar</code>, incluye
+      <code>materialIdPropuesto</code> por línea (cambio de contrato del paso 3).
+    </p>
+    <div class="verify">Depende de los pasos 3 y 6.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">8</span><strong>Página</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/modules/m-armado/pages/ArmadoPage.jsx</code></span>
+    <p style="margin-top:8px">
+      Paso <code>describir</code>: input de archivo opcional
+      (<code>accept="image/*" capture="environment"</code>) con nombre del
+      archivo elegido y opción de quitarlo, junto al textarea existente.
+    </p>
+    <p>
+      Paso <code>revision</code>: si una línea trae <code>advertenciaFoto</code>,
+      mostrarla junto a esa línea con el mismo tratamiento visual que ya exista
+      para confianza baja — revisar el CSS module actual antes de sumar una
+      clase nueva.
+    </p>
+    <div class="verify">Verificación: <code>npm run dev</code>, probar el flujo
+    completo con foto y sin foto, confirmar que la advertencia aparece cuando
+    el texto contradice la imagen a propósito.</div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Testing</h2>
+  <ul>
+    <li><code>armado.service.test.js</code>: mockear
+      <code>armadoVocabulario.service.js</code> igual que ya se mockean
+      <code>obras.service.js</code>/<code>presupuestos.service.js</code>/etc.
+      Casos nuevos: <code>interpretar()</code> con foto arma <code>contents</code>
+      con dos <code>parts</code>; sin foto sigue armando una sola parte
+      (regresión); <code>confirmar()</code> llama a
+      <code>registrarCorreccion</code> cuando <code>materialIdPropuesto</code>
+      difiere del final; NO la llama cuando el usuario no corrigió nada.</li>
+    <li><code>armadoVocabulario.service.test.js</code> — <span class="pill">nuevo</span>:
+      mockea el chain de <code>config/supabase.js</code> (mismo criterio que
+      <code>compras.service.test.js</code>). Casos: <code>buscarRelevante</code>
+      devuelve coincidencias ordenadas por <code>veces_confirmado</code> y
+      respeta el tope; <code>registrarCorreccion</code> crea una fila nueva la
+      primera vez e incrementa el contador si ya existía.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Verificación general</h2>
+  <ol>
+    <li><code>npm run dev</code> desde la raíz — levanta backend y frontend.</li>
+    <li>Probar <code>/armado</code> manualmente: sin foto (regresión), con una
+      foto clara (con anotaciones — igual que la prueba fácil del croquis:
+      debería dar confianza alta y sin advertencias), y con una foto donde el
+      texto contradiga algo a propósito (para ver la advertencia).</li>
+    <li><code>cd fieldstock-backend &amp;&amp; npx jest armado.service.test.js</code>
+      y <code>npx jest armadoVocabulario.service.test.js</code>.</li>
+    <li><code>npm run lint --prefix fieldstock-frontend</code> — 0 errores.</li>
+  </ol>
+</section>
+
+<footer>
+  FieldStock AI — Renzo Campisi, legajo 20534 · Etapa 2 de 2 (implementación). Arquitectura aprobada previamente en <code>architecture.html</code>.
+</footer>
+
+</main>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' })
+</script>
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Lectura de planos + aprendizaje de vocabulario — Etapa 1: Arquitectura</title>
+<style>
+  :root {
+    --ink:   #1a1a1a;
+    --muted: #6b6b6b;
+    --line:  #e6e6e6;
+    --card:  #fafafa;
+    --accent:#3b6eea;
+    --warn:  #b07b00;
+    --ok:    #16a34a;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    margin: 0;
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  main { max-width: 720px; margin: 56px auto 80px; padding: 0 24px; }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 26px;
+    margin: 0 0 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header .sub { color: var(--muted); font-size: 14px; }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 18px 0;
+  }
+  section.card > h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    font-weight: 600;
+  }
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  ul { padding-left: 18px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  strong { color: var(--ink); }
+  em.quote { color: var(--muted); font-style: italic; }
+  .pill {
+    display: inline-block;
+    background: #eef3ff;
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .pill-ok   { background: #e9f9ef; color: var(--ok); }
+  .pill-warn { background: #fff5e0; color: var(--warn); }
+  .diagram-card { padding: 18px; background: #fff; }
+  .mermaid { font-family: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .evidence {
+    border-left: 3px solid var(--accent);
+    background: #f5f8ff;
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    font-size: 14px;
+  }
+  .evidence table { margin: 8px 0 0; }
+  .decision-box {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 10px 0;
+  }
+  .decision-box .q { font-weight: 600; margin-bottom: 4px; }
+  .decision-box .a { color: var(--ok); font-weight: 600; }
+  footer { color: var(--muted); font-size: 13px; margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); }
+  @media print { main { max-width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="eyebrow">FieldStock AI · Plan de feature · Etapa 1 de 2</div>
+  <h1>Lectura de planos + aprendizaje de vocabulario</h1>
+  <div class="sub">Extensión de Kits de Montaje: la foto del croquis como apoyo, nunca como fuente de cantidades — y las correcciones del usuario como memoria reutilizable.</div>
+</header>
+
+<section class="card diagram-card">
+  <h2>Flujo</h2>
+  <pre class="mermaid">
+flowchart TD
+    A["Paso 'describir'\n(wizard /armado existente)"] --> B{"¿Usuario adjunta\nuna foto?"}
+    B -- no --> C["interpretar()\ntexto + catálogo\n+ vocabulario aprendido"]
+    B -- sí, 1 foto --> D["interpretar()\ntexto + foto + catálogo\n+ vocabulario aprendido"]
+    C --> E["Gemini resuelve cada línea,\nusando el texto como\núnica fuente de cantidad"]
+    D --> E
+    E --> F{"¿La foto contradice\nalgo del texto?"}
+    F -- sí --> G["Línea marcada con\nadvertencia visible"]
+    F -- no --> H["Línea sin advertencia"]
+    G --> I["Paso 'revision'\n(igual que hoy)"]
+    H --> I
+    I --> K{"¿El usuario corrigió\nel material de alguna línea?"}
+    K -- sí --> L["Se guarda:\ntexto que lo motivó → material real"]
+    K -- no --> M["Nada nuevo que guardar"]
+    L --> N["confirmar()\narma presupuesto o remito"]
+    M --> N
+    L -. realimenta la próxima .-> C
+    L -. realimenta la próxima .-> D
+  </pre>
+</section>
+
+<section class="card">
+  <h2>Por qué esta forma</h2>
+  <p>
+    Se hizo una prueba de concepto real contra Gemini con dos croquis de
+    verdad conocida (2 codos, 1 TE, 1 válvula esférica, caño de 8,70&nbsp;m en
+    total). El resultado marcó el límite de lo que la lectura visual puede
+    hacer sola:
+  </p>
+  <div class="evidence">
+    <table>
+      <tr><th>Prueba</th><th>Insumo</th><th>Resultado</th></tr>
+      <tr><td>Fácil</td><td>Croquis con texto rotulando cada pieza</td><td><span class="pill pill-ok">100% acierto</span> en las 4 piezas y la suma de cotas</td></tr>
+      <tr><td>Dura</td><td>Mismo croquis sin texto, solo símbolos a mano</td><td><span class="pill pill-warn">perdió 1 de 2 codos</span> y confundió el tipo de válvula</td></tr>
+    </table>
+  </div>
+  <p>
+    La conclusión no es "la IA no sirve para esto" — es que <strong>necesita
+    texto para anclarse</strong>. Eso es exactamente lo que Kits de Montaje ya
+    pide: una frase donde el usuario dice qué hay y cuánto. Por eso esto no es
+    una feature nueva, es agregarle una foto opcional al mismo paso, donde la
+    imagen cumple un rol de apoyo — igual que un plano de obra real, que un
+    encargado nunca interpreta sin que alguien le diga antes qué se está
+    tendiendo.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Alcance de la extensión</h2>
+  <ul>
+    <li>El paso "describir" del wizard suma un adjunto de foto <strong>opcional</strong>. El texto sigue siendo obligatorio — adjuntar una foto no reemplaza escribir qué hay.</li>
+    <li>Cuando hay foto, <code>interpretar()</code> se la pasa a Gemini junto con el texto, en el mismo llamado. La regla del prompt es explícita: la cantidad sale siempre del texto; la imagen sirve para (a) ayudar a resolver a qué material del catálogo corresponde algo descripto de forma ambigua, y (b) señalar si algo del texto no se condice con lo que se ve dibujado.</li>
+    <li>Si Gemini nota una contradicción, la línea de la revisión se muestra con una advertencia visible pero <strong>no bloqueante</strong> — el usuario puede confirmar igual. La decisión final sigue siendo siempre suya, mismo criterio que ya rige todo Kits de Montaje.</li>
+    <li>Aplica igual para destino PRESUPUESTO y REMITO — no hay diferencia de comportamiento entre uno y otro, la foto entra antes de esa bifurcación.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Aprendizaje de vocabulario de catálogo</h2>
+  <p>
+    El error de la prueba dura (perder un codo, confundir el tipo de
+    válvula) no se resuelve con memoria — se resuelve solo con diseño: como
+    el texto es siempre la única fuente de cantidad y tipo, ese error de
+    lectura visual pura no puede volver a ocurrir en producción, con o sin
+    aprendizaje. Nada de lo que sigue intenta que la IA "recuerde" símbolos
+    dibujados; eso seguiría sin ser confiable y sin ser necesario.
+  </p>
+  <p>
+    Lo que sí es aprendizaje real y útil es otra cosa, ya presente en el
+    flujo hoy: cuando el usuario, en la revisión, <strong>corrige a qué
+    material corresponde algo que escribió</strong> — le reasigna otro
+    material del catálogo distinto al que propuso la IA, o da de alta uno
+    nuevo con un nombre bastante distinto al texto original. Esa corrección
+    es una señal de vocabulario ("cuando alguien dice X, en realidad se
+    refiere a Y") que vale la pena recordar para la próxima vez, sea o no
+    con foto — el problema que resuelve es de jerga, no de imagen.
+  </p>
+  <ul>
+    <li>Se guarda en el momento de <code>confirmar()</code>, no de
+      <code>interpretar()</code> — ahí es cuando se sabe con certeza cuál
+      fue la resolución real, no la propuesta.</li>
+    <li>En la próxima interpretación, ese historial se suma como contexto
+      adicional para Gemini junto con el catálogo — mismo mecanismo que ya
+      existe para el catálogo, con un tope similar para no inflar el
+      prompt con historial acumulado indefinidamente.</li>
+    <li>El vocabulario aprendido es <strong>por empresa</strong>, no
+      global — mismo aislamiento que ya aplica al resto de los datos del
+      sistema. La jerga de una empresa no debe filtrarse a otra.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Decisiones ya tomadas</h2>
+  <div class="decision-box">
+    <div class="q">¿Cuántas fotos por interpretación?</div>
+    <div class="a">Una sola.</div>
+    <p>Mismo patrón que Scan & Match. Si un plano necesita más de una toma para entenderse, es señal de que excede lo que este flujo puede resolver con confianza.</p>
+  </div>
+  <div class="decision-box">
+    <div class="q">¿Qué pasa si el texto contradice la foto?</div>
+    <div class="a">Advertencia visible, no bloqueante.</div>
+    <p>Se muestra al lado de la línea afectada en el paso de revisión. No exige un reconocimiento explícito — el usuario ya revisa cada línea antes de confirmar, igual que hoy.</p>
+  </div>
+  <div class="decision-box">
+    <div class="q">¿El vocabulario aprendido se ve o se gestiona desde algún lado?</div>
+    <div class="a">No — automático y transparente.</div>
+    <p>Sin pantalla nueva. Un error de tipeo puntual se diluye solo con el tiempo, a medida que se acumulan más ejemplos correctos del mismo término.</p>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Qué NO hace esta feature</h2>
+  <ul>
+    <li>No cuenta piezas de la imagen para generar cantidades — la prueba dura mostró que ese camino falla.</li>
+    <li>No reconoce símbolos de plano como fuente de verdad por sí sola, sin texto que la acompañe.</li>
+    <li>No aprende nada de las imágenes — el vocabulario que se guarda es siempre texto → material, nunca dibujo → pieza.</li>
+    <li>No es una página ni un módulo nuevo — no hay ruta nueva en el sidebar, ni pantalla de gestión del vocabulario aprendido.</li>
+    <li>No cambia nada del camino sin foto ni sin correcciones: si el usuario no adjunta foto ni corrige nada, el comportamiento es exactamente el de hoy.</li>
+  </ul>
+</section>
+
+<footer>
+  FieldStock AI — Renzo Campisi, legajo 20534 · Etapa 1 de 2 (arquitectura). La Etapa 2 (implementación) se escribe después de aprobar esta.
+</footer>
+
+</main>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' })
+</script>
+</body>
+</html>
