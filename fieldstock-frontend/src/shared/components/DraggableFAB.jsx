@@ -1,15 +1,20 @@
 // src/shared/components/DraggableFAB.jsx
 /**
- * FAB de "Escanear QR" arrastrable. Por default arranca anclado a la
- * esquina inferior derecha (config previa), pero el usuario lo puede
- * mover libremente con drag. La posición elegida se persiste en
- * localStorage por device.
+ * FAB de "Escanear QR" arrastrable. Arranca anclado a la esquina inferior
+ * derecha, y el usuario lo puede mover libremente con drag si en una
+ * pantalla puntual le tapa algo — pero esa posición es solo para la
+ * pantalla actual: al navegar a otra ruta, vuelve sola al default.
+ *
+ * Antes la posición se guardaba en localStorage y persistía para siempre
+ * en todas las pantallas — si se arrastraba sin querer a un lugar
+ * incómodo, quedaba ahí hasta que alguien lo volviera a arrastrar a mano.
+ * Ahora es efímero por pantalla: sin memoria entre navegaciones.
  *
  * Detalles de UX:
  *   - Diferencia tap vs drag con un umbral de 8px. Tap navega; drag mueve.
  *   - Clamping: el FAB no puede salirse del viewport (8px de padding).
- *   - Re-clamp en resize: si rotás el dispositivo y la posición guardada
- *     queda fuera de los nuevos límites, se ajusta automaticamente.
+ *   - Re-clamp en resize: si rotás el dispositivo mientras está arrastrado
+ *     fuera de los nuevos límites, se ajusta automaticamente.
  *   - Pointer Events (no touch): funciona igual con dedo y con mouse.
  *     El scroll durante el gesto lo bloquea `touch-action: none` del CSS.
  *
@@ -17,11 +22,10 @@
  * lateral ya tiene el item "Escanear QR" normal y no hace falta FAB.
  */
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { LuQrCode } from 'react-icons/lu'
 import styles from './DraggableFAB.module.css'
 
-const STORAGE_KEY    = 'fs-fab-position-qr'
 const DRAG_THRESHOLD = 8   // px — distancia mínima para considerar drag
 const FAB_SIZE       = 64  // px — debe matchear el CSS
 const PADDING        = 8   // px — margen mínimo del borde del viewport
@@ -35,18 +39,22 @@ function clampPosition(x, y) {
   }
 }
 
-function leerPosicionGuardada() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    return stored ? JSON.parse(stored) : null
-  } catch { return null }
-}
-
 export default function DraggableFAB() {
   const navigate = useNavigate()
+  const location = useLocation()
   const fabRef   = useRef(null)
-  const [pos, setPos] = useState(leerPosicionGuardada)
+  // null = posición default del CSS (ancla bottom-right). Arranca en null
+  // en cada mount Y cada vez que cambia la ruta (ver efecto más abajo) —
+  // nunca se lee de localStorage, no hay memoria entre pantallas.
+  const [pos, setPos] = useState(null)
   const [dragging, setDragging] = useState(false)
+
+  // Volver al default apenas cambia la pantalla. DraggableFAB vive en
+  // AppLayout fuera del <Outlet>, así que no se remonta solo al navegar —
+  // hay que resetear la posición a mano en base al pathname.
+  useEffect(() => {
+    setPos(null)
+  }, [location.pathname])
 
   // ── Drag con Pointer Events ─────────────────────────────────
   // Un solo camino para mouse, touch y stylus. Antes esto escuchaba solo
@@ -130,12 +138,6 @@ export default function DraggableFAB() {
       el.removeEventListener('click',         onClick)
     }
   }, [navigate])
-
-  // ── Persistir cuando termina el drag ────────────────────────
-  useEffect(() => {
-    if (!pos) return
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(pos)) } catch { /* localStorage lleno o privado, ignorar */ }
-  }, [pos])
 
   // ── Re-clamp en resize/rotate ───────────────────────────────
   useEffect(() => {
