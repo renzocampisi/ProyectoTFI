@@ -75,6 +75,64 @@
 .noEncontrado { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: var(--space-4); color: var(--text-secondary); }
 .btnGhost { font-size: var(--text-sm); color: var(--color-primary); padding: var(--space-2) var(--space-4); border: 1px solid rgba(61,126,255,0.3); border-radius: var(--radius-md); transition: background var(--transition-fast); }
 .btnGhost:hover { background: var(--color-primary-dim); }
+.btnGhost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Modal de cierre de obra (Historial de Obra) ── */
+.modalOverlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: grid; place-items: center;
+  z-index: 200;
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+.modalCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  max-width: 480px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modalTitle { font-size: var(--text-lg); font-weight: 600; color: var(--text-primary); margin: 0; }
+.modalText { font-size: var(--text-sm); color: var(--text-secondary); margin: 0; line-height: 1.5; }
+.modalActions { display: flex; gap: var(--space-2); justify-content: flex-end; flex-wrap: wrap; }
+
+.inputEdit {
+  width: 100%;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+.inputEdit:focus { outline: none; border-color: var(--color-primary); }
+.inputEditNum {
+  width: 110px;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.inputEditNum:focus { outline: none; border-color: var(--color-primary); }
+.rowAdd { display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-2); }
+.rowAdd .inputEdit { flex: 1; }
+.btnEliminarFila { color: var(--text-muted); padding: var(--space-1); border-radius: var(--radius-sm); }
+.btnEliminarFila:hover { background: var(--color-surface-alt); color: var(--color-danger); }
+.btnLink { color: var(--color-primary); font-size: var(--text-sm); font-weight: 500; margin-top: var(--space-2); }
+.btnLink:hover { text-decoration: underline; }
 
 @media (max-width: 1024px) {
   .layout { grid-template-columns: 1fr; }

@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Historial de Obra — Etapa 2: Implementación</title>
+<style>
+  :root {
+    --ink:   #1a1a1a;
+    --muted: #6b6b6b;
+    --line:  #e6e6e6;
+    --card:  #fafafa;
+    --accent:#3b6eea;
+    --warn:  #b07b00;
+    --ok:    #16a34a;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    margin: 0;
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  main { max-width: 720px; margin: 56px auto 80px; padding: 0 24px; }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 26px;
+    margin: 0 0 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header .sub { color: var(--muted); font-size: 14px; }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 18px 0;
+  }
+  section.card > h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    font-weight: 600;
+  }
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  ul, ol { padding-left: 18px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  strong { color: var(--ink); }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    background: #f0f0f0;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  .pill {
+    display: inline-block;
+    background: #eef3ff;
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .diagram-card { padding: 18px; background: #fff; }
+  .mermaid { font-family: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 14px; }
+  th, td { border-bottom: 1px solid var(--line); text-align: left; padding: 8px 6px; vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .step {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 10px 0;
+    background: #fff;
+  }
+  .step .num {
+    display: inline-block;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    text-align: center;
+    line-height: 22px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-right: 8px;
+  }
+  .step .file { display: block; margin-top: 6px; font-size: 13px; }
+  .step .verify {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--line);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .grupo {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+    margin: 20px 0 4px;
+  }
+  .riesgo {
+    border-left: 3px solid var(--warn);
+    background: #fffaf0;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    margin: 10px 0;
+  }
+  .riesgo .titulo { font-weight: 600; margin-bottom: 4px; }
+  footer { color: var(--muted); font-size: 13px; margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); }
+  @media print { main { max-width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="eyebrow">FieldStock AI · Plan de feature · Etapa 2 de 2</div>
+  <h1>Historial de Obra</h1>
+  <div class="sub">Implementación — arquitectura aprobada en <code>architecture.html</code></div>
+</header>
+
+<section class="card diagram-card">
+  <h2>Secuencia</h2>
+  <pre class="mermaid">
+sequenceDiagram
+    actor U as Usuario
+    participant FE as ObrasDetailPage
+    participant BE as obras.service
+    participant OH as obraHistorial.service
+    participant ARM as armado.service
+    participant ST as Storage (planos-obra)
+
+    Note over U,ST: Durante la obra — foto de Kits de Montaje
+    U->>ARM: confirmar() con foto adjunta
+    ARM->>OH: agregarPlano(obraId, foto) — best-effort
+    OH->>ST: upload
+    ARM-->>U: presupuesto/remito creado (no bloquea si el upload falla)
+
+    Note over U,OH: Al finalizar la obra
+    U->>FE: click "Finalizar obra"
+    FE->>U: modal — horas hombre, inconvenientes, costos no anticipados
+    U->>FE: confirma
+    FE->>BE: POST /obras/:id/finalizar { horasHombre?, inconvenientes?, costosNoAnticipados? }
+    BE->>OH: registrarCierre(obraId, {...})
+    BE-->>FE: obra FINALIZADA
+
+    Note over U,OH: Consultar el historial
+    U->>FE: click "Historial" (solo visible si FINALIZADA)
+    FE->>OH: GET /obras/:id/historial
+    OH-->>FE: duración, insumos, mano de obra, herramientas, planos, inconvenientes, costos, horas hombre
+    U->>BE: (alternativa) Panel IA — "dame el historial de la obra X"
+  </pre>
+</section>
+
+<section class="card">
+  <h2>Patrones de diseño</h2>
+  <ul>
+    <li><strong>Service dedicado, no extender <code>obras.service.js</code>:</strong>
+      <code>obraHistorial.service.js</code> nuevo — mismo criterio que separó
+      <code>armadoVocabulario.service.js</code> de <code>armado.service.js</code>.
+      La agregación cruza 6+ tablas; mezclarla en el service de obras lo
+      infla sin necesidad.</li>
+    <li><strong>Storage privado + signed URL:</strong> mismo patrón exacto que
+      comprobantes de compra (<code>2026_06_12_compras_comprobante_storage.sql</code>) —
+      bucket privado, el backend sube/lee con <code>SERVICE_KEY</code>, sin
+      políticas RLS sobre <code>storage.objects</code> porque todo el tráfico
+      pasa por el service role.</li>
+    <li><strong>Multer condicional en ruta dual JSON/multipart:</strong>
+      <code>POST /armado/confirmar</code> pasa a aceptar multipart cuando hay
+      foto — mismo patrón ya construido para <code>/armado/interpretar</code>
+      en la feature "Lectura de planos".</li>
+    <li><strong>Best-effort, nunca bloqueante:</strong> subir el plano y
+      registrar el cierre son operaciones secundarias respecto de la
+      escritura principal (confirmar un armado, finalizar una obra) — mismo
+      criterio que ya usa el aprendizaje de vocabulario: si fallan, se loguea
+      y se sigue.</li>
+    <li><strong>Controller → Service:</strong> el controller nuevo
+      (<code>obraHistorial.controller.js</code>) es thin — un solo handler de
+      lectura.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Riesgos puntuales</h2>
+
+  <div class="riesgo">
+    <div class="titulo">Atribuir una herramienta rota a la obra correcta</div>
+    <p>Una herramienta se reutiliza entre obras. Que haya pasado por un
+    remito de esta obra no alcanza para decir que se rompió acá — hay que
+    cruzar <code>herramientas.fecha_baja</code> contra el rango
+    <code>[obra.fecha_inicio, obra.fecha_fin]</code> de <strong>esta</strong>
+    obra. Si la baja ocurrió fuera de ese rango (la herramienta se rompió en
+    una obra posterior), no se le atribuye a esta.</p>
+  </div>
+
+  <div class="riesgo">
+    <div class="titulo">La foto se reenvía en confirmar(), no se sube en interpretar()</div>
+    <p><code>interpretar()</code> es explícitamente de solo lectura ("NO
+    escribe nada" — ver <code>_plans/planos/architecture.html</code>). Subir
+    el archivo ahí violaría esa invariante y dejaría fotos huérfanas si el
+    usuario abandona el wizard sin confirmar. Por eso el archivo viaja de
+    nuevo al confirmar — costo aceptado (se manda dos veces) a cambio de no
+    romper la separación lectura/escritura ya establecida.</p>
+  </div>
+
+  <div class="riesgo">
+    <div class="titulo">Simplificación de <code>finalizar()</code> — bonus del fix de obra_id</div>
+    <p>El guard actual de <code>finalizar()</code> resuelve remitos abiertos
+    por <strong>nombre</strong> de obra (comentario explícito en el código:
+    "Los remitos referencian la obra por NOMBRE"). Con <code>obra_id</code> ya
+    migrado (<code>2026_09_03_remitos_movimientos_obra_id.sql</code>), este es
+    el momento natural de cambiar ese filtro a <code>obra_id</code> directo —
+    se toca esta función de todos modos para sumar el cierre.</p>
+  </div>
+
+  <div class="riesgo">
+    <div class="titulo">Datos de obras ya FINALIZADAS antes de esta feature</div>
+    <p>No hay backfill posible para horas hombre / inconvenientes / costos no
+    anticipados — esos datos nunca se registraron. El historial de una obra
+    vieja simplemente muestra esas secciones vacías; no es un bug, es
+    ausencia real de dato.</p>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Pasos ordenados</h2>
+
+  <div class="grupo">Backend</div>
+
+  <div class="step">
+    <span class="num">1</span><strong>Migración: columna, tablas y bucket</strong>
+    <span class="file">📄 <code>_sql/migrations/2026_09_04_historial_obra.sql</code> <span class="pill">nuevo</span></span>
+    <p style="margin-top:8px">
+      <code>ALTER TABLE obras ADD COLUMN horas_hombre numeric;</code> —
+      escalar simple, opcional.
+    </p>
+    <p>
+      <code>obra_inconvenientes</code> (id, obra_id FK, descripcion, created_at)
+      y <code>obra_costos_no_anticipados</code> (id, obra_id FK, descripcion,
+      monto, created_at) — listas, ambas <code>ON DELETE CASCADE</code>.
+    </p>
+    <p>
+      <code>obra_planos</code> (id, obra_id FK, storage_path, created_at) —
+      una obra puede acumular varias fotos a lo largo de su vida (varias
+      interacciones con Kits de Montaje), a diferencia del comprobante de
+      compra que es uno solo.
+    </p>
+    <p>
+      Bucket <code>planos-obra</code> vía <code>INSERT INTO storage.buckets</code>
+      (mismo <code>ON CONFLICT DO NOTHING</code> que el de comprobantes),
+      privado, <code>image/jpeg</code> y <code>image/png</code>, límite 8 MiB
+      (igual que el multer de <code>/armado/interpretar</code>).
+    </p>
+    <div class="verify">Verificación: correr en el editor SQL de Supabase,
+    confirmar tablas + bucket desde ahí.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">2</span><strong>Service de historial</strong>
+    <span class="file">📄 <code>fieldstock-backend/src/services/obraHistorial.service.js</code> <span class="pill">nuevo</span></span>
+    <p style="margin-top:8px">
+      <code>getHistorial(obraId)</code>: agrega en paralelo (<code>Promise.all</code>) —
+      remitos + remito_items/remito_materiales de la obra (por
+      <code>obra_id</code> directo), presupuestos y sus costos categoría
+      MANO_OBRA, herramientas usadas (via remito_items) con su
+      <code>fecha_baja</code> filtrada al rango de la obra, planos (signed
+      URLs de <code>obra_planos</code>), inconvenientes, costos no
+      anticipados, y <code>horas_hombre</code> de la cabecera de obra.
+      Devuelve un objeto plano listo para la pantalla y para la tool del
+      Panel IA — mismo shape para ambos consumidores.
+    </p>
+    <p>
+      <code>registrarCierre(obraId, { horasHombre, inconvenientes, costosNoAnticipados })</code>:
+      todos los campos opcionales. Actualiza <code>obras.horas_hombre</code>
+      si vino, e inserta las filas de las dos tablas lista si vinieron
+      arrays no vacíos.
+    </p>
+    <p>
+      <code>agregarPlano(obraId, { buffer, mimetype })</code>: valida tamaño/mime
+      (mismo criterio que <code>compras.service.js setComprobante</code>),
+      sube a <code>planos-obra</code> con un path
+      <code>{obraId}-{Date.now()}.{ext}</code>, inserta la fila en
+      <code>obra_planos</code>.
+    </p>
+    <div class="verify">Verificación: <code>obraHistorial.service.test.js</code>
+    mockeando el chain de <code>config/supabase.js</code> (ver Testing).</div>
+  </div>
+
+  <div class="step">
+    <span class="num">3</span><strong>Extender <code>obras.service.js</code></strong>
+    <span class="file">📄 <code>fieldstock-backend/src/services/obras.service.js</code></span>
+    <p style="margin-top:8px">
+      <code>finalizar(id, body)</code>: el guard de remitos abiertos cambia de
+      <code>.eq('obra', obraBase.nombre)</code> a <code>.eq('obra_id', id)</code>
+      directo — ya no hace falta resolver el nombre primero. Después de
+      marcar <code>FINALIZADA</code>, llama a
+      <code>ObraHistorial.registrarCierre(id, body)</code> en un
+      <code>try/catch</code> que solo loguea (best-effort, no bloquea la
+      finalización si el cierre falla).
+    </p>
+    <div class="verify">Depende del paso 2.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">4</span><strong>Extender <code>armado.service.js</code></strong>
+    <span class="file">📄 <code>fieldstock-backend/src/services/armado.service.js</code></span>
+    <p style="margin-top:8px">
+      <code>confirmar(payload)</code> acepta <code>foto</code> opcional
+      (<code>{ buffer, mimeType }</code>). Después de resolver <code>obra</code>
+      (existente o nueva) y antes de bifurcar a presupuesto/remito, si vino
+      foto llama a <code>ObraHistorial.agregarPlano(obra.id, foto)</code> en
+      un <code>try/catch</code> que solo loguea.
+    </p>
+    <div class="verify">Depende del paso 2. Test: extender
+    <code>armado.service.test.js</code> — <code>confirmar()</code> con foto
+    llama a <code>agregarPlano</code>; sin foto no lo llama; un fallo del
+    upload no tira abajo la confirmación.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">5</span><strong>Controllers</strong>
+    <span class="file">📄 <code>fieldstock-backend/src/controllers/obraHistorial.controller.js</code> <span class="pill">nuevo</span></span>
+    <p style="margin-top:8px">
+      Un solo handler: <code>getHistorial(req, res, next)</code> →
+      <code>ObraHistorial.getHistorial(req.params.id)</code>.
+    </p>
+    <p>
+      <code>obras.controller.js finalizar</code>: pasa <code>req.body</code>
+      al service (hoy no lo hace, llama sin argumentos).
+    </p>
+    <p>
+      <code>armado.controller.js confirmar</code>: mismo tratamiento que ya
+      tiene <code>interpretar</code> — si <code>req.file</code> existe, arma
+      <code>foto: { buffer, mimeType }</code> y se lo pasa al service.
+    </p>
+    <div class="verify">Depende de los pasos 3 y 4.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">6</span><strong>Rutas</strong>
+    <span class="file">📄 <code>fieldstock-backend/src/routes/index.js</code></span>
+    <p style="margin-top:8px">
+      <code>GET /obras/:id/historial</code> — nueva.
+    </p>
+    <p>
+      <code>POST /armado/confirmar</code> suma el mismo middleware
+      <code>uploadArmado.single('foto')</code> que ya usa
+      <code>/armado/interpretar</code> (mismo multer, se puede reusar la
+      misma instancia).
+    </p>
+    <div class="verify">Verificación: probar <code>GET /obras/:id/historial</code>
+    con curl sobre una obra FINALIZADA real; probar
+    <code>/armado/confirmar</code> con y sin foto.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">7</span><strong>Panel IA</strong>
+    <span class="file">📄 <code>fieldstock-backend/src/services/panel/tools.js</code></span>
+    <p style="margin-top:8px">
+      Tool de lectura <code>historial_obra</code> — parámetro <code>obraId</code>
+      (o <code>nombreObra</code> con lookup previo, mismo patrón que otras
+      tools que aceptan nombre parcial). Handler llama a
+      <code>ObraHistorial.getHistorial</code> directo.
+    </p>
+  </div>
+
+  <div class="grupo">Frontend</div>
+
+  <div class="step">
+    <span class="num">8</span><strong>Service</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/modules/m4-obra/services/obras.service.js</code></span>
+    <p style="margin-top:8px">
+      <code>finalizar: (id, body) => api.post(\`/obras/\${id}/finalizar\`, body || {})</code>
+      — hoy manda <code>{}</code> fijo, pasa a mandar el body del modal de cierre.
+    </p>
+    <p><code>getHistorial: (id) => api.get(\`/obras/\${id}/historial\`)</code> — nuevo.</p>
+  </div>
+
+  <div class="step">
+    <span class="num">9</span><strong>Modal de cierre</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/modules/m4-obra/pages/ObrasDetailPage.jsx</code></span>
+    <p style="margin-top:8px">
+      El click en "Finalizar obra" deja de llamar directo a
+      <code>ObrasService.finalizar(id)</code> y abre un modal (mismo patrón
+      de modales de confirmación que <code>PresupuestoDetailPage</code>):
+      campo numérico opcional "Horas hombre", y dos listas dinámicas
+      agregar/quitar fila — "Inconvenientes" (una descripción por fila) y
+      "Costos no anticipados" (descripción + monto por fila) — mismo patrón
+      de filas dinámicas que ya construimos para mano de obra/costos extra
+      en <code>PresupuestoDetailPage</code>. Todo opcional: se puede finalizar
+      sin cargar nada, igual que hoy.
+    </p>
+    <div class="verify">Depende del paso 8.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">10</span><strong>Página de historial</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/modules/m4-obra/pages/ObraHistorialPage.jsx</code> <span class="pill">nuevo</span></span>
+    <p style="margin-top:8px">
+      Ruta nueva <code>/obras/:id/historial</code> (agregar en
+      <code>AppRouter.jsx</code>). Secciones: duración, insumos, mano de obra,
+      herramientas usadas/rotas, planos (galería simple con las signed URLs),
+      inconvenientes, costos no anticipados. Botón "Historial" en
+      <code>ObrasDetailPage.jsx</code> visible solo si
+      <code>obra.estado === 'FINALIZADA'</code>, al lado de "Reactivar".
+    </p>
+    <div class="verify">Depende del paso 8.</div>
+  </div>
+
+  <div class="step">
+    <span class="num">11</span><strong>Foto en el confirmar de Kits de Montaje</strong>
+    <span class="file">📄 <code>fieldstock-frontend/src/modules/m-armado/services/armado.service.js</code>, <code>hooks/useArmado.js</code></span>
+    <p style="margin-top:8px">
+      <code>ArmadoService.confirmar(payload, foto)</code>: si hay foto, arma
+      <code>FormData</code> con <code>payload</code> serializado (JSON string
+      en un campo) + <code>foto</code>, usa <code>api.postForm</code>; si no,
+      sigue mandando JSON como hoy. En <code>useArmado.js</code>,
+      <code>confirmar()</code> le pasa el <code>foto</code> que ya vive en el
+      estado del hook desde el paso "describir".
+    </p>
+    <div class="verify">Verificación: <code>npm run dev</code>, armar un
+    presupuesto con foto por Kits de Montaje, confirmar, y chequear que
+    aparece en <code>/obras/:id/historial</code> de esa obra.</div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Testing</h2>
+  <ul>
+    <li><code>obraHistorial.service.test.js</code> — <span class="pill">nuevo</span>:
+      mock del chain de <code>config/supabase.js</code>. Casos:
+      <code>getHistorial</code> agrega correctamente cada sección;
+      herramienta con <code>fecha_baja</code> fuera del rango de la obra NO
+      aparece como rota; <code>registrarCierre</code> con campos parciales
+      (solo horas hombre, solo inconvenientes, nada); <code>agregarPlano</code>
+      rechaza mime/tamaño inválido.</li>
+    <li><code>armado.service.test.js</code>: extender —
+      <code>confirmar()</code> con foto llama a <code>agregarPlano</code>;
+      sin foto no lo llama; fallo de <code>agregarPlano</code> no impide
+      que se devuelva el presupuesto/remito creado.</li>
+    <li>Sin test nuevo para <code>obras.service.js finalizar()</code> — el
+      archivo no tenía suite antes de este cambio; se agrega solo si se toca
+      de nuevo más adelante (mismo criterio pragmático que ya sigue el
+      proyecto con otros services).</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Verificación general</h2>
+  <ol>
+    <li><code>npm run dev</code> desde la raíz.</li>
+    <li>Finalizar una obra real con datos de cierre cargados (horas, un
+      inconveniente, un costo no anticipado) y confirmar que el historial los
+      muestra.</li>
+    <li>Armar un presupuesto con foto por Kits de Montaje y verificar que la
+      foto aparece en el historial de esa obra.</li>
+    <li>Preguntarle al Panel IA "dame el historial de la obra X" y comparar
+      contra la pantalla.</li>
+    <li><code>cd fieldstock-backend &amp;&amp; npx jest obraHistorial.service.test.js armado.service.test.js</code>.</li>
+    <li><code>npm run lint --prefix fieldstock-frontend</code> — 0 errores.</li>
+  </ol>
+</section>
+
+<footer>
+  FieldStock AI — Renzo Campisi, legajo 20534 · Etapa 2 de 2 (implementación). Arquitectura aprobada previamente en <code>architecture.html</code>.
+</footer>
+
+</main>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' })
+</script>
+</body>
+</html>

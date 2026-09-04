@@ -45,7 +45,7 @@ export async function update(req, res, next) {
 
 export async function finalizar(req, res, next) {
   try {
-    const data = await ObrasService.finalizar(req.params.id)
+    const data = await ObrasService.finalizar(req.params.id, req.body || {})
     res.json({ ok: true, data })
   } catch (err) { next(err) }
 }

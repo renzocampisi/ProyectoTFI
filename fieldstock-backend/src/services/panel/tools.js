@@ -27,6 +27,7 @@ import * as Remitos       from '../remitos.service.js'
 import * as Presupuestos  from '../presupuestos.service.js'
 import * as Compras       from '../compras.service.js'
 import * as Directorio    from '../directorio.service.js'
+import * as ObraHistorial from '../obraHistorial.service.js'
 
 const HARD_LIMIT = 50
 
@@ -307,6 +308,22 @@ export const TOOLS = [
         items: project(rows, ['id', 'nombre', 'email', 'telefono']),
       }
     },
+  },
+
+  {
+    name: 'historial_obra',
+    description:
+      'Historial completo de una obra: duración, insumos utilizados y presupuestados, ' +
+      'mano de obra, herramientas usadas y cuáles se dieron de baja durante la obra, ' +
+      'fotos de plano/croquis usadas en Kits de Montaje, inconvenientes anotados, ' +
+      'costos no anticipados y horas hombre cargadas al cerrarla. Usar el id obtenido ' +
+      'con listar_obras. Tiene más sentido en obras FINALIZADA, pero funciona con cualquiera.',
+    parameters: {
+      type: 'object',
+      properties: { obraId: { type: 'string', description: 'UUID de la obra (obtenido con listar_obras).' } },
+      required: ['obraId'],
+    },
+    handler: async ({ obraId }) => ObraHistorial.getHistorial(obraId),
   },
 ]
 

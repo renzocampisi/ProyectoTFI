@@ -26,6 +26,7 @@ import ObrasListPage   from '@modules/m4-obra/pages/ObrasListPage'
 import ObrasNewPage    from '@modules/m4-obra/pages/ObrasNewPage'
 import ObrasDetailPage from '@modules/m4-obra/pages/ObrasDetailPage'
 import ObrasEditPage   from '@modules/m4-obra/pages/ObrasEditPage'
+import ObraHistorialPage from '@modules/m4-obra/pages/ObraHistorialPage'
 
 import RemitosListPage   from '@modules/m5-remito/pages/RemitosListPage'
 import ArmadoPage        from '@modules/m-armado/pages/ArmadoPage'
@@ -123,8 +124,9 @@ export default function AppRouter() {
           <Route path="obras">
             <Route index             element={<ObrasListPage />} />
             <Route path="nueva"      element={<ObrasNewPage />} />
-            <Route path=":id"        element={<ObrasDetailPage />} />
-            <Route path=":id/editar" element={<ObrasEditPage />} />
+            <Route path=":id"           element={<ObrasDetailPage />} />
+            <Route path=":id/editar"    element={<ObrasEditPage />} />
+            <Route path=":id/historial" element={<ObraHistorialPage />} />
           </Route>
 
           <Route path="remitos">

@@ -298,6 +298,27 @@ export default function ArmadoPage() {
             value={a.texto} onChange={e => a.setTexto(e.target.value)}
             disabled={a.paso === 'interpretando'} />
 
+          {/* Foto opcional del croquis/plano — apoyo y verificación del
+              texto de arriba, nunca fuente de cantidad (la cuenta la
+              interpreta siempre el texto). */}
+          <div className={styles.fotoBox}>
+            <label className={styles.btnGhost} style={{ cursor: 'pointer' }}>
+              📷 {a.foto ? 'Cambiar foto' : 'Adjuntar foto del croquis (opcional)'}
+              <input type="file" accept="image/*" capture="environment" hidden
+                onChange={e => a.setFoto(e.target.files?.[0] || null)}
+                disabled={a.paso === 'interpretando'} />
+            </label>
+            {a.foto && (
+              <>
+                <span className={styles.fotoNombre}>{a.foto.name}</span>
+                <button type="button" className={styles.btnLink}
+                  onClick={() => a.setFoto(null)} disabled={a.paso === 'interpretando'}>
+                  quitar
+                </button>
+              </>
+            )}
+          </div>
+
           <div className={styles.acciones}>
             <button type="button" className={styles.btnGhost}
               onClick={() => a.volverA('destino')} disabled={a.paso === 'interpretando'}>
@@ -350,6 +371,11 @@ export default function ArmadoPage() {
                       <span className={`${styles.badge} ${styles[`conf_${l.confianza}`]}`}>
                         {l.confianza}
                       </span>
+                      {l.advertenciaFoto && (
+                        <div className={styles.advertenciaFoto} title="La foto no coincide del todo con el texto — vos decidís si igual está bien">
+                          ⚠ {l.advertenciaFoto}
+                        </div>
+                      )}
                     </td>
                     <td className={styles.celdaMaterial} data-label="Material">
                       {l.modo === 'catalogo' ? (

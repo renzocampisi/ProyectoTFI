@@ -131,7 +131,7 @@ function historialAGemini(historial = []) {
  *
  * @param {string} pregunta  Mensaje nuevo del usuario.
  * @param {Array}  historial Turnos previos: [{ role: 'user'|'assistant', content }].
- * @returns {Promise<{ respuesta: string, traza: Array }>}
+ * @returns {Promise<{ respuesta: string, traza: Array, imagenes?: string[] }>}
  */
 export async function responder(pregunta, historial = []) {
   if (!pregunta || typeof pregunta !== 'string' || !pregunta.trim()) {
@@ -144,6 +144,10 @@ export async function responder(pregunta, historial = []) {
   ]
   const tools = [...getDeclarations(), ...getWriteDeclarations()]
   const traza = []
+  // URLs de fotos que alguna tool devolvió en este turno (hoy solo
+  // historial_obra). Se muestran como <img> en el frontend — el chat no
+  // interpreta markdown, así que nunca deben viajar como texto plano.
+  const imagenes = []
   const system = systemPrompt()
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
@@ -155,7 +159,7 @@ export async function responder(pregunta, historial = []) {
 
     // Caso 1: el modelo respondio sin pedir tools — fin del turno.
     if ((!functionCalls || functionCalls.length === 0) && text) {
-      return { respuesta: text, traza }
+      return { respuesta: text, traza, imagenes }
     }
 
     // Caso 1.5: el modelo pidio una tool de ACCION. Nunca se ejecuta acá —
@@ -199,7 +203,23 @@ export async function responder(pregunta, historial = []) {
         functionCalls.map(async (fc) => {
           const result = await runTool(fc.name, fc.args)
           traza.push({ tool: fc.name, args: fc.args, ok: !result?.error })
-          return { name: fc.name, result }
+
+          // Si la tool devolvió fotos (hoy solo historial_obra: result.planos),
+          // separamos la URL real (va a `imagenes`, la renderiza el frontend)
+          // de lo que le llega al modelo — sin la URL cruda, para que no
+          // intente repetirla como texto larguísimo en la respuesta.
+          let resultParaModelo = result
+          if (Array.isArray(result?.planos) && result.planos.length) {
+            for (const p of result.planos) if (p.url) imagenes.push(p.url)
+            resultParaModelo = {
+              ...result,
+              planos: result.planos.map(p => ({
+                id: p.id, createdAt: p.createdAt,
+                nota: 'La foto ya se le muestra al usuario en la interfaz — no repitas la URL en tu respuesta.',
+              })),
+            }
+          }
+          return { name: fc.name, result: resultParaModelo }
         })
       )
 

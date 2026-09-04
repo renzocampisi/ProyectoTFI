@@ -108,6 +108,7 @@ export default function RemitosNewPage() {
     try {
       const remito = await RemitosService.create({
         obra:              form.obraNombre,
+        obraId:            form.obraId,
         // Responsable y user_id vienen siempre del profile del logueado
         // — el campo es read-only en la UI, no hay edición manual.
         responsable:       profile?.nombre || form.responsable,

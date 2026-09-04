@@ -30,6 +30,16 @@ export default function ObrasDetailPage() {
   const [loadingAction, setLoadingAction] = useState(false)
   const [errAction,     setErrAction]     = useState(null)
 
+  // Cierre de obra (Historial de Obra): datos manuales opcionales que se
+  // cargan en el mismo momento de finalizar — horas hombre, inconvenientes,
+  // costos no anticipados. Nada es obligatorio, se puede finalizar sin
+  // cargar nada, igual que antes de esta feature.
+  const [cierreModal,          setCierreModal]          = useState(false)
+  const [horasHombre,          setHorasHombre]          = useState('')
+  const [inconvenientes,       setInconvenientes]       = useState([])
+  const [costosNoAnticipados,  setCostosNoAnticipados]  = useState([])
+  const [guardandoCierre,      setGuardandoCierre]      = useState(false)
+
   // Herramientas reservadas para esta obra (reserva con fecha, separada del
   // estado RESERVADA transitorio de un remito en BORRADOR). Pedido aparte,
   // no bloquea el render principal.
@@ -46,8 +56,38 @@ export default function ObrasDetailPage() {
     finally { setLoadingAction(false) }
   }
 
-  const handleFinalizar = () => action(() => ObrasService.finalizar(id))
   const handleReactivar = () => action(() => ObrasService.reactivar(id))
+
+  const abrirCierre = () => {
+    setHorasHombre(''); setInconvenientes([]); setCostosNoAnticipados([])
+    setCierreModal(true)
+  }
+  const cerrarCierre = () => setCierreModal(false)
+
+  const agregarInconveniente = () => setInconvenientes(arr => [...arr, ''])
+  const actualizarInconveniente = (i, valor) => setInconvenientes(arr => arr.map((v, idx) => idx === i ? valor : v))
+  const quitarInconveniente = (i) => setInconvenientes(arr => arr.filter((_, idx) => idx !== i))
+
+  const agregarCostoNA = () => setCostosNoAnticipados(arr => [...arr, { descripcion: '', monto: '' }])
+  const actualizarCostoNA = (i, campo, valor) =>
+    setCostosNoAnticipados(arr => arr.map((c, idx) => idx === i ? { ...c, [campo]: valor } : c))
+  const quitarCostoNA = (i) => setCostosNoAnticipados(arr => arr.filter((_, idx) => idx !== i))
+
+  const confirmarFinalizar = async () => {
+    setGuardandoCierre(true); setErrAction(null)
+    try {
+      await ObrasService.finalizar(id, {
+        horasHombre: horasHombre.trim() ? Number(horasHombre) : undefined,
+        inconvenientes: inconvenientes.filter(t => t.trim()),
+        costosNoAnticipados: costosNoAnticipados
+          .filter(c => c.descripcion.trim() && c.monto !== '')
+          .map(c => ({ descripcion: c.descripcion, monto: Number(c.monto) })),
+      })
+      setCierreModal(false)
+      await refetch()
+    } catch (err) { setErrAction(err.message) }
+    finally { setGuardandoCierre(false) }
+  }
 
   if (loading) return (
     <div className={styles.loadingWrapper}><span className={styles.spinner} />Cargando obra...</div>
@@ -79,8 +119,13 @@ export default function ObrasDetailPage() {
             <button className={styles.btnEdit} onClick={() => navigate(`/obras/${id}/editar`)}>
               ✎ Editar
             </button>
+            {obra.estado === 'FINALIZADA' && (
+              <button className={styles.btnSecondary} onClick={() => navigate(`/obras/${id}/historial`)}>
+                📋 Historial
+              </button>
+            )}
             {esActiva ? (
-              <button className={styles.btnFinalizar} onClick={handleFinalizar} disabled={loadingAction}>
+              <button className={styles.btnFinalizar} onClick={abrirCierre} disabled={loadingAction}>
                 Finalizar obra
               </button>
             ) : (
@@ -204,6 +249,70 @@ export default function ObrasDetailPage() {
         </div>
 
       </div>
+
+      {/* Cierre de obra — datos manuales opcionales del historial. Todo
+          opcional: "Finalizar" sin cargar nada se comporta igual que antes. */}
+      {cierreModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalCard}>
+            <h3 className={styles.modalTitle}>Finalizar obra</h3>
+            <p className={styles.modalText}>
+              Los datos de acá abajo son opcionales — quedan guardados en el
+              historial de la obra. Podés finalizar sin cargar nada.
+            </p>
+
+            <div className={styles.campo}>
+              <span className={styles.campoLabel}>Horas hombre (opcional)</span>
+              <input type="number" min="0" step="any" className={styles.inputEdit}
+                placeholder="Ej. 120"
+                value={horasHombre} onChange={e => setHorasHombre(e.target.value)} />
+            </div>
+
+            <div className={styles.campo}>
+              <span className={styles.campoLabel}>Inconvenientes</span>
+              {inconvenientes.map((v, i) => (
+                <div key={i} className={styles.rowAdd}>
+                  <input type="text" className={styles.inputEdit} placeholder="Ej. Lluvia retrasó 3 días"
+                    value={v} onChange={e => actualizarInconveniente(i, e.target.value)} />
+                  <button type="button" className={styles.btnEliminarFila}
+                    onClick={() => quitarInconveniente(i)} title="Quitar">🗑</button>
+                </div>
+              ))}
+              <button type="button" className={styles.btnLink} onClick={agregarInconveniente}>
+                + Agregar inconveniente
+              </button>
+            </div>
+
+            <div className={styles.campo}>
+              <span className={styles.campoLabel}>Costos no anticipados</span>
+              {costosNoAnticipados.map((c, i) => (
+                <div key={i} className={styles.rowAdd}>
+                  <input type="text" className={styles.inputEdit} placeholder="Descripción"
+                    value={c.descripcion} onChange={e => actualizarCostoNA(i, 'descripcion', e.target.value)} />
+                  <input type="number" min="0" step="any" className={styles.inputEditNum} placeholder="Monto"
+                    value={c.monto} onChange={e => actualizarCostoNA(i, 'monto', e.target.value)} />
+                  <button type="button" className={styles.btnEliminarFila}
+                    onClick={() => quitarCostoNA(i)} title="Quitar">🗑</button>
+                </div>
+              ))}
+              <button type="button" className={styles.btnLink} onClick={agregarCostoNA}>
+                + Agregar costo no anticipado
+              </button>
+            </div>
+
+            {errAction && <div className={styles.errorBanner}>⚠ {errAction}</div>}
+
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnGhost} onClick={cerrarCierre} disabled={guardandoCierre}>
+                Cancelar
+              </button>
+              <button type="button" className={styles.btnFinalizar} onClick={confirmarFinalizar} disabled={guardandoCierre}>
+                {guardandoCierre ? 'Finalizando...' : 'Finalizar obra'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

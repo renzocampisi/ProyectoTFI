@@ -1,8 +1,13 @@
 // src/modules/m-presupuestos/pages/PresupuestoDetailPage.jsx
 /**
- * Página de detalle del presupuesto. Los items (insumos/costos) son
- * read-only acá — se editan solo mientras está en BORRADOR desde el form
- * de creación. Esta página cubre las transiciones de estado (enviar a
+ * Página de detalle del presupuesto. Los insumos son read-only acá — se
+ * cargan solo mientras está en BORRADOR desde el form de creación o desde
+ * Kits de Montaje/Panel IA. Mano de obra y costos extra SÍ son editables
+ * acá mientras el presupuesto esté en BORRADOR: un presupuesto creado por
+ * IA (Kits de Montaje nunca manda mano de obra; el Panel IA solo si el
+ * usuario la mencionó) puede necesitar completarse a mano después — el
+ * "presupuesto" en este sistema abarca todo el trabajo, no solo materiales.
+ * Esta página también cubre las transiciones de estado (enviar a
  * aprobación, aprobar/rechazar, volver a borrador, eliminar) y las
  * acciones de PDF (descargar/imprimir/enviar por mail).
  *
@@ -10,7 +15,7 @@
  *   - Header con número, badge de estado, link a la obra, total grande.
  *   - Card "Datos generales": observaciones, %ganancia, fechas.
  *   - Card "Insumos": tabla con material/cantidad/precio/subtotal.
- *   - Card "Costos extra": tabla agrupada por categoria.
+ *   - Card "Mano de obra" y "Costos extra": editables en BORRADOR.
  *   - Card "Totales": breakdown subtotales + ganancia + total final.
  */
 import { useState } from 'react'
@@ -27,7 +32,7 @@ import {
 import { useAuth } from '@shared/hooks/useAuth'
 import { esDueño } from '@shared/constants/roles'
 import {
-  CATEGORIA_INFO, CATEGORIA_MANO_OBRA,
+  CATEGORIA_INFO, CATEGORIA_MANO_OBRA, CATEGORIAS_EXTRA,
   formatMoney, formatCantidad, formatFechaHora,
 } from '../constants'
 import styles from './PresupuestoDetailPage.module.css'
@@ -53,6 +58,14 @@ export default function PresupuestoDetailPage() {
   // remito generado por aprobar() — si la RPC creo uno, abrimos el
   // modal de "configurar transporte y responsable" sobre ese remito.
   const [remitoConfigId, setRemitoConfigId] = useState(null)
+
+  // Mano de obra / costos extra — editables solo en BORRADOR. Cada acción
+  // pega directo contra el endpoint (los ítems ya existen en el server, a
+  // diferencia del form de creación que junta todo antes de guardar).
+  const [costoError,    setCostoError]    = useState(null)
+  const [guardandoCosto, setGuardandoCosto] = useState(false)
+  const [nuevoManoObra, setNuevoManoObra] = useState(null) // null = form cerrado
+  const [nuevoExtra,    setNuevoExtra]    = useState(null)
 
   const puedeAprobar = esDueño(profile?.role)
 
@@ -124,6 +137,56 @@ export default function PresupuestoDetailPage() {
       `Saludos.`
     )
     window.location.href = `mailto:${emailCliente}?subject=${asunto}&body=${cuerpo}`
+  }
+
+  // ── Mano de obra / costos extra ──────────────────────────────
+  const handleUpdateCosto = async (costoId, campo, valor) => {
+    setCostoError(null)
+    try {
+      await PresupuestosService.updateCosto(id, costoId, { [campo]: valor })
+      await refetch()
+    } catch (err) { setCostoError(err.message) }
+  }
+
+  const handleRemoveCosto = async (costoId) => {
+    setCostoError(null)
+    try {
+      await PresupuestosService.removeCosto(id, costoId)
+      await refetch()
+    } catch (err) { setCostoError(err.message) }
+  }
+
+  const handleAgregarManoObra = async () => {
+    if (!nuevoManoObra?.descripcion?.trim()) { setCostoError('Completá el rubro'); return }
+    setGuardandoCosto(true); setCostoError(null)
+    try {
+      await PresupuestosService.addCosto(id, {
+        categoria:      CATEGORIA_MANO_OBRA,
+        descripcion:    nuevoManoObra.descripcion.trim(),
+        cantidad:       Number(nuevoManoObra.cantidad) || 1,
+        costoUnitario:  Number(nuevoManoObra.costo) || 0,
+      })
+      setNuevoManoObra(null)
+      await refetch()
+    } catch (err) { setCostoError(err.message) }
+    finally { setGuardandoCosto(false) }
+  }
+
+  const handleAgregarExtra = async () => {
+    if (!nuevoExtra?.descripcion?.trim()) { setCostoError('Completá la descripción'); return }
+    setGuardandoCosto(true); setCostoError(null)
+    try {
+      await PresupuestosService.addCosto(id, {
+        categoria:      nuevoExtra.categoria,
+        descripcion:    nuevoExtra.descripcion.trim(),
+        cantidad:       Number(nuevoExtra.cantidad) || 1,
+        unidad:         nuevoExtra.unidad || null,
+        costoUnitario:  Number(nuevoExtra.costo) || 0,
+      })
+      setNuevoExtra(null)
+      await refetch()
+    } catch (err) { setCostoError(err.message) }
+    finally { setGuardandoCosto(false) }
   }
 
   if (loading) return (
@@ -270,14 +333,17 @@ export default function PresupuestoDetailPage() {
         const costosExtraEntries = Object.entries(costosPorCategoria)
           .filter(([cat]) => cat !== CATEGORIA_MANO_OBRA)
         const totalExtras = costosExtraEntries.reduce((s, [, it]) => s + it.length, 0)
+        const editable = presupuesto.estado === 'BORRADOR'
         return (
           <>
+            {costoError && <div className={styles.errorBanner}>⚠ {costoError}</div>}
+
             <section className={styles.card}>
               <h2 className={styles.cardTitle}>
                 {CATEGORIA_INFO[CATEGORIA_MANO_OBRA]?.icon} Mano de obra
                 <span className={styles.cardCount}>{manoObra.length}</span>
               </h2>
-              {manoObra.length === 0 ? (
+              {manoObra.length === 0 && !editable ? (
                 <div className={styles.empty}>Sin items de mano de obra.</div>
               ) : (
                 <div className={styles.tableWrapper}>
@@ -287,19 +353,74 @@ export default function PresupuestoDetailPage() {
                       <th className={styles.tdNum}>Cantidad</th>
                       <th className={styles.tdNum}>Costo unit.</th>
                       <th className={styles.tdNum}>Subtotal</th>
+                      {editable && <th></th>}
                     </tr></thead>
                     <tbody>
                       {manoObra.map(c => (
                         <tr key={c.id}>
-                          <td>{c.descripcion}</td>
-                          <td className={styles.tdNum}>{formatCantidad(c.cantidad)}</td>
-                          <td className={styles.tdNum}>{formatMoney(c.costo_unitario)}</td>
-                          <td className={styles.tdNum}>{formatMoney(c.subtotal)}</td>
+                          {editable ? (
+                            <>
+                              <td>
+                                <input type="text" className={styles.inputEdit}
+                                  defaultValue={c.descripcion}
+                                  onBlur={e => e.target.value.trim() && e.target.value !== c.descripcion
+                                    && handleUpdateCosto(c.id, 'descripcion', e.target.value.trim())} />
+                              </td>
+                              <td className={styles.tdNum}>
+                                <input type="number" min="0.01" step="any" className={styles.inputEditNum}
+                                  defaultValue={c.cantidad}
+                                  onBlur={e => Number(e.target.value) !== Number(c.cantidad)
+                                    && handleUpdateCosto(c.id, 'cantidad', Number(e.target.value))} />
+                              </td>
+                              <td className={styles.tdNum}>
+                                <input type="number" min="0" step="any" className={styles.inputEditNum}
+                                  defaultValue={c.costo_unitario}
+                                  onBlur={e => Number(e.target.value) !== Number(c.costo_unitario)
+                                    && handleUpdateCosto(c.id, 'costoUnitario', Number(e.target.value))} />
+                              </td>
+                              <td className={styles.tdNum}>{formatMoney(c.subtotal)}</td>
+                              <td>
+                                <button type="button" className={styles.btnEliminarFila}
+                                  onClick={() => handleRemoveCosto(c.id)} title="Quitar">🗑</button>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td>{c.descripcion}</td>
+                              <td className={styles.tdNum}>{formatCantidad(c.cantidad)}</td>
+                              <td className={styles.tdNum}>{formatMoney(c.costo_unitario)}</td>
+                              <td className={styles.tdNum}>{formatMoney(c.subtotal)}</td>
+                            </>
+                          )}
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+              )}
+              {editable && (
+                nuevoManoObra ? (
+                  <div className={styles.rowAdd}>
+                    <input type="text" className={styles.inputEdit} placeholder="Rubro (ej. Oficial + ayudante x 3 días)"
+                      value={nuevoManoObra.descripcion}
+                      onChange={e => setNuevoManoObra(n => ({ ...n, descripcion: e.target.value }))} />
+                    <input type="number" min="0.01" step="any" className={styles.inputEditNum} placeholder="Cant."
+                      value={nuevoManoObra.cantidad}
+                      onChange={e => setNuevoManoObra(n => ({ ...n, cantidad: e.target.value }))} />
+                    <input type="number" min="0" step="any" className={styles.inputEditNum} placeholder="Costo unit."
+                      value={nuevoManoObra.costo}
+                      onChange={e => setNuevoManoObra(n => ({ ...n, costo: e.target.value }))} />
+                    <button type="button" className={styles.btnGhost} onClick={() => setNuevoManoObra(null)} disabled={guardandoCosto}>Cancelar</button>
+                    <button type="button" className={styles.btnPrimary} onClick={handleAgregarManoObra} disabled={guardandoCosto}>
+                      {guardandoCosto ? 'Guardando...' : 'Agregar'}
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" className={styles.btnLink}
+                    onClick={() => setNuevoManoObra({ descripcion: '', cantidad: '1', costo: '' })}>
+                    + Agregar mano de obra
+                  </button>
+                )
               )}
             </section>
 
@@ -308,7 +429,7 @@ export default function PresupuestoDetailPage() {
                 Costos extra
                 <span className={styles.cardCount}>{totalExtras}</span>
               </h2>
-              {totalExtras === 0 ? (
+              {totalExtras === 0 && !editable ? (
                 <div className={styles.empty}>Sin costos extra cargados.</div>
               ) : (
                 costosExtraEntries.map(([cat, items]) => (
@@ -324,15 +445,52 @@ export default function PresupuestoDetailPage() {
                           <th>Unidad</th>
                           <th className={styles.tdNum}>Costo unit.</th>
                           <th className={styles.tdNum}>Subtotal</th>
+                          {editable && <th></th>}
                         </tr></thead>
                         <tbody>
                           {items.map(c => (
                             <tr key={c.id}>
-                              <td>{c.descripcion}</td>
-                              <td className={styles.tdNum}>{formatCantidad(c.cantidad)}</td>
-                              <td>{c.unidad || '—'}</td>
-                              <td className={styles.tdNum}>{formatMoney(c.costo_unitario)}</td>
-                              <td className={styles.tdNum}>{formatMoney(c.subtotal)}</td>
+                              {editable ? (
+                                <>
+                                  <td>
+                                    <input type="text" className={styles.inputEdit}
+                                      defaultValue={c.descripcion}
+                                      onBlur={e => e.target.value.trim() && e.target.value !== c.descripcion
+                                        && handleUpdateCosto(c.id, 'descripcion', e.target.value.trim())} />
+                                  </td>
+                                  <td className={styles.tdNum}>
+                                    <input type="number" min="0.01" step="any" className={styles.inputEditNum}
+                                      defaultValue={c.cantidad}
+                                      onBlur={e => Number(e.target.value) !== Number(c.cantidad)
+                                        && handleUpdateCosto(c.id, 'cantidad', Number(e.target.value))} />
+                                  </td>
+                                  <td>
+                                    <input type="text" className={styles.inputEdit}
+                                      defaultValue={c.unidad || ''}
+                                      onBlur={e => e.target.value !== (c.unidad || '')
+                                        && handleUpdateCosto(c.id, 'unidad', e.target.value)} />
+                                  </td>
+                                  <td className={styles.tdNum}>
+                                    <input type="number" min="0" step="any" className={styles.inputEditNum}
+                                      defaultValue={c.costo_unitario}
+                                      onBlur={e => Number(e.target.value) !== Number(c.costo_unitario)
+                                        && handleUpdateCosto(c.id, 'costoUnitario', Number(e.target.value))} />
+                                  </td>
+                                  <td className={styles.tdNum}>{formatMoney(c.subtotal)}</td>
+                                  <td>
+                                    <button type="button" className={styles.btnEliminarFila}
+                                      onClick={() => handleRemoveCosto(c.id)} title="Quitar">🗑</button>
+                                  </td>
+                                </>
+                              ) : (
+                                <>
+                                  <td>{c.descripcion}</td>
+                                  <td className={styles.tdNum}>{formatCantidad(c.cantidad)}</td>
+                                  <td>{c.unidad || '—'}</td>
+                                  <td className={styles.tdNum}>{formatMoney(c.costo_unitario)}</td>
+                                  <td className={styles.tdNum}>{formatMoney(c.subtotal)}</td>
+                                </>
+                              )}
                             </tr>
                           ))}
                         </tbody>
@@ -340,6 +498,40 @@ export default function PresupuestoDetailPage() {
                     </div>
                   </div>
                 ))
+              )}
+              {editable && (
+                nuevoExtra ? (
+                  <div className={styles.rowAdd}>
+                    <select className={styles.inputEdit}
+                      value={nuevoExtra.categoria}
+                      onChange={e => setNuevoExtra(n => ({ ...n, categoria: e.target.value }))}>
+                      {CATEGORIAS_EXTRA.map(cat => (
+                        <option key={cat} value={cat}>{CATEGORIA_INFO[cat]?.label || cat}</option>
+                      ))}
+                    </select>
+                    <input type="text" className={styles.inputEdit} placeholder="Descripción"
+                      value={nuevoExtra.descripcion}
+                      onChange={e => setNuevoExtra(n => ({ ...n, descripcion: e.target.value }))} />
+                    <input type="number" min="0.01" step="any" className={styles.inputEditNum} placeholder="Cant."
+                      value={nuevoExtra.cantidad}
+                      onChange={e => setNuevoExtra(n => ({ ...n, cantidad: e.target.value }))} />
+                    <input type="text" className={styles.inputEdit} placeholder="Unidad" style={{ maxWidth: 90 }}
+                      value={nuevoExtra.unidad}
+                      onChange={e => setNuevoExtra(n => ({ ...n, unidad: e.target.value }))} />
+                    <input type="number" min="0" step="any" className={styles.inputEditNum} placeholder="Costo unit."
+                      value={nuevoExtra.costo}
+                      onChange={e => setNuevoExtra(n => ({ ...n, costo: e.target.value }))} />
+                    <button type="button" className={styles.btnGhost} onClick={() => setNuevoExtra(null)} disabled={guardandoCosto}>Cancelar</button>
+                    <button type="button" className={styles.btnPrimary} onClick={handleAgregarExtra} disabled={guardandoCosto}>
+                      {guardandoCosto ? 'Guardando...' : 'Agregar'}
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" className={styles.btnLink}
+                    onClick={() => setNuevoExtra({ categoria: CATEGORIAS_EXTRA[0], descripcion: '', cantidad: '1', unidad: '', costo: '' })}>
+                    + Agregar costo extra
+                  </button>
+                )
               )}
             </section>
           </>
