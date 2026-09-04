@@ -15,6 +15,7 @@ const mockChain = {
   ilike:  jest.fn().mockReturnThis(),
   or:     jest.fn().mockReturnThis(),
   order:  jest.fn().mockReturnThis(),
+  limit:  jest.fn().mockReturnThis(),
   single: jest.fn().mockResolvedValue({ data: null, error: null }),
   maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
 }
@@ -63,6 +64,7 @@ beforeEach(() => {
   mockChain.ilike.mockReturnThis()
   mockChain.or.mockReturnThis()
   mockChain.order.mockReturnThis()
+  mockChain.limit.mockReturnThis()
   mockChain.single.mockResolvedValue({ data: null, error: null })
   mockChain.maybeSingle.mockResolvedValue({ data: null, error: null })
   mockChain.then = (resolve) => resolve({ data: [], error: null })
@@ -97,6 +99,116 @@ describe('remitos.service.getByNumero (issue #11)', () => {
     })
     await expect(RemitosService.getByNumero('FS-00018'))
       .rejects.toThrow('connection lost')
+  })
+})
+
+// obra_id (FK) — ver 2026_09_03_remitos_movimientos_obra_id.sql. `obra`
+// (texto) sigue viajando como caché de display, pero obra_id es lo que
+// se guarda como fuente de verdad cuando el caller lo manda.
+describe('remitos.service.create (obra_id)', () => {
+  it('guarda obra_id cuando el body trae obraId', async () => {
+    supabase.rpc.mockResolvedValueOnce({ data: 'FS-00099', error: null })
+    mockChain.single.mockResolvedValueOnce({
+      data: { id: 'r-nuevo', numero: 'FS-00099', obra: 'Sector Hornos', obra_id: 'obra-1' },
+      error: null,
+    })
+
+    await RemitosService.create({ obra: 'Sector Hornos', obraId: 'obra-1', responsable: 'Juan' })
+
+    expect(mockChain.insert).toHaveBeenCalledWith(expect.objectContaining({
+      obra: 'Sector Hornos', obra_id: 'obra-1',
+    }))
+  })
+
+  it('obra_id queda null si no se manda obraId (compat legacy)', async () => {
+    supabase.rpc.mockResolvedValueOnce({ data: 'FS-00100', error: null })
+    mockChain.single.mockResolvedValueOnce({ data: { id: 'r-2' }, error: null })
+
+    await RemitosService.create({ obra: 'Obra sin FK', responsable: 'Juan' })
+
+    expect(mockChain.insert).toHaveBeenCalledWith(expect.objectContaining({ obra_id: null }))
+  })
+})
+
+describe('remitos.service.update — cabecera (obra_id)', () => {
+  it('actualiza obra_id cuando viene en el body, junto con obra (texto)', async () => {
+    mockChain.single.mockResolvedValueOnce({ data: { estado: 'BORRADOR' }, error: null })
+    mockChain.single.mockResolvedValueOnce({ data: { id: 'r-1' }, error: null })
+
+    await RemitosService.update('r-1', { obra: 'Nueva Obra', obraId: 'obra-2' })
+
+    expect(mockChain.update).toHaveBeenCalledWith(expect.objectContaining({
+      obra: 'Nueva Obra', obra_id: 'obra-2',
+    }))
+  })
+
+  it('no toca obra_id si no viene en el body (undefined-safe)', async () => {
+    mockChain.single.mockResolvedValueOnce({ data: { estado: 'BORRADOR' }, error: null })
+    mockChain.single.mockResolvedValueOnce({ data: { id: 'r-1' }, error: null })
+
+    await RemitosService.update('r-1', { responsable: 'Otro' })
+
+    const campos = mockChain.update.mock.calls[0][0]
+    expect(campos).not.toHaveProperty('obra_id')
+  })
+})
+
+describe('remitos.service.getSugerenciasPresupuesto', () => {
+  it('usa obra_id directo cuando el remito ya lo tiene — no consulta obras', async () => {
+    mockChain.maybeSingle
+      .mockResolvedValueOnce({ // 1. remito
+        data: { obra: 'Sector Hornos', obra_id: 'obra-1', cliente_id: 'c-1', estado: 'BORRADOR' },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: { id: 'pres-1' }, error: null }) // 2. presupuesto APROBADO
+
+    mockChain.then = (resolve) => resolve({
+      data: [{ material_id: 'mat-1', cantidad: 5 }], error: null,
+    })
+
+    const result = await RemitosService.getSugerenciasPresupuesto('rem-1')
+
+    expect(supabase.from).not.toHaveBeenCalledWith('obras')
+    expect(result).toEqual({ presupuestoId: 'pres-1', items: [{ materialId: 'mat-1', cantidad: 5 }] })
+  })
+
+  it('sin obra_id: cae al match legacy por nombre + cliente_id', async () => {
+    mockChain.maybeSingle
+      .mockResolvedValueOnce({ // 1. remito, sin obra_id (legacy)
+        data: { obra: 'Sector Hornos', obra_id: null, cliente_id: 'c-1', estado: 'BORRADOR' },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: { id: 'obra-resuelta' }, error: null }) // 2. match por nombre
+      .mockResolvedValueOnce({ data: { id: 'pres-1' }, error: null }) // 3. presupuesto APROBADO
+
+    mockChain.then = (resolve) => resolve({ data: [], error: null })
+
+    const result = await RemitosService.getSugerenciasPresupuesto('rem-1')
+
+    expect(supabase.from).toHaveBeenCalledWith('obras')
+    expect(mockChain.eq).toHaveBeenCalledWith('nombre', 'Sector Hornos')
+    expect(result).toEqual({ presupuestoId: 'pres-1', items: [] })
+  })
+
+  it('sin obra_id y sin match por nombre: devuelve items vacío sin error', async () => {
+    mockChain.maybeSingle
+      .mockResolvedValueOnce({
+        data: { obra: 'Obra Fantasma', obra_id: null, cliente_id: 'c-1', estado: 'BORRADOR' },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: null, error: null }) // no matchea ninguna obra
+
+    const result = await RemitosService.getSugerenciasPresupuesto('rem-1')
+    expect(result).toEqual({ items: [] })
+  })
+
+  it('remito distinto de BORRADOR: no sugiere nada (ni siquiera consulta obra_id)', async () => {
+    mockChain.maybeSingle.mockResolvedValueOnce({
+      data: { obra: 'X', obra_id: 'obra-1', cliente_id: 'c-1', estado: 'EN_TRANSITO' },
+      error: null,
+    })
+    const result = await RemitosService.getSugerenciasPresupuesto('rem-1')
+    expect(result).toEqual({ items: [] })
   })
 })
 

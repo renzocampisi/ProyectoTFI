@@ -116,6 +116,9 @@ export async function create(body) {
       numero,
       estado:             'BORRADOR',
       obra:               body.obra,
+      // FK real a la obra — ver 2026_09_03_remitos_movimientos_obra_id.sql.
+      // `obra` (texto) queda como caché de display, no como fuente de verdad.
+      obra_id:            body.obraId || null,
       responsable:        body.responsable,
       // Vínculo con el usuario logueado que creó el remito. Permite que
       // el PDF muestre tel del responsable joineado desde la tabla
@@ -151,6 +154,7 @@ export async function update(id, body) {
   // Solo se mandan al UPDATE los campos que vinieron en el body (undefined-safe)
   const campos = {}
   if (body.obra               !== undefined) campos.obra                = body.obra
+  if (body.obraId             !== undefined) campos.obra_id             = body.obraId || null
   if (body.responsable        !== undefined) campos.responsable         = body.responsable
   if (body.responsableUserId  !== undefined) campos.responsable_user_id = body.responsableUserId || null
   if (body.transporteId       !== undefined) campos.transporte_id       = body.transporteId      || null
@@ -1084,17 +1088,19 @@ export async function confirmarEscaneo(id, body = {}) {
 // (material_id + cantidad). Sirve al frontend para marcar visualmente esos
 // materiales en el selector y pre-cargar la cantidad sugerida.
 //
-// Resolucion de la obra: la tabla `remitos` guarda la obra como texto +
-// cliente_id (no como FK a `obras`). Hacemos match por nombre dentro del
-// mismo cliente — es razonablemente unico en la practica.
+// Resolucion de la obra: preferimos el FK `obra_id` (ver
+// 2026_09_03_remitos_movimientos_obra_id.sql). Los remitos creados antes de
+// esa migración pueden no tener obra_id backfillado (nombre ambiguo entre
+// clientes) — para esos casos legacy caemos al match por nombre + cliente_id
+// que este resolver usaba antes de tener el FK.
 //
 // Si no hay presupuesto APROBADO (o no se puede resolver la obra), devuelve
 // { items: [] } sin error — para el caller es "no hay sugerencias".
 export async function getSugerenciasPresupuesto(remitoId) {
-  // 1. Datos del remito (obra + cliente_id)
+  // 1. Datos del remito (obra_id, o obra + cliente_id como fallback legacy)
   const { data: remito, error: errR } = await supabase
     .from('remitos')
-    .select('obra, cliente_id, estado')
+    .select('obra, obra_id, cliente_id, estado')
     .eq('id', remitoId)
     .maybeSingle()
   if (errR) throw errR
@@ -1102,25 +1108,30 @@ export async function getSugerenciasPresupuesto(remitoId) {
 
   // Solo tiene sentido sugerir mientras se pueden editar items (BORRADOR).
   if (remito.estado !== 'BORRADOR') return { items: [] }
-  if (!remito.obra || !remito.cliente_id) return { items: [] }
 
-  // 2. Buscar la obra por nombre + cliente_id
-  const { data: obra, error: errO } = await supabase
-    .from('obras')
-    .select('id')
-    .eq('nombre', remito.obra)
-    .eq('cliente_id', remito.cliente_id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (errO) throw errO
-  if (!obra) return { items: [] }
+  let obraId = remito.obra_id || null
 
-  // 3. Ultimo presupuesto APROBADO de esa obra
+  if (!obraId) {
+    // Fallback legacy: remito de antes del FK, sin backfill limpio.
+    if (!remito.obra || !remito.cliente_id) return { items: [] }
+    const { data: obra, error: errO } = await supabase
+      .from('obras')
+      .select('id')
+      .eq('nombre', remito.obra)
+      .eq('cliente_id', remito.cliente_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (errO) throw errO
+    if (!obra) return { items: [] }
+    obraId = obra.id
+  }
+
+  // 2. Ultimo presupuesto APROBADO de esa obra
   const { data: presupuesto, error: errP } = await supabase
     .from('presupuestos')
     .select('id')
-    .eq('obra_id', obra.id)
+    .eq('obra_id', obraId)
     .eq('estado', 'APROBADO')
     .order('fecha_aprobacion', { ascending: false, nullsLast: true })
     .limit(1)
@@ -1128,7 +1139,7 @@ export async function getSugerenciasPresupuesto(remitoId) {
   if (errP) throw errP
   if (!presupuesto) return { items: [] }
 
-  // 4. Insumos del presupuesto
+  // 3. Insumos del presupuesto
   const { data: insumos, error: errI } = await supabase
     .from('presupuesto_insumos')
     .select('material_id, cantidad')

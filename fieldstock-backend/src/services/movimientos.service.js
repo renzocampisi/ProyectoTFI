@@ -40,6 +40,9 @@ export async function create(herramientaId, body) {
       tipo:           body.tipo,
       fecha:          body.fecha        || new Date().toISOString().split('T')[0],
       obra:           body.obra         || null,
+      // FK real a la obra — ver 2026_09_03_remitos_movimientos_obra_id.sql.
+      // `obra` (texto) queda como caché de display, no como fuente de verdad.
+      obra_id:        body.obraId       || null,
       responsable:    body.responsable,
       observacion:    body.observacion  || null,
     })
