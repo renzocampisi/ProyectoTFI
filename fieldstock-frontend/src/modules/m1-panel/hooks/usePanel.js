@@ -3,7 +3,7 @@
  * Hook del M1 Panel IA — encapsula el estado del chat efimero.
  *
  * Estado mantenido en memoria del hook:
- *   - mensajes: array de turnos { role, content, traza?, accionPendiente?, accionEstado? }
+ *   - mensajes: array de turnos { role, content, traza?, imagenes?, accionPendiente?, accionEstado? }
  *   - estado:   'idle' | 'enviando' | 'error'
  *   - error:    string | null
  *
@@ -51,11 +51,12 @@ export function usePanel() {
     setError(null)
 
     try {
-      const { respuesta, traza, accionPendiente } = await PanelService.chat(limpio, historialActual)
+      const { respuesta, traza, imagenes, accionPendiente } = await PanelService.chat(limpio, historialActual)
       setMensajes(prev => [...prev, {
         role: 'assistant',
         content: respuesta,
         traza,
+        imagenes,
         accionPendiente,
         accionEstado: accionPendiente ? 'pendiente' : undefined,
       }])

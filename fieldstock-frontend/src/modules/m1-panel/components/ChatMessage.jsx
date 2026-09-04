@@ -5,6 +5,9 @@
  *   - pensando: true muestra los tres puntitos animados
  *   - traza: array opcional de tools que el LLM uso para responder
  *           (toggle "Ver datos consultados")
+ *   - imagenes: array opcional de URLs (ej. fotos de plano del historial de
+ *     obra). El chat no interpreta markdown, así que estas nunca viajan
+ *     dentro de `content` — se renderizan aparte como <img>.
  *   - accionPendiente + accionEstado: cuando el LLM propuso una accion de
  *     escritura (ej. sumar stock), se muestra una tarjeta con el resumen
  *     y botones Confirmar/Cancelar. Ninguna escritura se dispara sin el
@@ -27,6 +30,7 @@ export default function ChatMessage({ mensaje, onConfirmarAccion, onCancelarAcci
   const [disparando, setDisparando] = useState(false)
   const esUser = mensaje.role === 'user'
   const hayTraza = !esUser && Array.isArray(mensaje.traza) && mensaje.traza.length > 0
+  const hayImagenes = !esUser && Array.isArray(mensaje.imagenes) && mensaje.imagenes.length > 0
   const hayAccion = !esUser && Boolean(mensaje.accionPendiente)
 
   return (
@@ -41,6 +45,16 @@ export default function ChatMessage({ mensaje, onConfirmarAccion, onCancelarAcci
           </span>
         ) : (
           <div className={styles.content}>{mensaje.content}</div>
+        )}
+
+        {hayImagenes && (
+          <div className={styles.imagenes}>
+            {mensaje.imagenes.map((url, i) => (
+              <a key={i} href={url} target="_blank" rel="noreferrer" className={styles.imagenThumb}>
+                <img src={url} alt="Foto adjunta" />
+              </a>
+            ))}
+          </div>
         )}
 
         {hayTraza && (

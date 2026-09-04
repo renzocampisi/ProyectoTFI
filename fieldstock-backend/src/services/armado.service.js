@@ -30,6 +30,8 @@ import * as Presupuestos from './presupuestos.service.js'
 // `crear_presupuesto_guiado` delega acá. Mantenerlo así evita un ciclo.
 import * as Remitos      from './remitos.service.js'
 import * as Compras      from './compras.service.js'
+import * as ArmadoVocabulario from './armadoVocabulario.service.js'
+import * as ObraHistorial from './obraHistorial.service.js'
 
 export const DESTINOS = ['PRESUPUESTO', 'REMITO']
 
@@ -59,6 +61,7 @@ const ARMADO_SCHEMA = {
           unidad:        { type: 'string', description: 'Unidad enunciada (metros, unidad, caja...). Vacío si no la dijo.' },
           materialId:    { type: 'string', description: 'id del material del catálogo que corresponde, o cadena vacía si ninguno.' },
           confianza:     { type: 'string', enum: ['alta', 'media', 'baja'] },
+          advertenciaFoto: { type: 'string', description: 'Solo si hay foto adjunta y esta línea contradice algo del texto (ej. el texto dice una cantidad y la foto muestra otra cosa). Vacío si no hay contradicción o no hay foto.' },
         },
         required: ['textoOriginal', 'cantidad', 'materialId', 'confianza'],
       },
@@ -67,16 +70,38 @@ const ARMADO_SCHEMA = {
   required: ['lineas'],
 }
 
-function construirPrompt(catalogo) {
+function construirPrompt(catalogo, { conFoto = false, vocabulario = [] } = {}) {
   const lista = catalogo
     .map(m => `- id="${m.id}" | ${m.nombre}${m.marca ? ` (${m.marca})` : ''} | unidad: ${m.unidad}`)
     .join('\n')
+
+  const seccionVocabulario = vocabulario.length
+    ? `\n\nEQUIVALENCIAS YA CONFIRMADAS ANTES (otros usuarios corrigieron la
+IA hacia estos materiales cuando escribieron algo parecido — usalas como
+pista extra de vocabulario, no como regla ciega si el texto actual dice
+algo claramente distinto):
+${vocabulario.map(v => `- "${v.textoAprendido}" → ${v.materialNombre}${v.materialMarca ? ` (${v.materialMarca})` : ''}`).join('\n')}`
+    : ''
+
+  const seccionFoto = conFoto
+    ? `\n\nADEMÁS del texto se adjunta una foto de un croquis o plano. Es solo
+apoyo y verificación — NUNCA la fuente de cantidad o tipo de pieza. La
+cantidad y el tipo de cada línea salen SIEMPRE del texto, nunca de lo que
+"contás" en la imagen. Usá la foto solo para: (a) ayudarte a resolver a qué
+material del catálogo corresponde algo que el texto describe de forma
+ambigua, y (b) si notás que algo del texto contradice claramente lo
+dibujado (ej. el texto dice una cantidad y la imagen muestra otra cosa
+evidente), completá "advertenciaFoto" en esa línea explicando la
+contradicción en una frase corta. Si no hay contradicción, dejá
+"advertenciaFoto" vacío. No agregues líneas nuevas a partir de algo que
+solo viste en la foto y no está en el texto.`
+    : ''
 
   return `Sos un asistente de una empresa constructora que interpreta pedidos de
 material dictados o escritos por el encargado de depósito.
 
 CATÁLOGO DE MATERIALES (único universo válido para "materialId"):
-${lista || '(el catálogo está vacío)'}
+${lista || '(el catálogo está vacío)'}${seccionVocabulario}${seccionFoto}
 
 Tarea: leé la frase del usuario y devolvé UNA LÍNEA por cada material que
 mencione, con:
@@ -103,17 +128,29 @@ mencionó. Tampoco agregues líneas "sugeridas" ni completes un kit típico.`
  * @param {object} params
  * @param {string} params.texto   Frase dictada o escrita.
  * @param {string} params.destino 'PRESUPUESTO' | 'REMITO'
+ * @param {object=} params.foto   { buffer, mimeType } — foto opcional de un
+ *                                croquis/plano. Apoyo y verificación, nunca
+ *                                fuente de cantidad (ver construirPrompt).
  */
-export async function interpretar({ texto, destino }) {
+export async function interpretar({ texto, destino, foto }) {
   if (!texto || !texto.trim()) throw bad('Escribí o dictá qué materiales necesitás')
   if (!DESTINOS.includes(destino)) throw bad(`destino inválido: ${destino}`)
 
   const catalogoCompleto = await Materiales.getAll()
   const catalogo = (catalogoCompleto || []).slice(0, CAP_CATALOGO)
 
+  // Best-effort: si falla la búsqueda de vocabulario aprendido, no bloquea
+  // la interpretación — sigue sin ese contexto extra.
+  const vocabulario = await ArmadoVocabulario.buscarRelevante(texto).catch(() => [])
+
+  const parts = [{ text: texto.trim() }]
+  if (foto?.buffer?.length) {
+    parts.push({ inlineData: { mimeType: foto.mimeType, data: foto.buffer.toString('base64') } })
+  }
+
   const { text } = await Provider.chat({
-    system:   construirPrompt(catalogo),
-    contents: [{ role: 'user', parts: [{ text: texto.trim() }] }],
+    system:   construirPrompt(catalogo, { conFoto: !!foto?.buffer?.length, vocabulario }),
+    contents: [{ role: 'user', parts }],
     responseSchema: ARMADO_SCHEMA,
   })
 
@@ -141,9 +178,14 @@ export async function interpretar({ texto, destino }) {
       cantidad,
       unidad:         l.unidad || material?.unidad || 'unidad',
       materialId:     material?.id ?? null,
+      // Se conserva aparte de materialId: el usuario puede corregirlo en la
+      // revisión, y confirmar() necesita comparar "qué propuso la IA" contra
+      // "en qué terminó" para decidir si hay que grabar aprendizaje.
+      materialIdPropuesto: material?.id ?? null,
       materialNombre: material?.nombre ?? null,
       stockActual:    material ? Number(material.stock_actual) : null,
       confianza:      ['alta', 'media', 'baja'].includes(l.confianza) ? l.confianza : 'baja',
+      advertenciaFoto: l.advertenciaFoto || null,
     }
 
     // En un presupuesto no se mira stock: es una cotización, no mueve
@@ -176,6 +218,14 @@ function repartirPorStock({ materialId, cantidad, stockActual }) {
  * @param {object=} payload.obraNueva  { nombre, direccion, clienteId?, fechaInicio } si es obra nueva.
  * @param {Array}  payload.lineas      Cada una con cantidad + UNO de: materialId | materialNuevo.
  *                                     Si destino REMITO, además alRemito / aComprar.
+ *                                     `materialIdPropuesto` es opcional: si viene
+ *                                     (aunque sea null), se compara contra el
+ *                                     material final para registrar aprendizaje de
+ *                                     vocabulario cuando el usuario corrigió la
+ *                                     propuesta de interpretar(). El asistente de
+ *                                     Kits de Montaje siempre lo manda; el Panel IA
+ *                                     no pasa por interpretar() y no lo manda — ahí
+ *                                     no hay propuesta contra la cual comparar.
  * @param {string=} payload.proveedorId Para la orden de compra de faltantes.
  *                                     Sin esto no se crea orden (opción "decidir después").
  * @param {object=} payload.manoObra   { empleados, dias, costoPorEmpleadoDia }.
@@ -185,9 +235,15 @@ function repartirPorStock({ materialId, cantidad, stockActual }) {
  *                                     completos; el asistente de Kits de Montaje
  *                                     no lo manda y el presupuesto sale solo con
  *                                     materiales.
+ * @param {object=} payload.foto      { buffer, mimeType } — la misma foto (si hubo)
+ *                                     que ya se mandó a interpretar(). Se reenvía
+ *                                     acá porque interpretar() es de solo lectura y
+ *                                     no persiste nada. Si viene, queda guardada en
+ *                                     Storage ligada a la obra (Historial de Obra) —
+ *                                     best-effort, nunca bloquea la confirmación.
  */
 export async function confirmar(payload = {}) {
-  const { destino, obraId, obraNueva, lineas, proveedorId, manoObra } = payload
+  const { destino, obraId, obraNueva, lineas, proveedorId, manoObra, foto } = payload
 
   if (!DESTINOS.includes(destino)) throw bad(`destino inválido: ${destino}`)
   if (!Array.isArray(lineas) || !lineas.length) throw bad('No hay líneas para confirmar')
@@ -242,6 +298,14 @@ export async function confirmar(payload = {}) {
     })
   }
 
+  // Foto del croquis/plano usado (Historial de Obra) — best-effort: un
+  // fallo al subirla no debe impedir que se confirme el presupuesto/remito,
+  // que es la operación principal acá.
+  if (foto?.buffer?.length) {
+    ObraHistorial.agregarPlano(obra.id, foto)
+      .catch(err => console.warn('[armado] no se pudo guardar la foto del plano:', err.message))
+  }
+
   // Da de alta los materiales que no existían en el catálogo. Se hace acá,
   // después de validar todo, para no crear materiales sueltos si algo falla.
   const resueltas = []
@@ -255,6 +319,22 @@ export async function confirmar(payload = {}) {
       })
       materialId = nuevo.id
     }
+
+    // Aprendizaje de vocabulario: solo si la línea vino de una interpretación
+    // previa (trae materialIdPropuesto, aunque sea null = "la IA no encontró
+    // match") Y el material final difiere de eso. `materialIdPropuesto`
+    // ausente (undefined) significa que la línea no pasó por interpretar() —
+    // es el caso de `crear_presupuesto_guiado` del Panel IA, que arma sus
+    // propias líneas sin pasar por el wizard de revisión — y ahí no hay
+    // "propuesta de la IA" contra la cual comparar, así que no se graba nada.
+    // Aceptar la propuesta tal cual tampoco graba — no aporta señal y
+    // ensucia la tabla. Best-effort: un fallo acá no tira abajo la
+    // confirmación ya en curso.
+    if (l.textoOriginal?.trim() && l.materialIdPropuesto !== undefined && materialId !== l.materialIdPropuesto) {
+      ArmadoVocabulario.registrarCorreccion({ textoOriginal: l.textoOriginal, materialId })
+        .catch(err => console.warn('[armado] no se pudo registrar aprendizaje de vocabulario:', err.message))
+    }
+
     resueltas.push({ ...l, materialId, cantidad: Number(l.cantidad) })
   }
 
@@ -318,6 +398,7 @@ async function confirmarRemito(obra, lineas, proveedorId) {
   if (aRemito.length) {
     const remito = await Remitos.create({
       obra:        obra.nombre,
+      obraId:      obra.id,
       responsable: RESPONSABLE_PLACEHOLDER,
       observacion: 'Generado desde Kits de Montaje',
     })

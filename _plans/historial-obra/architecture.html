@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Historial de Obra — Etapa 1: Arquitectura</title>
+<style>
+  :root {
+    --ink:   #1a1a1a;
+    --muted: #6b6b6b;
+    --line:  #e6e6e6;
+    --card:  #fafafa;
+    --accent:#3b6eea;
+    --warn:  #b07b00;
+    --ok:    #16a34a;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    margin: 0;
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  main { max-width: 720px; margin: 56px auto 80px; padding: 0 24px; }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 26px;
+    margin: 0 0 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header .sub { color: var(--muted); font-size: 14px; }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 18px 0;
+  }
+  section.card > h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    font-weight: 600;
+  }
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  ul { padding-left: 18px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  strong { color: var(--ink); }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    background: #f0f0f0;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  .pill {
+    display: inline-block;
+    background: #eef3ff;
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .pill-ok   { background: #e9f9ef; color: var(--ok); }
+  .pill-warn { background: #fff5e0; color: var(--warn); }
+  .diagram-card { padding: 18px; background: #fff; }
+  .mermaid { font-family: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 14px; }
+  th, td { border-bottom: 1px solid var(--line); text-align: left; padding: 8px 6px; vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .decision-box {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 10px 0;
+  }
+  .decision-box .q { font-weight: 600; margin-bottom: 4px; }
+  .decision-box .a { color: var(--ok); font-weight: 600; }
+  .riesgo {
+    border-left: 3px solid var(--warn);
+    background: #fffaf0;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    margin: 10px 0;
+  }
+  .riesgo .titulo { font-weight: 600; margin-bottom: 4px; }
+  footer { color: var(--muted); font-size: 13px; margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); }
+  @media print { main { max-width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="eyebrow">FieldStock AI · Plan de feature · Etapa 1 de 2</div>
+  <h1>Historial de Obra</h1>
+  <div class="sub">Consolidar, al cerrar una obra, todo lo que pasó en ella — de fuentes que ya existen y de datos nuevos que hoy nadie registra.</div>
+</header>
+
+<section class="card diagram-card">
+  <h2>Flujo</h2>
+  <pre class="mermaid">
+flowchart TD
+    A["Obra pasa a FINALIZADA"] --> B["Botón 'Historial'\n(en el detalle de la obra)"]
+    B --> C["Vista de Historial"]
+
+    D1["Duración\nfecha_inicio → fecha_fin"] --> C
+    D2["Insumos usados\n(remitos + presupuestos de la obra)"] --> C
+    D3["Mano de obra\n(líneas MANO_OBRA de los presupuestos)"] --> C
+    D4["Herramientas usadas y rotas\n(remito_items + baja, cruzado por obra)"] --> C
+    D5["Plano/croquis usado\n(foto guardada desde Kits de Montaje)"] --> C
+
+    E1["Horas hombre (opcional)"] -.carga manual al cerrar.-> C
+    E2["Inconvenientes"] -.carga manual al cerrar.-> C
+    E3["Costos no anticipados"] -.carga manual al cerrar.-> C
+
+    G["Kits de Montaje\nfoto adjunta al confirmar"] -.se guarda ligada a la obra.-> D5
+
+    C --> F["Panel IA:\n'dame el historial de la obra X'"]
+  </pre>
+</section>
+
+<section class="card">
+  <h2>Qué se consolida, y de dónde sale</h2>
+  <table>
+    <tr><th>Dato</th><th>Origen</th></tr>
+    <tr><td>Duración total</td><td><span class="pill pill-ok">ya existe</span> — <code>fecha_inicio</code> / <code>fecha_fin</code> de la obra, esta última ya se completa sola al finalizar.</td></tr>
+    <tr><td>Insumos utilizados</td><td><span class="pill pill-ok">ya existe</span> — agregado de los remitos y presupuestos de la obra.</td></tr>
+    <tr><td>Mano de obra (cantidad y tipo de personas)</td><td><span class="pill pill-ok">ya existe</span> — la descripción libre que ya se carga en los costos categoría MANO_OBRA de los presupuestos de la obra ya contiene esto ("Oficial + ayudante x 3 días"). No hace falta un campo nuevo.</td></tr>
+    <tr><td>Herramientas usadas y cuáles se rompieron</td><td><span class="pill pill-ok">ya existe</span> — se agregan por <code>obra_id</code> directo (remitos → remito_items → baja de herramienta). Ya no hace falta inferir nada por nombre.</td></tr>
+    <tr><td>Horas hombre</td><td><span class="pill">nuevo</span> — campo numérico opcional, carga manual al cerrar la obra.</td></tr>
+    <tr><td>Inconvenientes</td><td><span class="pill">nuevo</span> — notas de texto libre, carga manual al cerrar la obra.</td></tr>
+    <tr><td>Costos no anticipados</td><td><span class="pill">nuevo</span> — lista de descripción + monto, carga manual al cerrar la obra. Vive en el historial mismo, no reabre presupuestos ya aprobados.</td></tr>
+    <tr><td>Imagen del plano/croquis</td><td><span class="pill">nuevo</span> — la foto que hoy se adjunta en Kits de Montaje se usa al vuelo contra Gemini y nunca se guarda. Pasa a subirse a Storage y quedar ligada a la obra cuando se confirma el armado.</td></tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Decisiones ya tomadas</h2>
+  <div class="decision-box">
+    <div class="q">¿Dónde se cargan los costos "no anticipados" (posteriores a la aprobación)?</div>
+    <div class="a">Campo libre en el cierre de obra.</div>
+    <p>No reabre el presupuesto ya aprobado — es una lista aparte, propia del historial, que no pasa por la máquina de estados de presupuestos.</p>
+  </div>
+  <div class="decision-box">
+    <div class="q">¿Se empieza a guardar la foto de Kits de Montaje?</div>
+    <div class="a">Sí, ligada a la obra.</div>
+    <p>Cuando <code>armado.confirmar()</code> recibe una foto, se sube a Storage y queda asociada a la obra resultante — el historial la muestra directo, sin pedirle al usuario que la suba de nuevo.</p>
+  </div>
+  <div class="decision-box">
+    <div class="q">¿Cómo se consulta?</div>
+    <div class="a">Ambas: pantalla dedicada + Panel IA.</div>
+    <p>Un botón "Historial" aparece en el detalle de una obra <strong>FINALIZADA</strong>. El Panel IA suma una tool de lectura para responder "dame el historial de tal obra" en lenguaje natural, usando el mismo agregado.</p>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Dónde encaja</h2>
+  <ul>
+    <li>No es un módulo nuevo — vive dentro de <strong>Obras</strong> (m4-obra), como una sección del detalle visible solo cuando <code>estado === 'FINALIZADA'</code>.</li>
+    <li>El Panel IA suma una tool de lectura nueva (mismo patrón que sus otras 17). No es una tool de escritura — el historial en sí es de solo lectura salvo los 3 campos manuales del cierre.</li>
+    <li>La carga manual (horas hombre, inconvenientes, costos no anticipados) ocurre en el momento de <strong>finalizar</strong> la obra — se integra al flujo que ya dispara <code>POST /obras/:id/finalizar</code>, no es una pantalla separada que aparece después.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Qué NO hace esta feature</h2>
+  <ul>
+    <li>No reabre ni modifica presupuestos ya aprobados.</li>
+    <li>No agrega un campo de "tipo de mano de obra" nuevo — reutiliza la descripción que ya existe en los costos del presupuesto.</li>
+    <li>No es una pantalla nueva en el sidebar — vive dentro del detalle de obra existente.</li>
+    <li>No vincula retroactivamente herramientas dadas de baja antes de esta feature a ninguna obra — el cruce solo puede aplicarse con los datos que el sistema ya tiene (remito ↔ movimiento), no inventa vínculos que no se puedan inferir.</li>
+  </ul>
+</section>
+
+<footer>
+  FieldStock AI — Renzo Campisi, legajo 20534 · Etapa 1 de 2 (arquitectura). La Etapa 2 (implementación) se escribe después de aprobar esta.
+</footer>
+
+</main>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' })
+</script>
+</body>
+</html>

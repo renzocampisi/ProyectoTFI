@@ -19,7 +19,11 @@ export const ObrasService = {
   getById:   (id)       => api.get(`/obras/${id}`),
   create:    (body)     => api.post('/obras', body),
   update:    (id, body) => api.put(`/obras/${id}`, body),
-  finalizar: (id)       => api.post(`/obras/${id}/finalizar`, {}),
+  // body es opcional: { horasHombre?, inconvenientes?, costosNoAnticipados? }
+  // — datos del cierre de obra (Historial de Obra). Se puede finalizar sin
+  // cargar nada, igual que antes de esta feature.
+  finalizar: (id, body) => api.post(`/obras/${id}/finalizar`, body || {}),
   reactivar: (id)       => api.post(`/obras/${id}/reactivar`, {}),
   getReservas: (id)     => api.get(`/obras/${id}/reservas`),
+  getHistorial: (id)    => api.get(`/obras/${id}/historial`),
 }

@@ -31,6 +31,7 @@ import * as KitsCtrl            from '../controllers/kits.controller.js'
 import * as RemitosCtrl         from '../controllers/remitos.controller.js'
 import * as MateriasCtrl        from '../controllers/materiales.controller.js'
 import * as ObrasCtrl           from '../controllers/obras.controller.js'
+import * as ObraHistorialCtrl   from '../controllers/obraHistorial.controller.js'
 import * as DirectorioCtrl      from '../controllers/directorio.controller.js'
 import * as EstanteriasCtrl     from '../controllers/estanterias.controller.js'
 import * as NotificacionesCtrl  from '../controllers/notificaciones.controller.js'
@@ -187,8 +188,26 @@ router.post  ('/remitos/:remitoId/kits/:kitId', KitsCtrl.agregarARemito)
 // estima cantidades (ver _plans/kits-montaje/). Restringido a
 // ROLES_OPERATIVOS: dispara una llamada paga a Gemini y puede crear obras,
 // materiales, presupuestos, remitos y órdenes de compra.
-router.post('/armado/interpretar', requireRole(ROLES_OPERATIVOS), ArmadoCtrl.interpretar)
-router.post('/armado/confirmar',   requireRole(ROLES_OPERATIVOS), ArmadoCtrl.confirmar)
+//
+// interpretar acepta JSON puro (caso de siempre) o multipart con una foto
+// opcional de croquis/plano (feature "Lectura de planos", ver
+// _plans/planos/). multer solo actúa si el Content-Type es multipart — como
+// express.json() ya corrió arriba en index.js para el caso JSON, ese request
+// llega a multer, no lo toca y sigue con req.body ya parseado. Mismo límite
+// que scan-match.
+const uploadArmado = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+})
+router.post('/armado/interpretar',
+                requireRole(ROLES_OPERATIVOS),
+                uploadArmado.single('foto'), ArmadoCtrl.interpretar)
+// confirmar acepta el mismo multipart con foto que interpretar — la foto
+// se reenvía acá porque interpretar() es de solo lectura y no la guarda
+// (ver _plans/historial-obra/). Sin foto sigue siendo JSON puro, sin cambios.
+router.post('/armado/confirmar',
+                requireRole(ROLES_OPERATIVOS),
+                uploadArmado.single('foto'), ArmadoCtrl.confirmar)
 
 // ── Materiales ────────────────────────────────────────────────
 // IMPORTANTE: rutas literales antes de las paramétricas (ej. /marcas
@@ -240,6 +259,7 @@ router.get   ('/obras/:id',           ObrasCtrl.getById)
 router.put   ('/obras/:id',           ObrasCtrl.update)
 router.post  ('/obras/:id/finalizar', ObrasCtrl.finalizar)
 router.post  ('/obras/:id/reactivar', ObrasCtrl.reactivar)
+router.get   ('/obras/:id/historial', ObraHistorialCtrl.getHistorial)
 
 // ── Directorio ────────────────────────────────────────────────
 router.get   ('/transportes',     DirectorioCtrl.getTransportes)

@@ -120,6 +120,16 @@
 }
 .textarea:focus { outline: none; border-color: var(--color-primary); }
 
+/* ── Foto opcional de croquis/plano ("Lectura de planos") ────── */
+.fotoBox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+}
+.fotoNombre { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+
 /* ── Opciones de destino ─────────────────────────────── */
 .opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-3); }
 .opcion {
@@ -206,6 +216,19 @@
 .motivoOk      { background: rgba(34,197,94,0.12);  color: #16a34a; }
 .motivoParcial { background: rgba(245,158,11,0.12); color: #d97706; }
 .motivoFalta   { background: rgba(242,95,92,0.12);  color: var(--color-danger); }
+
+/* No bloquea confirmar — mismo tono que conf_media, es un aviso, no un error */
+.advertenciaFoto {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(245,158,11,0.1);
+  color: #d97706;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
 
 /* ── Buscador de material ────────────────────────────── */
 .buscador { position: relative; }

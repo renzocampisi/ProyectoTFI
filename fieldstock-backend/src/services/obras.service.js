@@ -10,6 +10,7 @@
  * (string), no por UUID — ver getById() para el matching.
  */
 import { supabase } from '../config/supabase.js'
+import * as ObraHistorial from './obraHistorial.service.js'
 
 export async function getAll({ estado, q } = {}) {
   let query = supabase
@@ -112,22 +113,25 @@ export async function update(id, body) {
   return data
 }
 
-export async function finalizar(id) {
+/**
+ * @param {string} id
+ * @param {object=} body Datos opcionales del cierre — ver
+ *   obraHistorial.service.js registrarCierre(). Nada acá es obligatorio,
+ *   se puede finalizar sin cargar nada (igual que antes de Historial de Obra).
+ */
+export async function finalizar(id, body = {}) {
   // Guard de robustez: no finalizar una obra que todavia tiene remitos
   // abiertos (cualquier estado != CERRADO). Finalizar dejaria herramientas
   // EN_OBRA "colgadas" contra una obra terminada. Mismo espiritu que el
   // guard de remitos.eliminar() para herramientas EN_OBRA.
   //
-  // Los remitos referencian la obra por NOMBRE (no por UUID), asi que
-  // primero resolvemos el nombre y despues contamos.
-  const { data: obraBase, error: errO } = await supabase
-    .from('obras').select('nombre').eq('id', id).single()
-  if (errO) throw errO
-
+  // obra_id (FK) ya existe en remitos — ver
+  // 2026_09_03_remitos_movimientos_obra_id.sql. Antes esto resolvía por
+  // nombre; el filtro directo ya no necesita ese paso intermedio.
   const { count, error: errCount } = await supabase
     .from('remitos')
     .select('id', { count: 'exact', head: true })
-    .eq('obra', obraBase.nombre)
+    .eq('obra_id', id)
     .neq('estado', 'CERRADO')
   if (errCount) throw errCount
 
@@ -145,6 +149,15 @@ export async function finalizar(id) {
     .update({ estado: 'FINALIZADA', fecha_fin: new Date().toISOString().split('T')[0] })
     .eq('id', id).select().single()
   if (error) throw error
+
+  // Datos manuales del cierre (horas hombre, inconvenientes, costos no
+  // anticipados) — best-effort: un fallo acá no debe impedir que la obra
+  // quede finalizada, que ya es la operación principal.
+  if (body.horasHombre !== undefined || body.inconvenientes || body.costosNoAnticipados) {
+    await ObraHistorial.registrarCierre(id, body)
+      .catch(err => console.warn('[obras] no se pudo registrar el cierre de la obra:', err.message))
+  }
+
   return data
 }
 

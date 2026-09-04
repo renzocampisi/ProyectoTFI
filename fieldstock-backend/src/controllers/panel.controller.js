@@ -6,7 +6,9 @@
  * Endpoints:
  *   POST /api/panel/chat
  *   body: { mensaje: string, historial?: Array<{ role, content }> }
- *   resp: { ok: true, data: { respuesta: string, traza: Array, accionPendiente?: object } }
+ *   resp: { ok: true, data: { respuesta: string, traza: Array, imagenes?: string[], accionPendiente?: object } }
+ *   (imagenes: URLs de fotos que alguna tool devolvió en el turno — ej. planos
+ *   del historial de obra — el chat no interpreta markdown, se renderizan aparte)
  *
  *   POST /api/panel/ejecutar-accion
  *   body: { tool: string, args: object }  — viene de `accionPendiente` de /chat,

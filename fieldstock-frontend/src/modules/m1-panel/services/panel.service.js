@@ -8,7 +8,7 @@
  *
  * @typedef {{ role: 'user' | 'assistant', content: string }} Mensaje
  * @typedef {{ tool: string, args: object, ok: boolean }}     TrazaItem
- * @typedef {{ respuesta: string, traza: TrazaItem[] }}       Respuesta
+ * @typedef {{ respuesta: string, traza: TrazaItem[], imagenes?: string[] }} Respuesta
  */
 import { api } from '@shared/utils/api.js'
 

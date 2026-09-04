@@ -42,6 +42,10 @@ export function useArmado() {
   const [destino,   setDestino]   = useState(null) // 'PRESUPUESTO' | 'REMITO'
 
   const [texto,  setTexto]  = useState('')
+  // Foto opcional de un croquis/plano (feature "Lectura de planos", ver
+  // _plans/planos/). Apoyo y verificación del texto, nunca fuente de
+  // cantidad — la interpreta el backend, acá solo se sostiene el File.
+  const [foto,   setFoto]   = useState(null)
   const [lineas, setLineas] = useState([])
   const [resultado, setResultado] = useState(null)
   const [proveedorId, setProveedorId] = useState('') // '' = decidir después
@@ -62,7 +66,7 @@ export function useArmado() {
     if (!texto.trim()) return
     setPaso('interpretando'); setError(null)
     try {
-      const data = await ArmadoService.interpretar(texto.trim(), destino)
+      const data = await ArmadoService.interpretar(texto.trim(), destino, foto)
       setLineas((data.lineas || []).map(l => ({
         id:                  idLocal(),
         textoOriginal:       l.textoOriginal,
@@ -71,6 +75,11 @@ export function useArmado() {
         unidad:              l.unidad || 'unidad',
         modo:                l.materialId ? 'catalogo' : 'nuevo',
         materialId:          l.materialId || '',
+        // Lo que propuso la IA, conservado aparte de materialId: si el
+        // usuario lo corrige en la revisión, confirmar() necesita mandar
+        // ambos para que el backend pueda registrar el aprendizaje.
+        materialIdPropuesto: l.materialIdPropuesto || null,
+        advertenciaFoto:     l.advertenciaFoto || null,
         materialNombre:      l.materialNombre || null,
         stockActual:         l.stockActual,
         // Reparto (solo viene con destino REMITO)
@@ -93,7 +102,7 @@ export function useArmado() {
       setError(err.message)
       setPaso('describir')
     }
-  }, [texto, destino])
+  }, [texto, destino, foto])
 
   const actualizarLinea = useCallback((id, cambios) => {
     setLineas(prev => prev.map(l => (l.id === id ? { ...l, ...cambios } : l)))
@@ -121,6 +130,10 @@ export function useArmado() {
             cantidad:      Number(l.cantidad),
             unidad:        l.unidad,
             materialNombre: l.materialNombre,
+            // Lo que propuso la IA — el backend lo compara contra el
+            // material final para decidir si hay que registrar aprendizaje
+            // de vocabulario. null si la línea no tenía propuesta.
+            materialIdPropuesto: l.materialIdPropuesto || null,
           }
           const material = l.modo === 'catalogo'
             ? { materialId: l.materialId }
@@ -135,22 +148,24 @@ export function useArmado() {
           return { ...base, ...material, ...reparto }
         }),
       }
-      const data = await ArmadoService.confirmar(payload)
+      // Se reenvía la misma foto de "describir" — queda ligada a la obra
+      // en el historial (ver _plans/historial-obra/).
+      const data = await ArmadoService.confirmar(payload, foto)
       setResultado(data)
       setPaso('exito')
     } catch (err) {
       setError(err.message)
       setPaso('revision')
     }
-  }, [puedeConfirmar, destino, obraId, obraNueva, proveedorId, incluidas])
+  }, [puedeConfirmar, destino, obraId, obraNueva, proveedorId, incluidas, foto])
 
   const volverA = useCallback((p) => { setPaso(p); setError(null) }, [])
 
   return {
     paso, error, resultado,
-    obraId, obraNueva, destino, texto, lineas, proveedorId,
+    obraId, obraNueva, destino, texto, foto, lineas, proveedorId,
     puedeConfirmar, hayFaltantes,
-    setTexto, setProveedorId,
+    setTexto, setFoto, setProveedorId,
     elegirObraExistente, elegirObraNueva, elegirDestino,
     interpretar, actualizarLinea, alternarLinea, confirmar, volverA,
   }
