@@ -144,4 +144,12 @@
   .headerActions button { flex: 1; }
   .tableWrapper { overflow-x: auto; }
   .table { min-width: 460px; }
+
+  /* Fila de costo no anticipado (descripción + monto + eliminar) no entra
+     en una sola línea en pantallas chicas — el input de monto empujaba el
+     botón de eliminar casi afuera del modal. Se envuelve: descripción
+     arriba, monto + eliminar abajo. */
+  .rowAdd { flex-wrap: wrap; }
+  .rowAdd .inputEdit { flex-basis: 100%; }
+  .rowAdd .inputEditNum { flex: 1; width: auto; min-width: 0; }
 }
