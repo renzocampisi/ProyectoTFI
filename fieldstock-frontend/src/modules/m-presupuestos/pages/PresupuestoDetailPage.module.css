@@ -66,6 +66,55 @@
 .categoriaBlock:last-child { margin-bottom: 0; }
 .categoriaTitle { font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary); margin: 0; }
 
+/* ── Mano de obra / costos extra editables (solo BORRADOR) ── */
+.inputEdit {
+  width: 100%;
+  min-width: 100px;
+  background: var(--color-bg, var(--color-surface));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+.inputEdit:focus { outline: none; border-color: var(--color-primary); }
+.inputEditNum {
+  width: 90px;
+  background: var(--color-bg, var(--color-surface));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.inputEditNum:focus { outline: none; border-color: var(--color-primary); }
+.btnEliminarFila {
+  color: var(--text-muted);
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+.btnEliminarFila:hover { background: var(--color-surface-alt); color: var(--color-danger); }
+.btnLink {
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  margin-top: var(--space-2);
+}
+.btnLink:hover { text-decoration: underline; }
+.rowAdd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--color-border);
+}
+.rowAdd .inputEdit { flex: 1 1 160px; }
+
 /* ── Totales ── */
 .totales { display: flex; flex-direction: column; gap: var(--space-2); max-width: 480px; margin-left: auto; width: 100%; }
 .totalRow { display: flex; justify-content: space-between; align-items: center; font-size: var(--text-sm); color: var(--text-secondary); padding: var(--space-1) 0; }
