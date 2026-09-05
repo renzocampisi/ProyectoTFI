@@ -204,3 +204,38 @@
   .steps, .tagGrid, .plans { grid-template-columns: 1fr; }
   .navLinks { display: none; }
 }
+
+/* En mobile la barra pasa de arriba (sticky top, patrón típico de web) a
+   abajo (fixed bottom) — mismo lugar donde vive la navegación principal
+   en el resto de la app ya logueada. Al sacarla del flujo normal (fixed),
+   .page necesita el padding compensatorio arriba (donde el nav ya no
+   empuja el contenido) y abajo (para que la barra no tape el final de
+   la página, ej. el footer). */
+@media (max-width: 768px) {
+  .nav {
+    position: fixed;
+    inset: auto 0 0 0;
+    border-bottom: none;
+    border-top: 1px solid var(--color-border);
+  }
+  .page { padding-top: 68px; padding-bottom: 68px; }
+}
+
+/* Con los navLinks ya ocultos (regla de 900px) todavía quedan logo +
+   toggle de tema + 2 botones en una sola fila — en el ancho real de un
+   teléfono (~375-430px) eso sigue desbordando y corta el botón "Probar
+   gratis" fuera de la pantalla. Se comprime todo y se acortan los
+   textos de los botones (el span .navBtnExtra desaparece). */
+@media (max-width: 480px) {
+  .navRow { padding: 0 var(--space-4); gap: var(--space-2); height: 60px; }
+  .brand { font-size: var(--text-base); gap: var(--space-1); }
+  .brandIcon { width: 24px; height: 24px; }
+  .navActions { gap: var(--space-1); }
+  .temaBtn { width: 30px; height: 30px; flex-shrink: 0; }
+  .nav .btnGhost, .nav .btnPrimary {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+  }
+  .navBtnExtra { display: none; }
+  .page { padding-top: 60px; padding-bottom: 60px; }
+}

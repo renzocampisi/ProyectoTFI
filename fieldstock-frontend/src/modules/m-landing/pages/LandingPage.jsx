@@ -37,8 +37,12 @@ export default function LandingPage() {
               title={tema === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
               {tema === 'dark' ? <LuSun size={17} color="#fbbf24" /> : <LuMoon size={17} color="#6366f1" />}
             </button>
-            <button className={styles.btnGhost} onClick={() => navigate('/login')}>Iniciar sesión</button>
-            <button className={styles.btnPrimary} onClick={() => navigate('/registro')}>Probar gratis</button>
+            <button className={styles.btnGhost} onClick={() => navigate('/login')}>
+              Iniciar<span className={styles.navBtnExtra}> sesión</span>
+            </button>
+            <button className={styles.btnPrimary} onClick={() => navigate('/registro')}>
+              Probar<span className={styles.navBtnExtra}> gratis</span>
+            </button>
           </div>
         </div>
       </nav>
