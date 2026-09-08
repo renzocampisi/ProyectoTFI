@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login con segundo factor por mail — Etapa 1: Arquitectura</title>
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #6b6b6b; --line: #e6e6e6; --card: #fafafa;
+    --accent: #3b6eea; --warn: #b07b00; --ok: #16a34a; --no: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--ink); background: #fff; margin: 0; line-height: 1.55; font-size: 15px;
+  }
+  main { max-width: 720px; margin: 56px auto 80px; padding: 0 24px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 28px; }
+  header .eyebrow { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  header h1 { font-size: 26px; margin: 0 0 6px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { color: var(--muted); font-size: 14px; }
+  section.card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 22px 24px; margin: 18px 0;
+  }
+  section.card > h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin: 0 0 14px; font-weight: 600;
+  }
+  p { margin: 0 0 12px; }
+  ul { margin: 0 0 12px; padding-left: 22px; }
+  li { margin-bottom: 7px; }
+  strong { font-weight: 600; }
+  code { background: #eef; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .mermaid { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin: 6px 0 4px; text-align: center; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 4px 0 12px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .tag { display: inline-block; font-size: 12px; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; }
+  .tag.ok { color: var(--ok); } .tag.no { color: var(--no); } .tag.warn { color: var(--warn); }
+  .q { border-left: 3px solid var(--accent); padding-left: 14px; margin: 12px 0; }
+  footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; margin-top: 36px; }
+  @media print { body { font-size: 12px; } main { margin: 0 auto; } section.card { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">FieldStock AI · Plan de feature · Etapa 1 de 2</div>
+    <h1>Login con segundo factor por mail</h1>
+    <div class="sub">Para todos los roles salvo ADMIN: contraseña correcta → código de un solo uso al mail → recién ahí se abre la sesión.</div>
+  </header>
+
+  <section class="card">
+    <h2>Flujo</h2>
+    <pre class="mermaid">
+flowchart TD
+  A["Pantalla de login\nemail + contraseña"] --> B["El backend verifica la contraseña\n(sesión efímera, no se guarda)"]
+  B -->|contraseña incorrecta| C["Error genérico\n'credenciales incorrectas'"]
+  B -->|correcta| D{"¿Rol ADMIN?"}
+  D -->|sí| E["El backend devuelve la sesión\n→ entra directo, como hoy"]
+  D -->|no| F["Supabase Auth manda un código\nde 6 dígitos al mail del usuario"]
+  F --> G["Pantalla de código\n(reenviar / volver)"]
+  G --> H["Supabase Auth valida el código"]
+  H -->|correcto| I["Sesión creada\n→ se abre la app"]
+  H -->|incorrecto / vencido| J["Error, permite reintentar\no pedir uno nuevo"]
+  J --> G
+  C --> A
+    </pre>
+  </section>
+
+  <section class="card">
+    <h2>El problema</h2>
+    <p>
+      Hoy cualquier usuario entra con solo email + contraseña. Las contraseñas de los
+      empleados son autogeneradas y se muestran una vez en un modal — fáciles de
+      filtrar, reenviar o dejar anotadas. Se quiere que, además de la contraseña,
+      haya que probar acceso al mail de la cuenta en cada inicio de sesión. El ADMIN
+      queda como está (cuenta de pruebas).
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>La forma</h2>
+    <p>Tres responsabilidades, todas sobre piezas que ya existen:</p>
+    <ul>
+      <li>
+        <strong>Pantalla de login</strong> — pasa de un paso a dos: primero email +
+        contraseña; si la cuenta necesita código, aparece un segundo paso para
+        tipear los 6 dígitos, con opción de reenviar y de volver atrás. El ADMIN
+        nunca ve el segundo paso.
+      </li>
+      <li>
+        <strong>El backend</strong> — gana un único punto de entrada de login. Verifica
+        la contraseña contra Supabase sin quedarse con esa sesión, mira el rol, y
+        decide: ADMIN entra directo; cualquier otro rol dispara el envío del código
+        y responde "código enviado" sin entregar todavía ninguna sesión.
+      </li>
+      <li>
+        <strong>Supabase Auth</strong> — es quien genera el código, lo guarda hasheado,
+        lo manda por mail, controla su vencimiento y su límite de reenvíos, y crea
+        la sesión cuando el código ingresado es correcto. El mail sale por el SMTP
+        de Supabase, configurado para usar Resend (el mismo proveedor que ya manda
+        los comprobantes de pago).
+      </li>
+    </ul>
+    <p>
+      El resto del sistema no cambia: una vez que hay sesión, <code>useAuth</code>,
+      el guard de rutas, <code>requireAuth</code> en el backend y las políticas de
+      Supabase funcionan igual que hoy. La única diferencia es <em>cuándo</em>
+      aparece esa sesión.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Por qué así y no de otra manera</h2>
+    <table>
+      <tr><th>Opción</th><th>Qué implica</th><th></th></tr>
+      <tr>
+        <td>Código nativo de Supabase + Resend como su SMTP <em>(elegida)</em></td>
+        <td>Supabase hace el trabajo pesado: generación, hash, vencimiento, límite de reenvío y creación de sesión. El backend solo verifica la contraseña y decide si hace falta código.</td>
+        <td><span class="tag ok">menos código</span></td>
+      </tr>
+      <tr>
+        <td>Código propio en el backend</td>
+        <td>Tabla de códigos, endpoints de pedir/verificar, y pegado manual para crear la sesión. Control total del mail y las reglas, a cambio de más superficie que mantener y asegurar.</td>
+        <td><span class="tag warn">más superficie</span></td>
+      </tr>
+      <tr>
+        <td>Proveedor de auth externo (Auth0 / Clerk free)</td>
+        <td>Reemplaza Supabase Auth, que está cableado en el guard de rutas, en <code>requireAuth</code> y en las políticas de la base. Reescritura grande para un objetivo acotado.</td>
+        <td><span class="tag no">descartada</span></td>
+      </tr>
+    </table>
+    <p>
+      La contraseña se verifica <strong>en el backend</strong> y no en el navegador a
+      propósito: así el cliente nunca llega a tener una sesión "a medias" (contraseña
+      OK pero código pendiente) que alguien pudiera reusar reabriendo la pestaña. La
+      única sesión que existe del lado del cliente es la que nace después del código.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Decisiones tomadas</h2>
+    <ul>
+      <li><strong>Segundo factor, no passwordless.</strong> La contraseña sigue siendo el primer factor; el código se suma como segundo paso obligatorio.</li>
+      <li><strong>Alcance por rol, regla fija.</strong> ADMIN entra con contraseña como hoy. DUEÑO, ENCARGADO y OPERARIO pasan siempre por el código. Sin pantalla de configuración.</li>
+      <li><strong>El mail sale por Resend</strong>, a través del SMTP de Supabase Auth — no se agrega un canal de mail nuevo.</li>
+      <li><strong>Un solo punto de entrada de login</strong> en el backend: el frontend no necesita saber el rol de antemano, lo resuelve el backend después de validar la contraseña.</li>
+      <li><strong>Mensaje de error genérico</strong> ante email o contraseña incorrectos — se mantiene el criterio anti-enumeración que ya usa el login actual.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Qué NO hace esta feature</h2>
+    <ul>
+      <li>No toca el login del ADMIN.</li>
+      <li>No elimina las contraseñas ni cambia cómo se dan de alta los usuarios.</li>
+      <li>No agrega app de autenticación (TOTP), SMS, ni "recordar este dispositivo" — cada inicio de sesión pide código.</li>
+      <li>No agrega una pantalla para administrar o ver códigos; son efímeros y no se listan en ningún lado.</li>
+      <li>No cambia nada de la sesión ya iniciada: expiración, refresco y cierre de sesión siguen igual.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Preguntas abiertas</h2>
+    <div class="q">
+      <strong>1. ¿Cuánto vive el código?</strong> Propongo <strong>10 minutos</strong>
+      (Supabase trae 1 hora por defecto; para un segundo factor 10 min es más sano).
+      ¿Te sirve ese número?
+    </div>
+    <div class="q">
+      <strong>2. Freno a la fuerza bruta de contraseña.</strong> El punto de entrada
+      de login conviene que tenga un límite de intentos por mail/IP (hoy el proyecto
+      no tiene ninguno). ¿Lo incluimos en esta feature o lo dejamos para después?
+    </div>
+    <div class="q">
+      <strong>3. Reenvío del código.</strong> La pantalla de código va a tener un
+      botón "reenviar" con una cuenta regresiva (Supabase no deja reenviar antes de
+      ~60 s). ¿Alcanza con eso o querés además un límite de "pedidos por hora"
+      visible para el usuario?
+    </div>
+  </section>
+
+  <footer>
+    FieldStock AI — Renzo Campisi, legajo 20534 · Etapa 1 de 2 (arquitectura).
+    La Etapa 2 (implementación) se escribe después de aprobar esta.
+  </footer>
+</main>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' })
+</script>
+</body>
+</html>

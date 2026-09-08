@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login con segundo factor por mail — Etapa 2: Implementación</title>
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #6b6b6b; --line: #e6e6e6; --card: #fafafa;
+    --accent: #3b6eea; --warn: #b07b00; --ok: #16a34a; --no: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--ink); background: #fff; margin: 0; line-height: 1.55; font-size: 15px;
+  }
+  main { max-width: 720px; margin: 56px auto 80px; padding: 0 24px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 28px; }
+  header .eyebrow { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  header h1 { font-size: 26px; margin: 0 0 6px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { color: var(--muted); font-size: 14px; }
+  section.card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 22px 24px; margin: 18px 0;
+  }
+  section.card > h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin: 0 0 14px; font-weight: 600;
+  }
+  h3 { font-size: 15px; margin: 18px 0 8px; }
+  p { margin: 0 0 12px; }
+  ul, ol { margin: 0 0 12px; padding-left: 22px; }
+  li { margin-bottom: 7px; }
+  strong { font-weight: 600; }
+  code { background: #eef; padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  .mermaid { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin: 6px 0 4px; text-align: center; }
+  .step { border-left: 3px solid var(--accent); padding: 2px 0 2px 14px; margin: 14px 0; }
+  .step .file { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: var(--muted); display: block; margin: 2px 0 6px; }
+  .verify { font-size: 13.5px; color: var(--ok); }
+  .risk { border-left: 3px solid var(--warn); padding-left: 14px; margin: 12px 0; }
+  footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; margin-top: 36px; }
+  @media print { body { font-size: 12px; } main { margin: 0 auto; } section.card { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">FieldStock AI · Plan de feature · Etapa 2 de 2</div>
+    <h1>Login con segundo factor por mail</h1>
+    <div class="sub">Implementación — arquitectura aprobada en architecture.html</div>
+  </header>
+
+  <section class="card">
+    <h2>Preguntas abiertas — resueltas con los defaults propuestos</h2>
+    <ul>
+      <li><strong>Vida del código:</strong> 10 minutos (setting de Supabase).</li>
+      <li><strong>Freno a fuerza bruta:</strong> se incluye un límite simple de intentos por mail+IP en el endpoint de login (en memoria, por instancia).</li>
+      <li><strong>Reenvío:</strong> botón "Reenviar código" con cuenta regresiva de 60 s; sin límite horario visible extra (Supabase ya frena por debajo de ~60 s).</li>
+    </ul>
+    <p>Si querés otro número o sacar el rate-limit de esta tanda, decilo antes de arrancar.</p>
+  </section>
+
+  <section class="card">
+    <h2>Secuencia</h2>
+    <pre class="mermaid">
+sequenceDiagram
+  actor U as Usuario
+  participant FE as LoginPage
+  participant Auth as useAuth
+  participant BE as auth-login.service
+  participant SA as Supabase Auth (anon, sin persistir)
+  participant SB as Supabase (service role)
+  participant SDK as supabase-js (cliente)
+
+  U->>FE: email + contraseña
+  FE->>Auth: signIn(email, password)
+  Auth->>BE: POST /auth/login
+  BE->>BE: rate-limit por mail+IP
+  BE->>SA: signInWithPassword (sesión efímera)
+  SA-->>BE: ok / error
+  alt contraseña incorrecta
+    BE-->>Auth: 401 genérico
+    Auth-->>FE: error → "credenciales incorrectas"
+  else contraseña correcta
+    BE->>SB: leer rol de usuarios_resumen
+    alt rol ADMIN
+      BE-->>Auth: { session }
+      Auth->>SDK: setSession(session)
+      SDK-->>FE: SIGNED_IN → app
+    else otro rol
+      BE->>SA: signInWithOtp(shouldCreateUser:false)
+      SA-->>U: mail con código de 6 dígitos
+      BE-->>Auth: { requiereCodigo: true }
+      Auth-->>FE: paso "código"
+      U->>FE: ingresa el código
+      FE->>Auth: verificarCodigo(email, código)
+      Auth->>SDK: verifyOtp({ email, token, type:'email' })
+      SDK-->>FE: SIGNED_IN → app  (o error si venció / no coincide)
+    end
+  end
+    </pre>
+    <pre class="mermaid">
+stateDiagram-v2
+  [*] --> credenciales
+  credenciales --> credenciales: contraseña incorrecta
+  credenciales --> app: rol ADMIN (sesión directa)
+  credenciales --> codigo: otro rol (código enviado)
+  codigo --> codigo: código inválido / reenviar
+  codigo --> credenciales: "Volver" (limpia contraseña)
+  codigo --> app: código correcto
+  app --> [*]
+    </pre>
+  </section>
+
+  <section class="card">
+    <h2>Patrones de diseño</h2>
+    <ul>
+      <li><strong>Controller → Service:</strong> toda la lógica (rate-limit, verificar contraseña, decidir por rol, disparar el código) vive en <code>auth-login.service.js</code>. El controller solo lee <code>req.body</code> / <code>req.ip</code> y responde <code>{ data }</code>.</li>
+      <li><strong>Cliente Supabase dedicado y sin estado:</strong> se agrega <code>config/supabaseAuth.js</code> con la anon key y <code>persistSession:false</code>. El cliente service-role compartido (<code>config/supabase.js</code>) no se toca. Mismo criterio de aislamiento que ya separa frontend (anon) de backend (service).</li>
+      <li><strong>Hook de auth como único punto de entrada:</strong> <code>useAuth</code> gana <code>verificarCodigo()</code> y su <code>signIn()</code> pasa a hablar con nuestro backend en vez de con Supabase directo. Los componentes no llaman a <code>api</code> ni a <code>supabase.auth</code> por su cuenta — igual que hoy.</li>
+      <li><strong>Extensión aditiva de contrato:</strong> <code>POST /auth/login</code> responde <code>{ session }</code> <em>o</em> <code>{ requiereCodigo:true }</code>. El resto de la app (guard de rutas, <code>requireAuth</code>, RLS) no cambia — solo cambia cuándo aparece la sesión.</li>
+      <li><strong>CSS Modules:</strong> el paso de código se agrega al <code>LoginPage.module.css</code> existente, sin estilos inline de layout.</li>
+      <li><strong>Anti-enumeración:</strong> se mantiene el mensaje genérico único de <code>LoginPage</code> para email/contraseña incorrectos.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Pasos ordenados — Backend</h2>
+
+    <div class="step">
+      <strong>1. Cliente Supabase para auth (anon, sin persistir)</strong>
+      <span class="file">nuevo · fieldstock-backend/src/config/supabaseAuth.js · fieldstock-backend/.env · Fly secret</span>
+      Agregar <code>SUPABASE_ANON_KEY</code> al <code>.env</code> del backend (es la misma que ya usa el frontend, es pública) y como secret en Fly (<code>flyctl secrets set</code>). El nuevo módulo exporta <code>supabaseAuth = createClient(url, anonKey, { auth: { persistSession:false, autoRefreshToken:false } })</code> y falla-fast si falta la var, igual que <code>config/supabase.js</code>.
+      <div class="verify">Verificación: el backend arranca sin error; <code>import</code> del módulo no rompe.</div>
+    </div>
+
+    <div class="step">
+      <strong>2. Service de login</strong>
+      <span class="file">nuevo · fieldstock-backend/src/services/auth-login.service.js</span>
+      <code>login({ email, password, ip })</code>:
+      <ol>
+        <li>Chequear el rate-limit (paso 3). Si excede → <code>Error</code> con <code>status 429</code>.</li>
+        <li><code>supabaseAuth.auth.signInWithPassword({ email, password })</code>. Si error → registrar el intento y tirar <code>Error('Email o contraseña incorrectos')</code> con <code>status 422</code> (no 401: <code>api.js</code> del frontend trata cualquier 401 como sesión expirada y dispara logout + redirect; acá el login todavía no tiene sesión, un rechazo es 422). La sesión que devuelve NO se persiste; queda en una variable local.</li>
+        <li>Leer el perfil: <code>supabase.from('usuarios_resumen').select('id, role, activo').eq('id', user.id).maybeSingle()</code>. Sin perfil o <code>activo:false</code> → <code>status 422</code> (mensaje "Cuenta desactivada" para el segundo caso, mismo tono que <code>requireAuth</code>).</li>
+        <li>Si <code>role === ROLES.ADMIN</code> → devolver <code>{ session: { access_token, refresh_token } }</code> (de la sesión efímera del paso 2).</li>
+        <li>Si no → <code>supabaseAuth.auth.signInWithOtp({ email, options: { shouldCreateUser:false } })</code>. Si error → <code>Error('No pudimos enviar el código. Reintentá en un momento.')</code> con <code>status 502</code>. Si ok → devolver <code>{ requiereCodigo:true, email }</code>.</li>
+      </ol>
+      <div class="verify">Verificación: test unitario (paso 12).</div>
+    </div>
+
+    <div class="step">
+      <strong>3. Límite de intentos (en memoria)</strong>
+      <span class="file">fieldstock-backend/src/services/auth-login.service.js (interno)</span>
+      Un <code>Map</code> a nivel de módulo: clave <code>`${email.toLowerCase()}|${ip}`</code>, valor = array de timestamps de los últimos 10 min. En cada intento se podan los viejos y se agrega el actual; si el array supera <strong>5</strong> → <code>status 429</code>. Cuenta todos los intentos (ok y fallidos) para topear también el abuso de envío de código.
+      <div class="verify">Verificación: el 6º intento seguido para el mismo mail+IP devuelve 429 (cubierto en el test).</div>
+    </div>
+
+    <div class="step">
+      <strong>4. Controller</strong>
+      <span class="file">fieldstock-backend/src/controllers/auth-publico.controller.js</span>
+      Nueva función <code>login(req, res, next)</code>: toma <code>email</code> / <code>password</code> de <code>req.body</code> e <code>ip</code> de <code>req.ip</code>, llama a <code>AuthLoginService.login()</code>, responde <code>res.json({ data })</code>. Errores vía <code>next(err)</code> — el <code>errorHandler</code> global ya los formatea.
+      <div class="verify">Depende del paso 2.</div>
+    </div>
+
+    <div class="step">
+      <strong>5. Ruta</strong>
+      <span class="file">fieldstock-backend/src/routes/index.js</span>
+      <code>router.post('/auth/login', AuthPublicoCtrl.login)</code> en el bloque público, <strong>antes</strong> de <code>router.use(requireAuth)</code> (línea ~90). <code>express.json()</code> global ya corre antes, así que <code>req.body</code> llega parseado.
+      <div class="verify">Verificación: <code>curl</code> con creds inválidas → 401 genérico; con las del ADMIN → <code>{ data: { session } }</code>; con las de un no-ADMIN → <code>{ data: { requiereCodigo:true } }</code> y llega el mail.</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Pasos ordenados — Frontend</h2>
+
+    <div class="step">
+      <strong>6. Hook de auth</strong>
+      <span class="file">fieldstock-frontend/src/shared/hooks/useAuth.jsx</span>
+      <ul>
+        <li><code>signIn(email, password)</code> pasa a <code>api.post('/auth/login', { email, password })</code>. Si la respuesta trae <code>session</code> → <code>await supabase.auth.setSession(session)</code> (dispara <code>onAuthStateChange</code> → <code>cargarPerfil</code>) y devuelve <code>{}</code>. Si trae <code>requiereCodigo</code> → devuelve <code>{ requiereCodigo:true }</code>. Error → <code>{ error: { message } }</code> (se mantiene el <code>withTimeout</code> defensivo).</li>
+        <li>Nuevo <code>verificarCodigo(email, codigo)</code> → <code>supabase.auth.verifyOtp({ email, token: codigo, type:'email' })</code> envuelto en <code>withTimeout</code>. Devuelve <code>{ error }</code> o <code>{}</code>.</li>
+        <li>Ambos se exponen en el <code>value</code> del context. <code>signOut</code> queda igual.</li>
+      </ul>
+      <div class="verify">Depende de los pasos 2 y 5.</div>
+    </div>
+
+    <div class="step">
+      <strong>7. Página de login — dos pasos</strong>
+      <span class="file">fieldstock-frontend/src/modules/m0-auth/pages/LoginPage.jsx</span>
+      <ul>
+        <li>Estado nuevo: <code>paso</code> (<code>'credenciales' | 'codigo'</code>), <code>codigo</code>, y una cuenta regresiva de reenvío.</li>
+        <li>Submit de credenciales: llama <code>signIn</code>. Si <code>requiereCodigo</code> → <code>setPaso('codigo')</code> y arranca la cuenta de 60 s. Si hay <code>session</code> → el <code>&lt;Navigate&gt;</code> de arriba (o <code>navigate('/')</code>) hace el resto. Error → mensaje genérico.</li>
+        <li>Paso "código": input único <code>inputMode="numeric"</code> <code>autoComplete="one-time-code"</code> <code>maxLength=6</code>; botón "Verificar" → <code>verificarCodigo</code>; error → "El código no es válido o venció."; éxito → navega.</li>
+        <li>"Reenviar código (Ns)": deshabilitado mientras la cuenta &gt; 0; al tocarlo re-llama <code>signIn(email, password)</code> (la contraseña sigue en estado) y reinicia la cuenta.</li>
+        <li>"Volver": <code>setPaso('credenciales')</code>, limpia <code>codigo</code> y <code>password</code>.</li>
+        <li>"¿Olvidaste tu contraseña?" solo en el paso 1. Se conserva el botón "Limpiar sesión y reintentar".</li>
+      </ul>
+      <div class="verify">Depende del paso 6.</div>
+    </div>
+
+    <div class="step">
+      <strong>8. Estilos del paso de código</strong>
+      <span class="file">fieldstock-frontend/src/modules/m0-auth/pages/LoginPage.module.css</span>
+      Clases nuevas para el input del código (centrado, monoespaciado, tracking amplio) y la fila de "reenviar". Reusar las variables y clases de <code>.field</code> / <code>.btnPrimary</code> / <code>.btnLink</code> que ya existen.
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Pasos ordenados — Configuración de Supabase (sin código)</h2>
+    <p>No viven en el repo. Anotar los valores en el cuerpo del PR y en la sección de entorno de <code>CLAUDE.md</code>.</p>
+
+    <div class="step">
+      <strong>9. SMTP de Supabase Auth → Resend</strong>
+      <span class="file">Dashboard · Authentication · SMTP Settings</span>
+      Host <code>smtp.resend.com</code>, puerto <code>465</code>, usuario <code>resend</code>, contraseña = una API key de Resend, sender = <code>RESEND_FROM_EMAIL</code>.
+      <div class="verify">Verificación: "Send test email" desde el dashboard llega a la casilla.</div>
+    </div>
+
+    <div class="step">
+      <strong>10. Expiración del código</strong>
+      <span class="file">Dashboard · Authentication · Email OTP Expiration</span>
+      Poner <code>600</code> (10 min). Por defecto viene en 3600.
+    </div>
+
+    <div class="step">
+      <strong>11. Template del mail — código, no link</strong>
+      <span class="file">Dashboard · Authentication · Email Templates · "Magic Link"</span>
+      Reemplazar el cuerpo para mostrar <code>{{ .Token }}</code> (los 6 dígitos) en vez de <code>{{ .ConfirmationURL }}</code>, con branding mínimo (nombre / logo).
+      <div class="verify">Verificación (bloqueante): pedir un login real de un no-ADMIN y confirmar que llega un <strong>código numérico</strong>, no un enlace. Si llega un link, <code>verifyOtp</code> con código tipeado falla.</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Testing</h2>
+    <div class="step">
+      <strong>12. Test del service de login</strong>
+      <span class="file">nuevo · fieldstock-backend/src/services/auth-login.service.test.js</span>
+      Mockear <code>../config/supabaseAuth.js</code> (chain <code>auth.signInWithPassword</code>, <code>auth.signInWithOtp</code>) y <code>../config/supabase.js</code> (chain para <code>usuarios_resumen</code>) — mismo criterio que <code>auth-publico.service.test.js</code> / <code>compras.service.test.js</code>. Casos:
+      <ul>
+        <li>contraseña inválida → <code>status 401</code>, NO se llama <code>signInWithOtp</code>.</li>
+        <li>contraseña OK + rol <code>ADMIN</code> → devuelve <code>{ session }</code>, NO se llama <code>signInWithOtp</code>.</li>
+        <li>contraseña OK + rol <code>ENCARGADO</code> → llama <code>signInWithOtp({ shouldCreateUser:false })</code>, devuelve <code>{ requiereCodigo:true }</code> sin <code>session</code>.</li>
+        <li>perfil <code>activo:false</code> → <code>status 401</code>.</li>
+        <li>6º intento seguido para el mismo mail+IP → <code>status 429</code>.</li>
+        <li><code>signInWithOtp</code> devuelve error → <code>status 502</code>, mensaje reintentable.</li>
+      </ul>
+      <div class="verify">Correr: <code>cd fieldstock-backend &amp;&amp; npx jest auth-login.service.test.js</code>.</div>
+    </div>
+
+    <div class="step">
+      <strong>13. Verificación general</strong>
+      <ul>
+        <li><code>npm test --prefix fieldstock-backend</code> — todo verde.</li>
+        <li><code>npm run dev</code> desde la raíz. En <code>/login</code>:
+          <ul>
+            <li><strong>ADMIN</strong>: email + contraseña → entra directo, sin paso de código (regresión).</li>
+            <li><strong>No-ADMIN</strong>: email + contraseña → pantalla de código → llega el mail → código correcto entra; código mal → error; "reenviar" tras 60 s manda otro; "volver" resetea el flujo.</li>
+            <li>Credenciales incorrectas → error genérico, sin distinguir si el email existe.</li>
+          </ul>
+        </li>
+        <li><code>npm run lint --prefix fieldstock-frontend</code> → 0 errores.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Riesgos puntuales</h2>
+    <div class="risk">
+      <strong>Sesión "a medias" — imposible por diseño.</strong> La contraseña se valida en el backend y su sesión se descarta ahí mismo; el cliente solo obtiene sesión vía <code>verifyOtp</code>. No queda ningún estado intermedio reusable si se cierra la pestaña entre un paso y el otro.
+    </div>
+    <div class="risk">
+      <strong>Template del mail.</strong> Si "Magic Link" queda con <code>{{ .ConfirmationURL }}</code> el usuario recibe un enlace y el código tipeado no valida. El paso 11 es bloqueante y se prueba con un login real antes de dar por cerrada la feature.
+    </div>
+    <div class="risk">
+      <strong>Rate-limit en memoria.</strong> Se reinicia en cada deploy y es por-máquina (Fly corre una sola). Alcanza para la escala descrita en <code>CLAUDE.md</code>; si en el futuro hay varias instancias, mover a una tabla o a Redis.
+    </div>
+    <div class="risk">
+      <strong>Anon key en el backend.</strong> Es pública (el frontend ya la expone). Usar la service key para el endpoint <code>/token</code> sería peor; por eso se agrega la anon key con un cliente sin persistencia y no se toca el cliente service-role compartido.
+    </div>
+    <div class="risk">
+      <strong>Sin migración de schema.</strong> Revertir la feature es volver los commits de front y back; el SMTP y el template configurados quedan pero son inofensivos, y el login vuelve solo a un paso.
+    </div>
+  </section>
+
+  <footer>
+    FieldStock AI — Renzo Campisi, legajo 20534 · Etapa 2 de 2 (implementación).
+    Arquitectura aprobada previamente en architecture.html.
+  </footer>
+</main>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' })
+</script>
+</body>
+</html>
