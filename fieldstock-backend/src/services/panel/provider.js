@@ -22,6 +22,30 @@ import { GoogleGenAI } from '@google/genai'
 // cuota 0 en el tier free para proyectos nuevos.
 const MODEL = 'gemini-2.5-flash'
 
+// Reintentos ante saturacion transitoria del tier gratuito. Gemini free
+// devuelve 503 ("high demand" / "model is overloaded") y a veces 429 en
+// picos que se resuelven solos en segundos. Un fallo asi hoy corta las 3
+// features de IA (Panel IA, Scan & Match, Kits de Montaje) que comparten
+// este adapter. El presupuesto total de espera (1+2+4 = 7s) queda holgado
+// bajo el timeout de 60s que el frontend usa para llamadas por LLM.
+const RETRY_MAX_ATTEMPTS = 4
+const RETRY_BASE_MS      = 1000
+
+// Solo reintentamos errores transitorios del lado del servidor / red.
+// 400 (payload mal armado) y 401/403 (key invalida o sin permiso) no se
+// arreglan reintentando — se propagan de una.
+function esErrorTransitorio(err) {
+  const status = err?.status ?? err?.code
+  if (status === 429 || status === 500 || status === 503 || status === 504) return true
+  if (typeof status === 'number') return false
+  // Sin status numerico: error de red (fetch failed / ECONNRESET / socket
+  // hang up) o mensaje de sobrecarga sin codigo. Tambien transitorio.
+  const msg = String(err?.message || '').toLowerCase()
+  return /overload|unavailable|high demand|timeout|timed out|econnreset|socket hang up|fetch failed|network/.test(msg)
+}
+
+const sleep = (ms) => new Promise(res => setTimeout(res, ms))
+
 let _client = null
 
 function getClient() {
@@ -58,9 +82,10 @@ function getClient() {
  *   - text:          texto plano si el modelo respondio directo, null si pidio tools
  *   - functionCalls: array de tool calls que el orquestador tiene que ejecutar
  *
- * Cualquier error de transporte / cuota / key invalida se propaga con
- * `.status` mapeado para el errorHandler. Sin reintentos automaticos:
- * un fallo se reporta al usuario y este reformula.
+ * Errores transitorios (503/429/500/504, red) se reintentan hasta
+ * RETRY_MAX_ATTEMPTS veces con backoff exponencial. El resto (400 payload,
+ * 401 key invalida) se propaga de una con `.status` mapeado para el
+ * errorHandler.
  */
 export async function chat({ system, contents, tools, responseSchema }) {
   const client = getClient()
@@ -74,19 +99,29 @@ export async function chat({ system, contents, tools, responseSchema }) {
   }
 
   let response
-  try {
-    response = await client.models.generateContent({
-      model:    MODEL,
-      contents,
-      config,
-    })
-  } catch (err) {
-    // Errores tipicos: 401 (key invalida), 429 (rate limit), 400 (payload).
-    // Reempaquetar para que el errorHandler los devuelva con shape consistente.
-    const wrapped = new Error(`Gemini API: ${err.message || 'error desconocido'}`)
-    wrapped.status = err.status === 401 ? 503 : (err.status || 502)
-    wrapped.cause  = err
-    throw wrapped
+  for (let intento = 1; intento <= RETRY_MAX_ATTEMPTS; intento++) {
+    try {
+      response = await client.models.generateContent({
+        model:    MODEL,
+        contents,
+        config,
+      })
+      break
+    } catch (err) {
+      const puedeReintentar = intento < RETRY_MAX_ATTEMPTS && esErrorTransitorio(err)
+      if (!puedeReintentar) {
+        // Errores tipicos no reintentables: 401 (key invalida), 400 (payload).
+        // Reempaquetar para que el errorHandler los devuelva con shape consistente.
+        const wrapped = new Error(`Gemini API: ${err.message || 'error desconocido'}`)
+        wrapped.status = err.status === 401 ? 503 : (err.status || 502)
+        wrapped.cause  = err
+        throw wrapped
+      }
+      // Backoff exponencial con jitter (1s, 2s, 4s ± hasta 250ms).
+      const espera = RETRY_BASE_MS * 2 ** (intento - 1) + Math.floor(Math.random() * 250)
+      console.warn(`[panel/provider] Gemini transitorio (intento ${intento}/${RETRY_MAX_ATTEMPTS}), reintento en ${espera}ms:`, String(err?.message || '').slice(0, 80))
+      await sleep(espera)
+    }
   }
 
   // Normalizar respuesta. El SDK devuelve un GenerateContentResponse con
