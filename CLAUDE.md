@@ -220,7 +220,7 @@ Todos implementados salvo donde se aclara.
 | M8 Estanterías | `/estanterias` | |
 | M9 Usuarios | `/usuarios` | Solo DUEÑO/ADMIN. El DUEÑO ve "Empleados" |
 | Compras | `/compras` | Incluye Scan & Match (ver abajo) |
-| Presupuestos | `/presupuestos/nuevo`, `/presupuestos/:id` | El listado sigue en Coming soon |
+| Presupuestos | `/presupuestos`, `/presupuestos/nuevo`, `/presupuestos/:id` | Listado + creación + detalle |
 | Armado de Materiales | `/armado` | Armado por lenguaje natural (ver abajo) |
 | Facturación | `/facturacion` | Planes y suscripción vía Mercado Pago |
 | M1 Panel IA | `/panel` | Chat con tool use sobre los datos del sistema |
