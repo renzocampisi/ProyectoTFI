@@ -75,7 +75,7 @@ ProyectoFinal_TFI/
         │   ├── m7-directorio/
         │   ├── m8-estanterias/
         │   ├── m9-usuarios/
-        │   ├── m-armado/         ← Kits de Montaje (armado por lenguaje natural)
+        │   ├── m-armado/         ← Armado de Materiales (por lenguaje natural)
         │   ├── m-compras/
         │   ├── m-presupuestos/
         │   ├── m-kits/           ← kits estáticos (herramientas + materiales)
@@ -117,7 +117,7 @@ ProyectoFinal_TFI/
 PORT=3000
 SUPABASE_URL=https://...supabase.co
 SUPABASE_SERVICE_KEY=<service-role-key>
-GEMINI_API_KEY=<api-key>          ← Panel IA, Scan & Match, Kits de Montaje
+GEMINI_API_KEY=<api-key>          ← Panel IA, Scan & Match, Armado de Materiales
 RESEND_API_KEY=<api-key>          ← envío de emails
 RESEND_FROM_EMAIL=<from>
 MP_ACCESS_TOKEN=<token>           ← Mercado Pago (suscripciones)
@@ -216,7 +216,7 @@ Todos implementados salvo donde se aclara.
 | M9 Usuarios | `/usuarios` | Solo DUEÑO/ADMIN. El DUEÑO ve "Empleados" |
 | Compras | `/compras` | Incluye Scan & Match (ver abajo) |
 | Presupuestos | `/presupuestos/nuevo`, `/presupuestos/:id` | El listado sigue en Coming soon |
-| Kits de Montaje | `/armado` | Armado por lenguaje natural (ver abajo) |
+| Armado de Materiales | `/armado` | Armado por lenguaje natural (ver abajo) |
 | Facturación | `/facturacion` | Planes y suscripción vía Mercado Pago |
 | M1 Panel IA | `/panel` | Chat con tool use sobre los datos del sistema |
 | Configuración | `/configuracion` | Solo DUEÑO/ADMIN |
@@ -233,14 +233,14 @@ Cambiar de proveedor es reescribir ese archivo solo. Requiere `GEMINI_API_KEY`.
 |---|---|---|
 | **Panel IA** | `/panel` | Chat en lenguaje natural sobre los datos. Tools de lectura en `panel/tools.js`; las de escritura (`panel/writeTools.js`) siguen el patrón preview → confirmación explícita del usuario → execute. |
 | **Scan & Match** | detalle de una compra | Foto o PDF del remito del proveedor → matchea cada línea contra los ítems de ESA orden → revisás → registra la recepción. |
-| **Kits de Montaje** | `/armado` | Describís el tramo en una frase → arma el desglose contra el catálogo → va a presupuesto o a remito. |
+| **Armado de Materiales** | `/armado` | Describís el tramo en una frase → arma el desglose contra el catálogo → va a presupuesto o a remito. |
 
 **Regla que aplica a las tres**: la IA **propone**, nunca escribe sola. Y en
-Kits de Montaje además **nunca estima cantidades** — solo interpreta las que
+Armado de Materiales además **nunca estima cantidades** — solo interpreta las que
 enunciás. El plan explica por qué (no existe una fórmula de cañería estándar
 que se pueda aplicar sin inventar datos): ver `_plans/kits-montaje/`.
 
-En Kits de Montaje, si el destino es remito el sistema reparte cada línea
+En Armado de Materiales, si el destino es remito el sistema reparte cada línea
 según el stock: lo disponible sale al remito y lo faltante va a una orden de
 compra (con proveedor opcional — "decidir después" no crea la orden).
 
@@ -340,7 +340,7 @@ DELETE /compras/:id/comprobante
 POST   /compras/:id/scan-match                 ← IA: multipart, foto/PDF del remito
 POST   /compras/:id/scan-match/confirmar
 
-POST   /armado/interpretar                     ← IA: Kits de Montaje, { texto, destino }
+POST   /armado/interpretar                     ← IA: Armado de Materiales, { texto, destino }
 POST   /armado/confirmar
 
 GET    /presupuestos
