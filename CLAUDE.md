@@ -117,6 +117,7 @@ ProyectoFinal_TFI/
 PORT=3000
 SUPABASE_URL=https://...supabase.co
 SUPABASE_SERVICE_KEY=<service-role-key>
+SUPABASE_ANON_KEY=<anon-key>      ← solo config/supabaseAuth.js (login 2FA). Misma que VITE_SUPABASE_ANON_KEY
 GEMINI_API_KEY=<api-key>          ← Panel IA, Scan & Match, Armado de Materiales
 RESEND_API_KEY=<api-key>          ← envío de emails
 RESEND_FROM_EMAIL=<from>
@@ -130,7 +131,11 @@ CENTRAL_PROVISIONING_SECRET=<secret>
 ```
 
 En producción los secrets viven en Fly.io (`flyctl secrets list -a fieldstock-api`
-lista los nombres, nunca los valores).
+lista los nombres, nunca los valores). **Toda variable nueva del backend hay que
+cargarla con `flyctl secrets set` ANTES de mergear a `main`**: `config/supabaseAuth.js`
+hace `throw` en el import si falta `SUPABASE_ANON_KEY`, y como `index.js` lo importa
+en el arranque, el contenedor entero queda en crash-loop (pasó al mergear el 2FA:
+`2026_09_10`, deploy v37 failed).
 
 **Frontend** (`fieldstock-frontend/.env`):
 ```
@@ -145,7 +150,7 @@ VITE_SUPABASE_ANON_KEY=<anon-key>
 - **Patrón controller → service**: Los controllers solo reciben `req/res` y llaman al service. La lógica va en el service.
 - **Errores**: `const err = new Error('msg'); err.status = 400; throw err` — el `errorHandler` lo convierte a JSON `{ ok: false, error }`.
 - **Respuestas exitosas**: `res.json({ data: resultado })` — el frontend espera siempre `json.data`.
-- **Supabase en backend**: usa `SUPABASE_SERVICE_KEY` (bypassa RLS). Nunca usar anon key en el backend.
+- **Supabase en backend**: para datos usa `SUPABASE_SERVICE_KEY` (bypassa RLS). La anon key (`SUPABASE_ANON_KEY`) se usa **solo** en `config/supabaseAuth.js` — cliente stateless para el login 2FA (verificar password + OTP por mail). Nunca para queries de datos.
 - **Sin ORM**: queries directas con el SDK de Supabase JS.
 
 ## Convenciones del frontend
