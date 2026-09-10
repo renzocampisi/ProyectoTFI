@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dispositivo de confianza para el login 2FA — Implementación (Etapa 2)</title>
+<style>
+  :root {
+    --ink: #1f2328;
+    --ink-soft: #57606a;
+    --line: #d8dee4;
+    --bg: #fbfbfa;
+    --card: #ffffff;
+    --accent: #2f6f4f;
+    --code-bg: #f4f5f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 48px 24px 96px; }
+  h1 { font-size: 24px; line-height: 1.25; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--ink-soft); font-size: 14px; margin: 0 0 32px; }
+  h2 { font-size: 17px; margin: 0 0 12px; letter-spacing: -0.005em; }
+  h3 { font-size: 14px; margin: 18px 0 6px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); }
+  section {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 22px 24px; margin: 0 0 18px;
+  }
+  p { margin: 0 0 12px; } p:last-child { margin-bottom: 0; }
+  ul, ol { margin: 0 0 12px; padding-left: 22px; }
+  li { margin: 0 0 7px; }
+  strong { font-weight: 620; }
+  code {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 4px;
+    padding: 0.5px 5px; font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  .mermaid {
+    background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px; margin: 0 0 10px; text-align: center;
+  }
+  .cap { font-size: 13px; color: var(--ink-soft); margin: 0; }
+  .step { border-left: 3px solid var(--line); padding: 2px 0 2px 16px; margin: 0 0 18px; }
+  .step b.n {
+    display: inline-block; min-width: 1.6em; color: var(--accent); font-weight: 700;
+  }
+  .file {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12.5px; color: var(--ink-soft); display: block; margin: 3px 0 6px;
+  }
+  .verify { font-size: 13px; color: var(--ink-soft); margin: 6px 0 0; }
+  .verify::before { content: "Verificar — "; font-weight: 600; color: var(--ink); }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
+  @media print { body { background: #fff; } section, .mermaid { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<main>
+
+  <h1>Dispositivo de confianza para el login 2FA</h1>
+  <p class="sub">Etapa 2 — Implementación · FieldStock AI · arquitectura aprobada (Forma A)</p>
+
+  <section>
+    <h2>Login con dispositivo de confianza</h2>
+    <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant F as Frontend
+    participant B as Backend (/auth/login)
+    participant SB as Supabase Auth
+    participant DB as tabla dispositivos_confianza
+
+    F->>B: email + password + deviceToken (si hay uno guardado)
+    B->>SB: signInWithPassword (verifica, sesión no persistida)
+    SB-->>B: sesión + user.id
+    Note over B: carga perfil (rol, activo)
+    alt rol ADMIN
+        B-->>F: { session }
+    else deviceToken presente y vigente para este user
+        B->>DB: buscar por hash(deviceToken)
+        DB-->>B: fila vigente (no revocada, dentro de 30d/90d)
+        B->>DB: update ultimo_uso = now()
+        B-->>F: { session }
+    else sin token / token inválido / vencido
+        B->>SB: signInWithOtp
+        B-->>F: { requiereCodigo: true }
+        F->>SB: verifyOtp (client-side) → sesión
+        opt checkbox "Confiar en este dispositivo" tildado
+            F->>B: POST /auth/dispositivos-confianza (con JWT nuevo)
+            B->>DB: insert (usuario_id, hash(token), descripción UA)
+            B-->>F: { token, id }
+            Note over F: guarda token+id en localStorage (clave fs-*)
+        end
+    end
+    </pre>
+    <p class="cap">El contrato público de <code>/auth/login</code> no cambia de forma: suma un campo opcional en el body y una rama más antes del envío del código.</p>
+  </section>
+
+  <section>
+    <h2>Persistencia</h2>
+    <pre class="mermaid">
+erDiagram
+    usuarios ||--o{ usuario_dispositivos_confianza : "tiene"
+    usuario_dispositivos_confianza {
+        uuid        id PK
+        uuid        usuario_id FK
+        text        token_hash "sha-256 hex, unique"
+        text        descripcion "derivada del user-agent, cosmética"
+        timestamptz created_at
+        timestamptz ultimo_uso
+        timestamptz revocado_at "null = vigente"
+    }
+    </pre>
+    <p>
+      La vigencia <strong>se calcula, no se guarda</strong>: una fila está vigente si
+      <code>revocado_at IS NULL</code> <em>y</em> <code>ultimo_uso &gt; now() - 30 días</code>
+      <em>y</em> <code>created_at &gt; now() - 90 días</code>. RLS habilitada sin políticas — el
+      backend entra con <code>SUPABASE_SERVICE_KEY</code>, mismo criterio que el resto de las tablas
+      de negocio.
+    </p>
+  </section>
+
+  <section>
+    <h2>Patrones a aplicar</h2>
+    <ul>
+      <li><strong>Controller → Service.</strong> Toda la lógica (generar token, hashear, validar
+        vigencia, revocar) vive en un service nuevo <code>dispositivos-confianza.service.js</code>.
+        El <code>auth-login.service</code> lo <em>compone</em> — le pide "¿este token es válido para
+        este user?" y actúa según la respuesta. Mismo estilo que <code>armado.service</code>
+        orquestando sub-services.</li>
+      <li><strong>Errores y respuestas.</strong> <code>err.status</code> + <code>throw</code> para
+        fallos; <code>res.json({ ok: true, data })</code> en éxito. Un <code>deviceToken</code>
+        inválido <strong>no</strong> es error — se ignora en silencio y se cae al código.</li>
+      <li><strong>Hash como el de una contraseña.</strong> El token crudo (32 bytes aleatorios,
+        base64url) nunca se guarda: en la tabla va <code>sha-256</code> hex. Se usa
+        <code>node:crypto</code>, sin dependencias nuevas.</li>
+      <li><strong>Hook por módulo + <code>api.js</code>.</strong> Frontend: un
+        <code>dispositivosConfianza.service.js</code> en <code>m0-auth</code> que envuelve
+        <code>api.*</code>; los componentes no llaman <code>api</code> directo. El token local se
+        maneja en un util al lado de <code>supabaseClient.js</code>.</li>
+      <li><strong>CSS Modules.</strong> El checkbox del login y la sección nueva de "Mi perfil"
+        usan los <code>.module.css</code> ya existentes de esas páginas.</li>
+      <li><strong>RLS + migración fechada.</strong> Archivo en
+        <code>_sql/migrations/2026_09_09_dispositivos_confianza.sql</code> aunque se corra a mano
+        en el editor de Supabase (sugerir ese nombre para guardarlo).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Riesgos puntuales de este cambio</h2>
+    <ul>
+      <li><strong>El logout no debe borrar el token de confianza.</strong>
+        <code>clearSupabaseStorage()</code> borra todo lo que empieza con <code>sb-</code>; el token
+        de dispositivo va con prefijo distinto (<code>fs-trusted-device</code>) y queda intacto en
+        logout y en el <code>on401()</code> de <code>api.js</code>. Solo lo borra una revocación
+        explícita.</li>
+      <li><strong>El cambio de contraseña ocurre fuera del backend.</strong> Va por
+        <code>supabase.auth.updateUser</code> en <code>RestablecerPasswordPage</code>. La
+        revocación de todos los dispositivos se dispara desde ahí, con el JWT de recovery todavía
+        válido, <em>antes</em> del <code>signOut()</code>. Si el usuario cierra la pestaña antes,
+        no se revoca — mitigado porque "Mi perfil" tiene "revocar todos" manual.</li>
+      <li><strong>Token robado = 2FA degradado a 1FA para ese user en ese equipo</strong> hasta que
+        venza o se revoque. Es exactamente la intención de la feature; la contraseña se sigue
+        exigiendo siempre. No hace falta atar el token al user-agent (rompe con cada update del
+        navegador).</li>
+      <li><strong>Un navegador, dos empleados.</strong> El token está atado a <code>usuario_id</code>;
+        si en el mismo equipo entra otra persona, su login no matchea y recibe código. Correcto.</li>
+      <li><strong>Rollback.</strong> Es revertir los commits de front y back; la tabla queda pero es
+        inofensiva. Sin cambio de firma en RPCs ni en vistas (<code>usuarios_resumen</code> no se
+        toca).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Pasos</h2>
+
+    <div class="step">
+      <b class="n">1.</b> <strong>Migración: tabla <code>usuario_dispositivos_confianza</code>.</strong>
+      <span class="file">_sql/migrations/2026_09_09_dispositivos_confianza.sql</span>
+      Crear la tabla del ER, índices en <code>usuario_id</code> y <code>token_hash</code>,
+      <code>ENABLE ROW LEVEL SECURITY</code> sin políticas, <code>on delete cascade</code> contra
+      <code>usuarios</code>. Aplicar en Supabase y guardar el archivo.
+      <p class="verify">la tabla aparece en el editor; insertar y borrar una fila de prueba a mano.</p>
+    </div>
+
+    <div class="step">
+      <b class="n">2.</b> <strong>Service nuevo de dispositivos de confianza.</strong>
+      <span class="file">fieldstock-backend/src/services/dispositivos-confianza.service.js</span>
+      Funciones: <code>registrar(usuarioId, userAgent)</code> → genera token crudo, guarda hash +
+      <code>descripcion</code>, devuelve <code>{ id, token }</code>; <code>validarYUsar(usuarioId,
+      token)</code> → busca por hash, chequea vigencia (revocado / 30d / 90d), corre
+      <code>ultimo_uso</code>, devuelve <code>true|false</code>; <code>listar(usuarioId)</code>;
+      <code>revocarUno(usuarioId, id)</code>; <code>revocarTodos(usuarioId)</code>. Hash con
+      <code>node:crypto</code>.
+      <p class="verify">test unitario del service (paso 6).</p>
+    </div>
+
+    <div class="step">
+      <b class="n">3.</b> <strong>Extender <code>auth-login.service.js</code>.</strong>
+      <span class="file">fieldstock-backend/src/services/auth-login.service.js</span>
+      <code>login()</code> acepta <code>deviceToken</code> opcional. Tras verificar contraseña y
+      perfil, y si el rol no es ADMIN: si <code>deviceToken</code> y
+      <code>DispositivosConfianza.validarYUsar(user.id, deviceToken)</code> → devolver
+      <code>{ session }</code> (la de <code>signInWithPassword</code> que ya está en mano). Si no →
+      <code>signInWithOtp</code> como hoy. Depende del paso 2.
+    </div>
+
+    <div class="step">
+      <b class="n">4.</b> <strong>Controller + rutas.</strong>
+      <span class="file">fieldstock-backend/src/controllers/auth-publico.controller.js · dispositivos-confianza.controller.js · routes/index.js</span>
+      <ul>
+        <li><code>login</code> ctrl: pasar <code>req.body.deviceToken</code> al service.</li>
+        <li><code>POST /auth/dispositivos-confianza</code> — <code>requireAuth</code>, cualquier rol.
+          Lee <code>req.headers['user-agent']</code>, llama <code>registrar</code>, devuelve
+          <code>{ id, token }</code>.</li>
+        <li><code>GET /auth/dispositivos-confianza</code> — <code>requireAuth</code> — lista los del
+          <code>req.user.id</code>.</li>
+        <li><code>DELETE /auth/dispositivos-confianza/:id</code> y
+          <code>DELETE /auth/dispositivos-confianza</code> — <code>requireAuth</code> — revocan uno
+          / todos, siempre <code>WHERE usuario_id = req.user.id</code>.</li>
+        <li><code>DELETE /usuarios/:id/dispositivos-confianza</code> —
+          <code>requireRole(ROLES_ADMIN_LEVEL)</code> — revoca todos los del empleado
+          <code>:id</code>. Va junto a las otras rutas de <code>/usuarios/:id</code>.</li>
+      </ul>
+      <p class="verify"><code>curl</code> a cada endpoint con un JWT real; login con y sin
+        <code>deviceToken</code> en el body.</p>
+    </div>
+
+    <div class="step">
+      <b class="n">5.</b> <strong>Tests de backend.</strong>
+      <span class="file">fieldstock-backend/src/services/dispositivos-confianza.service.test.js · auth-login.service.test.js</span>
+      Nuevo suite para el service (registrar/validar/vigencia/revocar, mockeando el chain de
+      <code>config/supabase.js</code> como <code>compras.service.test</code>). En
+      <code>auth-login.service.test</code>: agregar casos "no-ADMIN + deviceToken vigente → { session }
+      y NO se llama signInWithOtp" y "deviceToken vencido → manda código".
+      <p class="verify"><code>npm test --prefix fieldstock-backend</code> en verde.</p>
+    </div>
+
+    <div class="step">
+      <b class="n">6.</b> <strong>Util del token local en el frontend.</strong>
+      <span class="file">fieldstock-frontend/src/shared/utils/trustedDevice.js</span>
+      <code>leerToken()</code>, <code>guardar({ id, token })</code>, <code>borrar()</code> sobre
+      <code>localStorage</code>, clave <code>fs-trusted-device</code>, todo en try/catch (modo
+      incógnito). No tocar <code>clearSupabaseStorage()</code> — el prefijo distinto ya lo deja
+      afuera.
+    </div>
+
+    <div class="step">
+      <b class="n">7.</b> <strong><code>useAuth.jsx</code>.</strong>
+      <span class="file">fieldstock-frontend/src/shared/hooks/useAuth.jsx</span>
+      <code>signIn</code> adjunta <code>deviceToken: leerToken()?.token</code> al body de
+      <code>/auth/login</code>. <code>verificarCodigo(email, codigo, confiar)</code>: tras
+      <code>verifyOtp</code> OK y si <code>confiar</code>, llama
+      <code>DispositivosConfianzaService.registrar()</code> y <code>guardar()</code> el resultado
+      (best-effort: si falla, el login igual entra).
+    </div>
+
+    <div class="step">
+      <b class="n">8.</b> <strong>Checkbox en <code>LoginPage</code>.</strong>
+      <span class="file">fieldstock-frontend/src/modules/m0-auth/pages/LoginPage.jsx (+ .module.css)</span>
+      En el paso <code>codigo</code>: checkbox "Confiar en este dispositivo", estado tildado por
+      default, pasado a <code>verificarCodigo</code>. Sin cambios en el paso de credenciales.
+    </div>
+
+    <div class="step">
+      <b class="n">9.</b> <strong>Service + sección en "Mi perfil".</strong>
+      <span class="file">fieldstock-frontend/src/modules/m0-auth/services/dispositivosConfianza.service.js · pages/PerfilPage.jsx (+ .module.css)</span>
+      Service: <code>listar()</code>, <code>revocarUno(id)</code>, <code>revocarTodos()</code>,
+      <code>registrar()</code>. En <code>PerfilPage</code>, bajo "Seguridad": lista de equipos
+      (descripción, último uso, chip "Este dispositivo" comparando contra el <code>id</code>
+      guardado), botón revocar por fila y "Cerrar sesión en todos los dispositivos". Al revocar el
+      equipo actual, <code>borrar()</code> el token local.
+    </div>
+
+    <div class="step">
+      <b class="n">10.</b> <strong>Revocar desde el panel de Usuarios.</strong>
+      <span class="file">fieldstock-frontend/src/modules/m9-usuarios/services/usuarios.service.js · hooks/useUsuarios.js · pages/UsuariosListPage.jsx</span>
+      <code>usuarios.service</code>: <code>revocarDispositivos(id)</code> →
+      <code>api.delete(&#96;/usuarios/${id}/dispositivos-confianza&#96;)</code>. En la fila de cada
+      empleado (no en la propia), acción "Revocar dispositivos de confianza" con confirmación.
+    </div>
+
+    <div class="step">
+      <b class="n">11.</b> <strong>Revocación al cambiar contraseña.</strong>
+      <span class="file">fieldstock-frontend/src/modules/m0-auth/pages/RestablecerPasswordPage.jsx</span>
+      Tras <code>updateUser({ password })</code> OK y antes del <code>signOut()</code>:
+      <code>DispositivosConfianzaService.revocarTodos()</code> y <code>trustedDevice.borrar()</code>,
+      envuelto en try/catch (no bloquear el flujo si falla).
+    </div>
+
+    <div class="step">
+      <b class="n">12.</b> <strong>Verificación end-to-end.</strong>
+      <p class="verify"><code>npm run dev</code> · <code>npm run lint --prefix fieldstock-frontend</code>
+        (0 errores) · <code>npm test --prefix fieldstock-backend</code>. Flujo manual: login no-ADMIN
+        nuevo → código + checkbox → segundo login sin código → revocar en "Mi perfil" → tercer login
+        pide código de nuevo.</p>
+    </div>
+  </section>
+
+  <hr>
+  <p class="sub" style="margin:0">
+    12 pasos, dependencias: 3→2, 4→2, 5→2, 7→6, 9→6, 11→9. El resto es secuencial por capa
+    (migración → backend → tests → frontend).
+  </p>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' })
+</script>
+
+</main>
+</body>
+</html>

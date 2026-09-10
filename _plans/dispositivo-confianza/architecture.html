@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dispositivo de confianza para el login 2FA — Arquitectura (Etapa 1)</title>
+<style>
+  :root {
+    --ink: #1f2328;
+    --ink-soft: #57606a;
+    --line: #d8dee4;
+    --bg: #fbfbfa;
+    --card: #ffffff;
+    --accent: #2f6f4f;
+    --accent-soft: #eaf2ee;
+    --warn: #8a6d1d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+  h1 {
+    font-size: 24px;
+    line-height: 1.25;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    color: var(--ink-soft);
+    font-size: 14px;
+    margin: 0 0 32px;
+  }
+  h2 {
+    font-size: 17px;
+    margin: 0 0 12px;
+    letter-spacing: -0.005em;
+  }
+  section {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 0 0 18px;
+  }
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  ul { margin: 0 0 12px; padding-left: 20px; }
+  li { margin: 0 0 6px; }
+  strong { font-weight: 620; }
+  .mermaid {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px;
+    margin: 0 0 10px;
+    text-align: center;
+  }
+  .cap {
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+  .shape {
+    border-left: 3px solid var(--line);
+    padding: 2px 0 2px 16px;
+    margin: 0 0 16px;
+  }
+  .shape.reco { border-left-color: var(--accent); }
+  .shape h3 {
+    font-size: 15px;
+    margin: 0 0 6px;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: 1px 8px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .pro::before { content: "✔ "; color: var(--accent); }
+  .con::before { content: "✘ "; color: #b23; }
+  .decided {
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .decided b { color: var(--ink); font-weight: 600; }
+  hr {
+    border: 0;
+    border-top: 1px solid var(--line);
+    margin: 28px 0;
+  }
+  @media print {
+    body { background: #fff; }
+    section, .mermaid { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <h1>Dispositivo de confianza para el login 2FA</h1>
+  <p class="sub">Etapa 1 — Arquitectura de alto nivel · FieldStock AI · propuesta para aprobación</p>
+
+  <section>
+    <h2>El flujo, de un vistazo</h2>
+    <pre class="mermaid">
+flowchart TD
+    A[Usuario ingresa email + contraseña] --> B{¿Contraseña válida?}
+    B -- No --> B1[Rechazo genérico]
+    B -- Sí --> C{¿Rol ADMIN?}
+    C -- Sí --> S([Sesión iniciada])
+    C -- No --> D{¿El dispositivo trae un token de<br/>confianza vigente para este usuario?}
+    D -- Sí --> R[Corre la fecha de último uso] --> S
+    D -- No --> E[Enviar código por mail]
+    E --> F[Usuario tipea el código]
+    F --> G{¿Código correcto?}
+    G -- No --> F
+    G -- Sí --> H{¿Dejó tildado<br/>Confiar en este dispositivo?}
+    H -- Sí --> I[Emitir token de confianza:<br/>guardar hash + metadatos] --> S
+    H -- No --> S
+    </pre>
+    <p class="cap">El paso de contraseña corre siempre. Un dispositivo de confianza solo evita el segundo factor.</p>
+  </section>
+
+  <section>
+    <h2>Problema</h2>
+    <p>
+      Hoy todo login de un rol no-ADMIN pide un código por mail, en cada inicio de sesión y en
+      cada dispositivo. Para el uso diario —la misma persona en su mismo teléfono— es fricción pura,
+      y además cada intento consume un envío de mail (que es justo lo que nos está frenando ahora).
+      Queremos que el código se pida <strong>solo la primera vez</strong> que alguien entra desde un
+      dispositivo nuevo. Después, ese dispositivo queda "de confianza" por un tiempo y el login
+      vuelve a ser un solo paso: usuario y contraseña.
+    </p>
+  </section>
+
+  <section>
+    <h2>Enfoque</h2>
+    <ul>
+      <li>
+        <strong>Qué es un "dispositivo".</strong> Un token opaco de alta entropía que emite el
+        backend y que el navegador guarda localmente, en el mismo almacenamiento del navegador
+        donde ya vive la sesión de Supabase. El backend guarda solo un <strong>hash</strong> del
+        token, atado al usuario, con fecha de creación, fecha de último uso, vencimiento y una
+        descripción legible del equipo derivada del user-agent. <strong>No</strong> se usa la IP ni
+        un fingerprint del navegador como identidad — la descripción es solo cosmética, para
+        reconocer la fila en la lista.
+      </li>
+      <li>
+        <strong>La contraseña no se toca.</strong> Se sigue verificando server-side en cada login,
+        con su rate-limit. Lo único que un dispositivo de confianza saltea es el código. Es decir:
+        en un equipo de confianza el login baja de dos factores a uno (la contraseña), nunca a cero.
+      </li>
+      <li>
+        <strong>En el login.</strong> Después de validar contraseña y rol, el backend mira si la
+        request trae un token de confianza vigente para ese usuario. Si sí, devuelve la sesión
+        directo —igual que hoy hace con el ADMIN— y corre la fecha de último uso. Si no, manda el
+        código como ahora. Un token vencido o revocado se ignora y se cae al camino del código; el
+        front descarta el token muerto.
+      </li>
+      <li>
+        <strong>Al verificar el código.</strong> En el paso del código hay un checkbox
+        <em>"Confiar en este dispositivo"</em>, <strong>tildado por default</strong>. Si quedó
+        tildado, apenas el código se verifica con éxito el front le pide al backend —ya con sesión
+        válida— que registre el equipo: el backend genera el token, guarda su hash y lo devuelve una
+        sola vez. En una tablet compartida de obra, el usuario lo destilda y ese equipo nunca se
+        recuerda.
+      </li>
+      <li>
+        <strong>Vigencia.</strong> Cada login por el camino corto renueva la confianza. El
+        dispositivo expira si pasa <strong>30 días sin usarse</strong>, o al llegar a
+        <strong>90 días desde que se creó</strong>, lo que ocurra primero.
+      </li>
+      <li>
+        <strong>Revocación.</strong> Cuatro vías: el propio usuario desde "Mi perfil"; el DUEÑO o
+        ADMIN sobre un empleado desde el panel de Usuarios; automática al cambiar la contraseña o
+        usar "recuperar contraseña"; y —de hecho— desactivar al usuario, que ya lo saca por
+        <code>requireAuth</code> aunque el token siga existiendo.
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Ciclo de vida de un dispositivo de confianza</h2>
+    <pre class="mermaid">
+stateDiagram-v2
+    [*] --> Vigente: código verificado + checkbox tildado
+    Vigente --> Vigente: login desde el equipo (corre "último uso")
+    Vigente --> Expirado: 30 días sin usarse
+    Vigente --> Expirado: 90 días desde la creación
+    Vigente --> Revocado: el usuario lo revoca
+    Vigente --> Revocado: el DUEÑO / ADMIN lo revoca
+    Vigente --> Revocado: cambio o recuperación de contraseña
+    Expirado --> [*]
+    Revocado --> [*]
+    </pre>
+  </section>
+
+  <section>
+    <h2>Dónde encaja</h2>
+    <ul>
+      <li>Vive en el mismo endpoint público de login, más un endpoint nuevo <em>autenticado</em>
+        para registrar el dispositivo. Sigue el patrón controller → service.</li>
+      <li>Suma una tabla nueva en Supabase para los hashes de token y sus metadatos, con su RLS
+        propia. No toca <code>usuarios</code> ni <code>dispositivos_rastreo</code> (GPS, sin
+        relación).</li>
+      <li>En el front: la pantalla de login (checkbox + envío del token al iniciar sesión) y
+        "Mi perfil" (lista de equipos con último uso, botón de revocar). El panel de Usuarios suma
+        la acción de revocar para DUEÑO/ADMIN.</li>
+      <li>El ADMIN no se ve afectado: ya entra directo, nunca pasa por el segundo factor.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Formas candidatas</h2>
+
+    <div class="shape reco">
+      <h3>A · Token opaco con registro en base <span class="tag">Recomendada</span></h3>
+      <p>El backend emite un token aleatorio, guarda su hash y metadatos en una tabla. Cada login
+        corto lo valida contra esa tabla.</p>
+      <p class="pro">Revocación individual real e inmediata.</p>
+      <p class="pro">Habilita la lista de "mis dispositivos" con último uso y descripción.</p>
+      <p class="pro">El control del DUEÑO/ADMIN sobre los equipos de un empleado sale natural.</p>
+      <p class="con">Una query más por login. Irrelevante a esta escala.</p>
+    </div>
+
+    <div class="shape">
+      <h3>B · Token firmado sin estado</h3>
+      <p>El backend firma un token con el id de usuario y un vencimiento; no guarda nada y lo valida
+        por firma.</p>
+      <p class="pro">Cero queries, cero tabla.</p>
+      <p class="con">Para revocar un equipo puntual hace falta, igual, una tabla de revocados —
+        media Forma A pero peor.</p>
+      <p class="con">No hay dónde guardar "último uso" ni descripción: no existe la lista de
+        dispositivos que pediste.</p>
+    </div>
+
+    <div class="shape">
+      <h3>C · Estirar la sesión de Supabase</h3>
+      <p>No distinguir equipos: alargar la vida del refresh token para que la sesión casi nunca
+        caduque.</p>
+      <p class="pro">Cero desarrollo.</p>
+      <p class="con">No distingue "dispositivo nuevo" — no resuelve el problema planteado.</p>
+      <p class="con">Cualquier cierre de sesión obliga a rehacer el 2FA. Sin control granular.</p>
+    </div>
+
+    <p style="margin-top:4px">
+      <strong>Recomendación: Forma A.</strong> Es la única que sostiene la gestión de dispositivos
+      y la revocación por parte del DUEÑO que elegiste.
+    </p>
+  </section>
+
+  <section>
+    <h2>Límites — lo que esta feature no hace</h2>
+    <ul>
+      <li>No reemplaza ni debilita el paso de contraseña.</li>
+      <li>Recuerda <em>dispositivos</em>, no <em>usuarios</em>: si en el mismo navegador entran dos
+        empleados, cada uno marca su propio equipo de confianza (el token está atado al usuario).</li>
+      <li>No usa IP ni fingerprint como identidad.</li>
+      <li>No aplica al ADMIN.</li>
+      <li>No agrega un "recordarme" para la contraseña — se sigue tipeando usuario y contraseña en
+        cada login.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Decisiones ya tomadas</h2>
+    <p class="decided"><b>Marcado del equipo:</b> checkbox "Confiar en este dispositivo" tildado por
+      default en el paso del código.</p>
+    <p class="decided"><b>Gestión:</b> autogestión desde "Mi perfil" + el DUEÑO/ADMIN puede revocar
+      los equipos de un empleado desde Usuarios.</p>
+    <p class="decided"><b>Duración:</b> 30 días de inactividad, con tope duro de 90 días desde la
+      creación.</p>
+    <p class="decided"><b>Supuestos que tomo como dados</b> (vetalos si no van): cambiar o recuperar
+      contraseña revoca todos los equipos de ese usuario; la descripción del equipo se deriva del
+      user-agent y es solo informativa.</p>
+  </section>
+
+  <hr>
+
+  <p class="sub" style="margin:0">
+    Fin de la Etapa 1. La Etapa 2 (patrones concretos, tabla y RLS, endpoints, pasos ordenados con
+    rutas de archivo y verificación) se escribe recién con tu aprobación.
+  </p>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' })
+</script>
+
+</main>
+</body>
+</html>
