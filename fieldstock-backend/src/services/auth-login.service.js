@@ -109,6 +109,9 @@ export async function login({ email, password, ip }) {
     options: { shouldCreateUser: false },
   })
   if (errOtp) {
+    // Log del error real de Supabase (rate limit de mails, SMTP mal
+    // configurado, etc.) — al frontend le devolvemos un mensaje genérico.
+    console.error('[auth-login] signInWithOtp falló:', errOtp.status, errOtp.message)
     const e = new Error('No pudimos enviar el código. Reintentá en un momento.')
     e.status = 502
     throw e
