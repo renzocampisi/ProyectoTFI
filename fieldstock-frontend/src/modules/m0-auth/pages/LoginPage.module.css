@@ -63,6 +63,11 @@
   color: var(--text-muted);
 }
 
+/* El card es flex-column con gap; cada <form> adentro replica el mismo
+   ritmo vertical para que campos y botones queden espaciados igual que
+   antes, cuando el propio <form> era el card. */
+.form { display: flex; flex-direction: column; gap: var(--space-4); }
+
 .field { display: flex; flex-direction: column; gap: var(--space-2); }
 .label {
   font-size: var(--text-sm);
@@ -127,6 +132,34 @@
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
   color: var(--color-danger);
+}
+
+.aviso {
+  background: rgba(46,160,67,0.12);
+  border: 1px solid rgba(46,160,67,0.35);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-success, #2ea043);
+}
+
+/* Input del código de 6 dígitos: centrado, monoespaciado y con tracking
+   amplio para que se lea dígito por dígito. */
+.codeInput {
+  text-align: center;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-xl);
+  letter-spacing: 0.4em;
+  /* el letter-spacing corre el texto medio dígito a la derecha */
+  text-indent: 0.4em;
+}
+
+/* Fila "Reenviar código" + "Volver" en el paso de código. */
+.resendRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .btnPrimary {

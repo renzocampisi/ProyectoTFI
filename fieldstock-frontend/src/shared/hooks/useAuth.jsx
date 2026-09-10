@@ -2,8 +2,8 @@
 /**
  * Context global de autenticación basado en Supabase Auth.
  *
- * Provee { user, profile, role, loading, signIn, signOut, refrescarPerfil }
- * a toda la app vía <AuthProvider>.
+ * Provee { user, profile, role, loading, signIn, verificarCodigo, signOut,
+ * refrescarPerfil } a toda la app vía <AuthProvider>.
  *
  * - `user`     : objeto de Supabase Auth (id, email, ...). Lo que vive en auth.users.
  * - `profile`  : perfil del backend (id, nombre, telefono, role, activo, email).
@@ -26,6 +26,7 @@
  */
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase, clearSupabaseStorage, getCachedAccessToken, leerTokenDeStorage } from '@shared/utils/supabaseClient'
+import { api } from '@shared/utils/api'
 
 const AuthContext = createContext(null)
 
@@ -272,33 +273,50 @@ export function AuthProvider({ children }) {
     }
   }, [cargarPerfil])
 
+  // Login con segundo factor por mail (ver _plans/login-2fl/). Ya NO se
+  // llama a supabase.auth.signInWithPassword directo: pasa por nuestro
+  // backend (POST /auth/login), que verifica la contraseña server-side y
+  // decide por rol.
+  //   - ADMIN          → responde { session } → la seteamos acá y entra
+  //                       directo (onAuthStateChange dispara cargarPerfil).
+  //   - cualquier otro → responde { requiereCodigo: true } → LoginPage
+  //                       muestra el paso de código y llama verificarCodigo().
+  //
+  // El timeout de red ya lo maneja api.js (AbortController). Devolvemos
+  // siempre un objeto plano { session? | requiereCodigo? | error? } para
+  // que LoginPage no tenga que distinguir shapes de Supabase.
   const signIn = async (email, password) => {
-    // NOTA: la primera versión del fix llamaba clearSupabaseStorage() acá
-    // ANTES del signInWithPassword. Eso disparaba race condition: el
-    // storage event hacía que el SDK procesara SIGNED_OUT en paralelo
-    // con el signIn en curso, y el flow terminaba rompiéndose (el user
-    // veía aparecer y desaparecer el sb-* en localStorage seguido de
-    // "credenciales incorrectas" aunque eran correctas). Confiamos en
-    // que el SDK maneje los tokens viejos al loguearse — sino, el
-    // botón "Limpiar sesión" del LoginPage queda como escape hatch.
+    try {
+      const data = await api.post('/auth/login', { email, password })
+      if (data?.session) {
+        await supabase.auth.setSession(data.session)
+        return {}
+      }
+      if (data?.requiereCodigo) return { requiereCodigo: true }
+      return { error: { message: 'Respuesta inesperada del servidor.' } }
+    } catch (err) {
+      // api.js ya trae el mensaje del backend (genérico para credenciales
+      // inválidas) o uno de timeout de red.
+      console.error('[useAuth] signIn error:', err)
+      return { error: { message: err.message || 'No se pudo iniciar sesión.' } }
+    }
+  }
 
-    // Timeout defensivo igual que en getSession/fetchPerfil. Si Supabase
-    // no responde en 10s, devolvemos un "error" simulado para que la
-    // LoginPage muestre algo accionable en vez de "Ingresando..." infinito.
+  // Segundo paso del login para roles no-ADMIN: canjea el código de 6
+  // dígitos por una sesión. Igual que signIn, onAuthStateChange dispara
+  // cargarPerfil si sale bien.
+  const verificarCodigo = async (email, codigo) => {
     try {
       const res = await withTimeout(
-        supabase.auth.signInWithPassword({ email, password }),
+        supabase.auth.verifyOtp({ email, token: codigo, type: 'email' }),
         10_000,
-        'signIn'
+        'verifyOtp'
       )
-      // onAuthStateChange dispara cargarPerfil automáticamente.
-      return res
+      if (res.error) return { error: { message: 'El código no es válido o venció.' } }
+      return {}
     } catch (err) {
-      console.error('[useAuth] signIn timeout/error:', err)
-      return {
-        data: null,
-        error: { message: 'Supabase no respondió. Revisá tu conexión a internet o reintentá.' },
-      }
+      console.error('[useAuth] verifyOtp timeout/error:', err)
+      return { error: { message: 'Supabase no respondió. Reintentá en unos segundos.' } }
     }
   }
 
@@ -311,6 +329,7 @@ export function AuthProvider({ children }) {
       role: profile?.role || null,
       loading,
       signIn,
+      verificarCodigo,
       signOut,
       refrescarPerfil: cargarPerfil,
     }}>

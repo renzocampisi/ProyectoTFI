@@ -5,7 +5,7 @@ import {
   LuHouse, LuWrench, LuPackage, LuArchive, LuClipboardList, LuConstruction,
   LuQrCode, LuTruck, LuBuilding2, LuFactory, LuShoppingCart, LuCreditCard,
   LuSparkles, LuUsers, LuSettings, LuSun, LuMoon, LuUser, LuLogOut, LuChevronDown,
-  LuRadar, LuListChecks,
+  LuRadar, LuListChecks, LuFileText,
 } from 'react-icons/lu'
 import { useAuth } from '@shared/hooks/useAuth'
 import { useTema } from '@shared/hooks/useTema'
@@ -31,9 +31,9 @@ const DEPOSITO_ITEMS = [
 ]
 
 const OPERATIVO_ITEMS = [
-  { to: '/remitos', label: 'Remitos',        icon: LuClipboardList, activo: true },
-  { to: '/armado',  label: 'Kits de Montaje', icon: LuListChecks,   activo: true },
-  { to: '/obras',   label: 'Obras',          icon: LuConstruction,  activo: true },
+  { to: '/remitos', label: 'Remitos',              icon: LuClipboardList, activo: true },
+  { to: '/armado',  label: 'Armado de Materiales', icon: LuListChecks,    activo: true },
+  { to: '/obras',   label: 'Obras',                icon: LuConstruction,  activo: true },
   // `soloDesktop`: en ≤768px este ítem se oculta porque ahí aparece el FAB
   // flotante de QR, que cumple la misma función y queda más a mano. El corte
   // usa el mismo breakpoint que DraggableFAB.module.css, así que siempre hay
@@ -46,6 +46,7 @@ const DIRECTORIO_ITEMS = [
   { to: '/directorio/transportes', label: 'Transportes', icon: LuTruck,     activo: true },
   { to: '/directorio/clientes',    label: 'Clientes',    icon: LuBuilding2, activo: true },
   { to: '/directorio/proveedores', label: 'Proveedores', icon: LuFactory,   activo: true },
+  { to: '/presupuestos',           label: 'Presupuestos', icon: LuFileText,  activo: true },
 ]
 
 // Igual que getAdminItems: el label depende del rol. El ADMIN (dueño del

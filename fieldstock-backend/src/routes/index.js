@@ -66,6 +66,12 @@ router.get ('/auth/estado',            AuthPublicoCtrl.getEstado)
 router.post('/auth/registro-dueno',    AuthPublicoCtrl.registrarDueño)
 router.post('/auth/registro-invitado', AuthPublicoCtrl.registrarConInvitacion)
 
+// Login con segundo factor por mail (ver _plans/login-2fl/). Público
+// porque es lo que usa alguien SIN sesión para conseguir una. Verifica la
+// contraseña server-side y, salvo para el ADMIN, exige un código enviado
+// al mail que el frontend valida con verifyOtp.
+router.post('/auth/login',             AuthPublicoCtrl.login)
+
 // ── Webhook de Mercado Pago ──────────────────────────────────────
 // También público — lo llama Mercado Pago directo, sin sesión de
 // FieldStock. procesarWebhook() valida la firma (x-signature) antes de
