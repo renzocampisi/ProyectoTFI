@@ -1,5 +1,38 @@
 # Login 2FA — pendientes / hardening
 
+## ⏸️ DÓNDE RETOMAMOS (2026_09_10)
+
+**Estado:** el login 2FA funciona end-to-end en producción (Fly v38 + Vercel
+sobre `52b9bac`). El código llega bien; el único problema es el tope de
+~2 mails/hora del SMTP interno de Supabase.
+
+**Decidido:** vamos con la **Opción B** (stopgap para la defensa) — Custom SMTP
+apuntando a Resend con remitente sandbox `onboarding@resend.dev`, que solo
+entrega a `campisirenzo0@gmail.com` pero destraba el campo de rate limit.
+
+**Próximo paso — hacerlo en el dashboard de Supabase (no hay nada que codear):**
+
+1. Ver la API key: `grep '^RESEND_API_KEY=' fieldstock-backend/.env | cut -d= -f2-`
+   (empieza con `re_FTCZZ...`).
+2. Supabase → Authentication → Emails → **SMTP Settings** → *Enable Custom SMTP*:
+   - Host `smtp.resend.com` · Port `465` · Username `resend`
+   - Password: la `RESEND_API_KEY`
+   - Sender email `onboarding@resend.dev` · Sender name `FieldStock AI`
+3. Supabase → Authentication → **Rate Limits** → subir "Rate limit for sending
+   emails" a 30–60 (recién ahí se puede editar).
+4. Probar login no-ADMIN varias veces seguidas. Verificar en **Resend → Logs**
+   (estado `delivered`) y en `flyctl logs -a fieldstock-api`.
+
+**Ojo:** al activar Custom SMTP, TODOS los mails de auth pasan por Resend; con el
+remitente sandbox solo llegan a la casilla dueña de la cuenta Resend. Para
+cualquier otro destinatario → Opción C (dominio verificado), más abajo.
+
+**Otro pendiente aparte:** template del mail del código ya reestilado igual que
+el de reset password (`magic-link-email-template.html` en esta carpeta) — falta
+pegarlo en Supabase → Authentication → Emails → Templates → pestaña "Magic Link".
+
+---
+
 ## Custom SMTP para producción (PENDIENTE — bloquea el uso real)
 
 El SMTP interno de Supabase topea en **~2 mails/hora** (rate limit del server
