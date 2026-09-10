@@ -29,6 +29,12 @@ en el dashboard de Supabase:
 casilla dueña de la cuenta Resend). Para usuarios reales con otro mail hay que
 verificar un dominio en Resend → **Opción C**, más abajo.
 
+**Merge a `main` hecho (2026_09_10):** `dev → main` en `fc2e8d9` (merge-commit).
+El código del 2FA ya estaba en `main` desde `52b9bac`; este merge subió solo
+documentación (este archivo, template del mail, planes, CLAUDE.md). No disparó
+deploy de backend — `fly-deploy.yml` está filtrado por path a
+`fieldstock-backend/**`. Fly sigue en **v38** (`complete`, `/health` 200).
+
 ---
 
 ## Opción C — dominio verificado en Resend (PENDIENTE — para usuarios reales)
