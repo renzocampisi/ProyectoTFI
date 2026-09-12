@@ -18,6 +18,7 @@
 import { supabaseAuth } from '../config/supabaseAuth.js'
 import { supabase } from '../config/supabase.js'
 import { ROLES } from '../constants/roles.js'
+import * as DispositivosConfianza from './dispositivos-confianza.service.js'
 
 // ── Rate limit en memoria ─────────────────────────────────────
 // Clave: `${email}|${ip}`. Valor: timestamps (ms) de los intentos dentro
@@ -56,10 +57,11 @@ function credencialesInvalidas() {
  * @param {object} params
  * @param {string} params.email
  * @param {string} params.password
- * @param {string=} params.ip     — req.ip, para el rate limit (best-effort).
+ * @param {string=} params.ip           — req.ip, para el rate limit (best-effort).
+ * @param {string=} params.deviceToken  — token de dispositivo de confianza guardado en el frontend.
  * @returns {Promise<{ session: { access_token, refresh_token } } | { requiereCodigo: true, email: string }>}
  */
-export async function login({ email, password, ip }) {
+export async function login({ email, password, ip, deviceToken }) {
   if (!email?.trim() || !password) throw credencialesInvalidas()
 
   chequearRateLimit(email, ip)
@@ -102,8 +104,19 @@ export async function login({ email, password, ip }) {
     }
   }
 
-  // 3b. Cualquier otro rol: disparar el código por mail. Supabase manda el
-  //     OTP por SMTP; el frontend lo verifica con verifyOtp.
+  // 3b. Dispositivo de confianza vigente: saltea el código, la contraseña
+  //     ya se verificó arriba (2FA baja a 1FA para este equipo, nunca a 0).
+  if (deviceToken && await DispositivosConfianza.validarYUsar(perfil.id, deviceToken)) {
+    return {
+      session: {
+        access_token:  signIn.session.access_token,
+        refresh_token: signIn.session.refresh_token,
+      },
+    }
+  }
+
+  // 3c. Sin dispositivo de confianza: disparar el código por mail. Supabase
+  //     manda el OTP por SMTP; el frontend lo verifica con verifyOtp.
   const { error: errOtp } = await supabaseAuth.auth.signInWithOtp({
     email: email.trim().toLowerCase(),
     options: { shouldCreateUser: false },

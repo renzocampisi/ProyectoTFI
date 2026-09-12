@@ -143,7 +143,7 @@ erDiagram
       <li><strong>CSS Modules.</strong> El checkbox del login y la sección nueva de "Mi perfil"
         usan los <code>.module.css</code> ya existentes de esas páginas.</li>
       <li><strong>RLS + migración fechada.</strong> Archivo en
-        <code>_sql/migrations/2026_09_09_dispositivos_confianza.sql</code> aunque se corra a mano
+        <code>_sql/migrations/2026_09_10_dispositivos_confianza.sql</code> aunque se corra a mano
         en el editor de Supabase (sugerir ese nombre para guardarlo).</li>
     </ul>
   </section>
@@ -178,7 +178,7 @@ erDiagram
 
     <div class="step">
       <b class="n">1.</b> <strong>Migración: tabla <code>usuario_dispositivos_confianza</code>.</strong>
-      <span class="file">_sql/migrations/2026_09_09_dispositivos_confianza.sql</span>
+      <span class="file">_sql/migrations/2026_09_10_dispositivos_confianza.sql</span>
       Crear la tabla del ER, índices en <code>usuario_id</code> y <code>token_hash</code>,
       <code>ENABLE ROW LEVEL SECURITY</code> sin políticas, <code>on delete cascade</code> contra
       <code>usuarios</code>. Aplicar en Supabase y guardar el archivo.

@@ -154,6 +154,19 @@
   text-indent: 0.4em;
 }
 
+/* Checkbox "Confiar en este dispositivo" en el paso de código. */
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.checkboxRow input[type="checkbox"] {
+  cursor: pointer;
+}
+
 /* Fila "Reenviar código" + "Volver" en el paso de código. */
 .resendRow {
   display: flex;

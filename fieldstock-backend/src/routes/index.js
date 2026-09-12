@@ -50,6 +50,7 @@ import * as PlanesCtrl          from '../controllers/planes.controller.js'
 import * as SuscripcionCtrl     from '../controllers/suscripcion.controller.js'
 import * as AddonsCtrl          from '../controllers/addons.controller.js'
 import * as DispositivosCtrl    from '../controllers/dispositivos.controller.js'
+import * as DispositivosConfianzaCtrl from '../controllers/dispositivos-confianza.controller.js'
 import * as CentralCtrl         from '../controllers/central.controller.js'
 import * as ClientesCentralesCtrl from '../controllers/clientes-centrales.controller.js'
 
@@ -122,6 +123,16 @@ router.get   ('/usuarios/:id', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.getB
 router.patch ('/usuarios/:id', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.update)
 router.delete('/usuarios/:id', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.desactivar)
 router.post  ('/usuarios/:id/reset-password', requireRole(ROLES_ADMIN_LEVEL), UsuariosCtrl.resetPassword)
+// Revoca los dispositivos de confianza de OTRO usuario (el empleado) — para
+// forzar que su próximo login vuelva a pedir el código 2FA.
+router.delete('/usuarios/:id/dispositivos-confianza', requireRole(ROLES_ADMIN_LEVEL), DispositivosConfianzaCtrl.revocarTodosDeUsuario)
+
+// ── Dispositivos de confianza (login 2FA, ver _plans/dispositivo-confianza/) ──
+// Siempre sobre el propio usuario (req.user.id) — cualquier rol autenticado.
+router.get   ('/auth/dispositivos-confianza',     DispositivosConfianzaCtrl.getAll)
+router.post  ('/auth/dispositivos-confianza',     DispositivosConfianzaCtrl.registrar)
+router.delete('/auth/dispositivos-confianza',     DispositivosConfianzaCtrl.revocarTodos)
+router.delete('/auth/dispositivos-confianza/:id', DispositivosConfianzaCtrl.revocarUno)
 
 // ── Invitaciones (códigos de registro para empleados) ───────────
 router.get ('/invitaciones', requireRole(ROLES_ADMIN_LEVEL), InvitacionesCtrl.getAll)

@@ -38,6 +38,7 @@ export default function LoginPage() {
   const [aviso,    setAviso]    = useState(null)
   const [mostrarPassword, setMostrarPassword] = useState(false)
   const [cooldown, setCooldown] = useState(0)
+  const [confiar, setConfiar] = useState(true)
   const codigoInputRef = useRef(null)
 
   // Cuenta regresiva del botón "Reenviar código".
@@ -103,7 +104,7 @@ export default function LoginPage() {
     setError(null)
     setAviso(null)
     try {
-      const res = await verificarCodigo(email.trim(), limpio)
+      const res = await verificarCodigo(email.trim(), limpio, confiar)
       if (res.error) {
         setError(res.error.message || 'El código no es válido o venció.')
         return
@@ -219,6 +220,14 @@ export default function LoginPage() {
                 onChange={e => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 disabled={submitting} />
             </div>
+
+            <label className={styles.checkboxRow}>
+              <input type="checkbox"
+                checked={confiar}
+                onChange={e => setConfiar(e.target.checked)}
+                disabled={submitting} />
+              Confiar en este dispositivo
+            </label>
 
             {error && <div className={styles.error}>⚠ {error}</div>}
             {aviso && <div className={styles.aviso}>✓ {aviso}</div>}

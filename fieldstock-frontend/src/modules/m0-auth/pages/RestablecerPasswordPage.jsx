@@ -20,6 +20,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@shared/utils/supabaseClient'
+import * as trustedDevice from '@shared/utils/trustedDevice'
+import { DispositivosConfianzaService } from '../services/dispositivosConfianza.service'
 import styles from './LoginPage.module.css'
 
 export default function RestablecerPasswordPage() {
@@ -59,6 +61,19 @@ export default function RestablecerPasswordPage() {
       const { error: errSb } = await supabase.auth.updateUser({ password: nueva })
       if (errSb) throw errSb
       setListo(true)
+
+      // Cambiar la contraseña invalida cualquier dispositivo de confianza
+      // que hubiera quedado comprometido (ver _plans/dispositivo-confianza/).
+      // Con el JWT de recovery todavía vivo, antes del signOut. Best-effort:
+      // si falla, no bloqueamos el flujo — "Mi perfil" tiene "revocar todos"
+      // manual como red de seguridad.
+      try {
+        await DispositivosConfianzaService.revocarTodos()
+      } catch (err) {
+        console.warn('[RestablecerPassword] no se pudieron revocar los dispositivos de confianza:', err?.message)
+      }
+      trustedDevice.borrar()
+
       await supabase.auth.signOut()
     } catch (err) {
       setError(err.message || 'No se pudo cambiar la contraseña. El link puede haber expirado.')

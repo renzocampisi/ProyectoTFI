@@ -27,6 +27,8 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase, clearSupabaseStorage, getCachedAccessToken, leerTokenDeStorage } from '@shared/utils/supabaseClient'
 import { api } from '@shared/utils/api'
+import * as trustedDevice from '@shared/utils/trustedDevice'
+import { DispositivosConfianzaService } from '@modules/m0-auth/services/dispositivosConfianza.service'
 
 const AuthContext = createContext(null)
 
@@ -287,7 +289,8 @@ export function AuthProvider({ children }) {
   // que LoginPage no tenga que distinguir shapes de Supabase.
   const signIn = async (email, password) => {
     try {
-      const data = await api.post('/auth/login', { email, password })
+      const deviceToken = trustedDevice.leerToken()?.token
+      const data = await api.post('/auth/login', { email, password, deviceToken })
       if (data?.session) {
         await supabase.auth.setSession(data.session)
         return {}
@@ -305,7 +308,12 @@ export function AuthProvider({ children }) {
   // Segundo paso del login para roles no-ADMIN: canjea el código de 6
   // dígitos por una sesión. Igual que signIn, onAuthStateChange dispara
   // cargarPerfil si sale bien.
-  const verificarCodigo = async (email, codigo) => {
+  //
+  // `confiar` (checkbox de LoginPage, ver _plans/dispositivo-confianza/):
+  // si viene true, registra este equipo como dispositivo de confianza para
+  // que el próximo login salte el código. Best-effort — si el registro
+  // falla (red, backend caído) el login ya entró igual, no lo bloqueamos.
+  const verificarCodigo = async (email, codigo, confiar = false) => {
     try {
       const res = await withTimeout(
         supabase.auth.verifyOtp({ email, token: codigo, type: 'email' }),
@@ -313,6 +321,16 @@ export function AuthProvider({ children }) {
         'verifyOtp'
       )
       if (res.error) return { error: { message: 'El código no es válido o venció.' } }
+
+      if (confiar) {
+        try {
+          const { id, token } = await DispositivosConfianzaService.registrar()
+          trustedDevice.guardar({ id, token })
+        } catch (err) {
+          console.warn('[useAuth] no se pudo registrar el dispositivo de confianza:', err?.message)
+        }
+      }
+
       return {}
     } catch (err) {
       console.error('[useAuth] verifyOtp timeout/error:', err)
