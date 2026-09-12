@@ -49,6 +49,12 @@ export default function UsuariosListPage() {
   const [passInput,        setPassInput]        = useState('')
   const [errNuevaPass,     setErrNuevaPass]     = useState(null)
   const [loadingNuevaPass, setLoadingNuevaPass] = useState(false)
+  // Revocar dispositivos de confianza de un empleado (ver
+  // _plans/dispositivo-confianza/) — fuerza que su próximo login pida
+  // código otra vez.
+  const [confRevocarDisp,     setConfRevocarDisp]     = useState(null) // confirm
+  const [errRevocarDisp,      setErrRevocarDisp]      = useState(null)
+  const [loadingRevocarDisp,  setLoadingRevocarDisp]  = useState(false)
 
   const {
     listaOrdenada: usuariosOrdenados,
@@ -110,6 +116,20 @@ export default function UsuariosListPage() {
       setErrNuevaPass(err.message)
     } finally {
       setLoadingNuevaPass(false)
+    }
+  }
+
+  const handleRevocarDispositivos = async () => {
+    if (!confRevocarDisp || loadingRevocarDisp) return
+    setErrRevocarDisp(null)
+    setLoadingRevocarDisp(true)
+    try {
+      await UsuariosService.revocarDispositivos(confRevocarDisp.id)
+      setConfRevocarDisp(null)
+    } catch (err) {
+      setErrRevocarDisp(err.message)
+    } finally {
+      setLoadingRevocarDisp(false)
     }
   }
 
@@ -219,6 +239,12 @@ export default function UsuariosListPage() {
                         <button className={styles.btnRow}
                           onClick={() => { setNuevaPassAdmin(u); setPassInput(''); setErrNuevaPass(null) }}>
                           Nueva contraseña
+                        </button>
+                      )}
+                      {!esUsuarioAdmin && !esYo && (
+                        <button className={styles.btnRow} onClick={() => setConfRevocarDisp(u)}
+                          title="Revocar dispositivos de confianza (fuerza código 2FA en el próximo login)">
+                          Revocar dispositivos
                         </button>
                       )}
                       {u.activo && !esUsuarioAdmin && !esYo && (
@@ -349,6 +375,30 @@ export default function UsuariosListPage() {
               </button>
               <button className={styles.btnPrimary} onClick={handleGuardarNuevaPass} disabled={loadingNuevaPass}>
                 {loadingNuevaPass ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confRevocarDisp && (
+        <div className={styles.confirmOverlay} onClick={() => !loadingRevocarDisp && setConfRevocarDisp(null)}>
+          <div className={styles.confirmCard} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.confirmTitle}>¿Revocar dispositivos de confianza?</h3>
+            <p className={styles.confirmText}>
+              <strong>{confRevocarDisp.nombre}</strong> ({confRevocarDisp.email}) va a tener
+              que verificar el código por mail otra vez en su próximo login, en todos sus
+              equipos. La contraseña no se ve afectada.
+            </p>
+            {errRevocarDisp && <p className={styles.errorBanner}>⚠ {errRevocarDisp}</p>}
+            <div className={styles.confirmActions}>
+              <button className={styles.btnGhost}
+                onClick={() => { setConfRevocarDisp(null); setErrRevocarDisp(null) }}
+                disabled={loadingRevocarDisp}>
+                Cancelar
+              </button>
+              <button className={styles.btnPrimary} onClick={handleRevocarDispositivos} disabled={loadingRevocarDisp}>
+                {loadingRevocarDisp ? 'Revocando...' : 'Sí, revocar'}
               </button>
             </div>
           </div>

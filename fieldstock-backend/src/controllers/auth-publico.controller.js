@@ -9,8 +9,8 @@ import * as AuthLoginService from '../services/auth-login.service.js'
  */
 export async function login(req, res, next) {
   try {
-    const { email, password } = req.body
-    const data = await AuthLoginService.login({ email, password, ip: req.ip })
+    const { email, password, deviceToken } = req.body
+    const data = await AuthLoginService.login({ email, password, ip: req.ip, deviceToken })
     res.json({ ok: true, data })
   } catch (err) { next(err) }
 }

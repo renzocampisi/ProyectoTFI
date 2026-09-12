@@ -25,4 +25,8 @@ export const UsuariosService = {
   // activos) con flag `ocupado: true` si tienen al menos un remito en
   // estado distinto a CERRADO. Usado por el modal post-aprobacion.
   getEncargadosDisponibles: () => api.get('/usuarios/encargados-disponibles'),
+
+  // Revoca todos los dispositivos de confianza del empleado — su próximo
+  // login vuelve a pedir el código 2FA (ver _plans/dispositivo-confianza/).
+  revocarDispositivos: (id) => api.delete(`/usuarios/${id}/dispositivos-confianza`),
 }

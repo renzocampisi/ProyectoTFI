@@ -23,6 +23,11 @@ jest.mock('../config/supabase.js', () => ({
   supabase: { from: jest.fn(() => mockPerfilChain) },
 }))
 
+const mockValidarYUsar = jest.fn()
+jest.mock('./dispositivos-confianza.service.js', () => ({
+  validarYUsar: (...args) => mockValidarYUsar(...args),
+}))
+
 import * as AuthLoginService from './auth-login.service.js'
 
 // El rate limit es un Map a nivel de módulo que persiste entre tests del
@@ -45,6 +50,7 @@ beforeEach(() => {
     data: { id: 'u-1', role: 'ENCARGADO', activo: true },
     error: null,
   })
+  mockValidarYUsar.mockResolvedValue(false)
 })
 
 describe('AuthLoginService.login', () => {
@@ -112,5 +118,40 @@ describe('AuthLoginService.login', () => {
     await expect(
       AuthLoginService.login({ email: 'otpfail@t.com', password: 'ok', ip: '1.0.0.6' })
     ).rejects.toMatchObject({ status: 502, message: expect.stringContaining('código') })
+  })
+
+  test('rol no-ADMIN + deviceToken vigente → { session } y NO se llama signInWithOtp', async () => {
+    mockValidarYUsar.mockResolvedValue(true)
+
+    const r = await AuthLoginService.login({
+      email: 'conf@t.com', password: 'ok', ip: '1.0.0.7', deviceToken: 'tok-abc',
+    })
+
+    expect(mockValidarYUsar).toHaveBeenCalledWith('u-1', 'tok-abc')
+    expect(r).toEqual({ session: { access_token: 'at-123', refresh_token: 'rt-123' } })
+    expect(mockAuth.signInWithOtp).not.toHaveBeenCalled()
+  })
+
+  test('rol no-ADMIN + deviceToken vencido/inválido → manda código igual', async () => {
+    mockValidarYUsar.mockResolvedValue(false)
+
+    const r = await AuthLoginService.login({
+      email: 'vencido@t.com', password: 'ok', ip: '1.0.0.8', deviceToken: 'tok-viejo',
+    })
+
+    expect(r).toEqual({ requiereCodigo: true, email: 'vencido@t.com' })
+    expect(mockAuth.signInWithOtp).toHaveBeenCalled()
+  })
+
+  test('rol ADMIN + deviceToken → entra directo sin ni siquiera validar el token', async () => {
+    mockPerfilChain.maybeSingle.mockResolvedValue({
+      data: { id: 'u-1', role: 'ADMIN', activo: true }, error: null,
+    })
+
+    await AuthLoginService.login({
+      email: 'admin2@t.com', password: 'ok', ip: '1.0.0.9', deviceToken: 'tok-cualquiera',
+    })
+
+    expect(mockValidarYUsar).not.toHaveBeenCalled()
   })
 })
