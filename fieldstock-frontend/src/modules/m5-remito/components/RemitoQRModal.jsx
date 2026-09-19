@@ -15,6 +15,7 @@
  */
 import { useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './RemitoQRModal.module.css'
 
 function formatFecha(iso) {
@@ -24,6 +25,7 @@ function formatFecha(iso) {
 }
 
 export default function RemitoQRModal({ remito, onClose }) {
+  useLockBodyScroll()
   const printRef = useRef()
 
   const handlePrint = () => {

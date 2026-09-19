@@ -22,9 +22,11 @@ import { useNavigate } from 'react-router-dom'
 import { TransportesService } from '@modules/m7-directorio/services/directorio.service'
 import { UsuariosService } from '@modules/m9-usuarios/services/usuarios.service'
 import { RemitosService } from '@modules/m5-remito/services/remitos.service'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './ConfigurarRemitoModal.module.css'
 
 export default function ConfigurarRemitoModal({ remitoId, onClose }) {
+  useLockBodyScroll()
   const navigate = useNavigate()
   const [transportes,  setTransportes]  = useState([])
   const [encargados,   setEncargados]   = useState([])

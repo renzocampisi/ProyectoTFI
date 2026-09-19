@@ -1,6 +1,6 @@
 // src/layouts/AppLayout.jsx
 import { useState, useEffect, useRef } from 'react'
-import { Outlet, NavLink, useLocation, useNavigate, Navigate } from 'react-router-dom'
+import { Outlet, NavLink, Link, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import {
   LuHouse, LuWrench, LuPackage, LuArchive, LuClipboardList, LuConstruction,
   LuQrCode, LuTruck, LuBuilding2, LuFactory, LuShoppingCart, LuCreditCard,
@@ -191,7 +191,7 @@ export default function AppLayout() {
   return (
     <div className={`${styles.shell} ${collapsed ? styles.collapsed : ''}`}>
       <aside className={styles.sidebar}>
-        <div className={styles.sidebarHeader}>
+        <Link to="/" className={styles.sidebarHeader}>
           <img src="/favicon.svg" alt="" className={styles.brandIcon} />
           <span className={styles.brandText}>
             FieldStock <span className={styles.brandTextTag}>AI</span>
@@ -199,7 +199,7 @@ export default function AppLayout() {
           {!collapsed && empresa?.nombre && (
             <span className={styles.brandEmpresa}>{empresa.nombre}</span>
           )}
-        </div>
+        </Link>
 
         <nav className={styles.nav}>
 
@@ -254,10 +254,10 @@ export default function AppLayout() {
         {/* Logo en el topbar — visible en mobile (donde el sidebar
             pasa a ser una barra inferior y oculta su propio header).
             En desktop está oculto vía CSS para no duplicar con el del sidebar. */}
-        <span className={styles.topbarLogo}>
+        <Link to="/" className={styles.topbarLogo}>
           <img src="/favicon.svg" alt="" className={styles.topbarLogoIcon} />
           FieldStock <span className={styles.topbarLogoTag}>AI</span>
-        </span>
+        </Link>
         <div className={styles.topbarRight}>
           <NotificacionesBell />
           <button className={styles.temaBtn} onClick={toggle}

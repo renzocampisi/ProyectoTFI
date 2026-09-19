@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { ClientesService } from '../services/directorio.service'
 import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
 import PhoneCountryInput from '@shared/components/PhoneCountryInput'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './DirectorioPage.module.css'
 
 const PROVINCIAS = [
@@ -95,7 +96,75 @@ const CAMPOS = [
   { key: 'notas',     label: 'Notas',                   placeholder: 'Observaciones adicionales',  req: false },
 ]
 
+// Modales inline de confirmar borrado / ver detalle — separados para poder
+// llamar useLockBodyScroll() solo mientras están montados.
+function ConfirmDeleteModal({ item, onClose, onConfirm }) {
+  useLockBodyScroll()
+  return (
+    <div className={styles.overlay}>
+      <div className={styles.modal}>
+        <h3 className={styles.modalTitle}>¿Eliminar cliente?</h3>
+        <p className={styles.confirmText}>
+          Vas a eliminar <strong>{item.nombre}</strong>. Esta acción no se puede deshacer.
+        </p>
+        <div className={styles.modalActions}>
+          <button className={styles.btnGhost} onClick={onClose}>Cancelar</button>
+          <button className={styles.btnDanger} onClick={onConfirm}>Sí, eliminar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DetalleModal({ item, onClose }) {
+  useLockBodyScroll()
+  return (
+    <div className={styles.overlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3 className={styles.modalTitle}>{item.nombre}</h3>
+          <button className={styles.btnClose} onClick={onClose}>✕</button>
+        </div>
+        <div className={styles.detalleGrid}>
+          <div className={styles.detalleRow}>
+            <span className={styles.detalleLabel}>Teléfono</span>
+            <span className={styles.detalleValue}>{formatearTelefono(item.telefono) || '—'}</span>
+          </div>
+          <div className={styles.detalleRow}>
+            <span className={styles.detalleLabel}>Dirección</span>
+            <span className={styles.detalleValue}>{item.direccion || '—'}</span>
+          </div>
+          <div className={styles.detalleRow}>
+            <span className={styles.detalleLabel}>Localidad</span>
+            <span className={styles.detalleValue}>{item.localidad || '—'}</span>
+          </div>
+          <div className={styles.detalleRow}>
+            <span className={styles.detalleLabel}>Provincia</span>
+            <span className={styles.detalleValue}>{item.provincia || '—'}</span>
+          </div>
+          <div className={styles.detalleRow}>
+            <span className={styles.detalleLabel}>Email</span>
+            <span className={styles.detalleValue}>{item.email || '—'}</span>
+          </div>
+          <div className={styles.detalleRow}>
+            <span className={styles.detalleLabel}>Contacto</span>
+            <span className={styles.detalleValue}>{item.contacto || '—'}</span>
+          </div>
+          <div className={styles.detalleRow}>
+            <span className={styles.detalleLabel}>Notas</span>
+            <span className={styles.detalleValue}>{item.notas || '—'}</span>
+          </div>
+        </div>
+        <div className={styles.modalActions}>
+          <button className={styles.btnGhost} onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function FormModal({ titulo, inicial, onSave, onClose, saving, error }) {
+  useLockBodyScroll()
   const [form, setForm] = useState(inicial)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const validar = () => CAMPOS.filter(c => c.req).every(c => form[c.key]?.trim())
@@ -228,63 +297,12 @@ export default function ClientesPage() {
 
       {/* Modal de confirmación de eliminación */}
       {confirmDel && (
-        <div className={styles.overlay}>
-          <div className={styles.modal}>
-            <h3 className={styles.modalTitle}>¿Eliminar cliente?</h3>
-            <p className={styles.confirmText}>
-              Vas a eliminar <strong>{confirmDel.nombre}</strong>. Esta acción no se puede deshacer.
-            </p>
-            <div className={styles.modalActions}>
-              <button className={styles.btnGhost} onClick={() => setConfirmDel(null)}>Cancelar</button>
-              <button className={styles.btnDanger} onClick={handleDelete}>Sí, eliminar</button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal item={confirmDel} onClose={() => setConfirmDel(null)} onConfirm={handleDelete} />
       )}
 
       {/* Modal de Detalles (solo lectura) */}
       {detalle && (
-        <div className={styles.overlay} onClick={() => setDetalle(null)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>{detalle.nombre}</h3>
-              <button className={styles.btnClose} onClick={() => setDetalle(null)}>✕</button>
-            </div>
-            <div className={styles.detalleGrid}>
-              <div className={styles.detalleRow}>
-                <span className={styles.detalleLabel}>Teléfono</span>
-                <span className={styles.detalleValue}>{formatearTelefono(detalle.telefono) || '—'}</span>
-              </div>
-              <div className={styles.detalleRow}>
-                <span className={styles.detalleLabel}>Dirección</span>
-                <span className={styles.detalleValue}>{detalle.direccion || '—'}</span>
-              </div>
-              <div className={styles.detalleRow}>
-                <span className={styles.detalleLabel}>Localidad</span>
-                <span className={styles.detalleValue}>{detalle.localidad || '—'}</span>
-              </div>
-              <div className={styles.detalleRow}>
-                <span className={styles.detalleLabel}>Provincia</span>
-                <span className={styles.detalleValue}>{detalle.provincia || '—'}</span>
-              </div>
-              <div className={styles.detalleRow}>
-                <span className={styles.detalleLabel}>Email</span>
-                <span className={styles.detalleValue}>{detalle.email || '—'}</span>
-              </div>
-              <div className={styles.detalleRow}>
-                <span className={styles.detalleLabel}>Contacto</span>
-                <span className={styles.detalleValue}>{detalle.contacto || '—'}</span>
-              </div>
-              <div className={styles.detalleRow}>
-                <span className={styles.detalleLabel}>Notas</span>
-                <span className={styles.detalleValue}>{detalle.notas || '—'}</span>
-              </div>
-            </div>
-            <div className={styles.modalActions}>
-              <button className={styles.btnGhost} onClick={() => setDetalle(null)}>Cerrar</button>
-            </div>
-          </div>
-        </div>
+        <DetalleModal item={detalle} onClose={() => setDetalle(null)} />
       )}
 
       <div className={styles.header}>

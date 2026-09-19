@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { KitsService } from '../services/kits.service'
 import KitComposicionPicker from './KitComposicionPicker'
+import { formatStockAbreviado } from '@shared/utils/unidades'
 import styles from './KitSection.module.css'
 
 const formVacio = { nombre: '', descripcion: '' }
@@ -209,7 +210,7 @@ export default function KitSection({ herramientaId }) {
             {kit.materiales.map(m => (
               <li key={m.id} className={styles.listaItem} onClick={() => navigate(`/materiales/${m.id}`)}>
                 <span className={styles.listaNombre}>{m.nombre}</span>
-                <span className={styles.listaSub}>{m.cantidad} {m.unidad}</span>
+                <span className={styles.listaSub}>{formatStockAbreviado(m.cantidad, m.unidad)}</span>
               </li>
             ))}
             {kit.herramientas.length <= 1 && kit.materiales.length === 0 && (

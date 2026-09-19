@@ -15,6 +15,8 @@
  * cancelar.
  */
 import { useState } from 'react'
+import { formatStockAbreviado } from '@shared/utils/unidades'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './DuplicateMaterialModal.module.css'
 
 export default function DuplicateMaterialModal({
@@ -24,6 +26,7 @@ export default function DuplicateMaterialModal({
   onConfirm,         // () => Promise — el parent llama agregarStock
   onCancel,          // () => void   — cierra el modal, vuelve al form
 }) {
+  useLockBodyScroll()
   const [procesando, setProcesando] = useState(false)
   const [error, setError] = useState(null)
 
@@ -54,7 +57,7 @@ export default function DuplicateMaterialModal({
           {existente.marca && <div className={styles.matMarca}>{existente.marca}</div>}
           <div className={styles.matStats}>
             <span>Stock actual:</span>
-            <strong>{existente.stock_actual} {existente.unidad}</strong>
+            <strong>{formatStockAbreviado(existente.stock_actual, existente.unidad)}</strong>
           </div>
           {existente.descripcion && (
             <div className={styles.matDesc}>{existente.descripcion}</div>
@@ -70,8 +73,8 @@ export default function DuplicateMaterialModal({
         )}
 
         <p className={styles.pregunta}>
-          ¿Querés sumarle <strong>{cantidadASumar} {existente.unidad}</strong> al stock del existente?
-          (quedará en <strong>{Number(existente.stock_actual) + Number(cantidadASumar)} {existente.unidad}</strong>)
+          ¿Querés sumarle <strong>{formatStockAbreviado(cantidadASumar, existente.unidad)}</strong> al stock del existente?
+          (quedará en <strong>{formatStockAbreviado(Number(existente.stock_actual) + Number(cantidadASumar), existente.unidad)}</strong>)
         </p>
 
         {error && <div className={styles.error}>⚠ {error}</div>}

@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { TransportesService } from '../services/directorio.service'
 import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './DirectorioPage.module.css'
 
 const PROVINCIAS = [
@@ -112,7 +113,25 @@ function getCampos(tipo) {
   ]
 }
 
+// Extraído para poder llamar useLockBodyScroll() solo mientras está montado.
+function ConfirmDeleteModal({ item, onClose, onConfirm }) {
+  useLockBodyScroll()
+  return (
+    <div className={styles.overlay}>
+      <div className={styles.modal}>
+        <h3 className={styles.modalTitle}>¿Eliminar transporte?</h3>
+        <p className={styles.confirmText}>Vas a eliminar <strong>{item.nombre}</strong>. Esta acción no se puede deshacer.</p>
+        <div className={styles.modalActions}>
+          <button className={styles.btnGhost} onClick={onClose}>Cancelar</button>
+          <button className={styles.btnDanger} onClick={onConfirm}>Sí, eliminar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function FormModal({ titulo, inicial, onSave, onClose, saving, error }) {
+  useLockBodyScroll()
   const [form, setForm] = useState({ tipo: 'EMPRESA', ...inicial })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const campos = getCampos(form.tipo)
@@ -262,16 +281,7 @@ export default function TransportesPage() {
       )}
 
       {confirmDel && (
-        <div className={styles.overlay}>
-          <div className={styles.modal}>
-            <h3 className={styles.modalTitle}>¿Eliminar transporte?</h3>
-            <p className={styles.confirmText}>Vas a eliminar <strong>{confirmDel.nombre}</strong>. Esta acción no se puede deshacer.</p>
-            <div className={styles.modalActions}>
-              <button className={styles.btnGhost} onClick={() => setConfirmDel(null)}>Cancelar</button>
-              <button className={styles.btnDanger} onClick={handleDelete}>Sí, eliminar</button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal item={confirmDel} onClose={() => setConfirmDel(null)} onConfirm={handleDelete} />
       )}
 
       <div className={styles.header}>

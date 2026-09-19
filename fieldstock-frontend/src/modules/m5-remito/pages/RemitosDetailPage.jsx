@@ -13,6 +13,7 @@ import EstadoRemitoBadge from '../components/EstadoRemitoBadge'
 import RemitoEditModal from './RemitoEditModal'
 import RemitoPrint from './RemitoPrint'
 import { nombreRemito } from '../utils/remito-format'
+import { formatStockAbreviado, pluralizarUnidad } from '@shared/utils/unidades'
 import styles from './RemitosDetailPage.module.css'
 
 const PASOS = [
@@ -590,11 +591,11 @@ function MatBuscadorModal({ remitoId, idsYa, onClose, onSaved }) {
                           {m.nombre}
                           {sugerido && (
                             <span className={styles.checkBadge} title="Material del presupuesto aprobado">
-                              Presup. · {cantSugerida} {m.unidad}
+                              Presup. · {formatStockAbreviado(cantSugerida, m.unidad)}
                             </span>
                           )}
                         </span>
-                        <span className={styles.checkSub}>Stock: {m.stock_actual} {m.unidad}</span>
+                        <span className={styles.checkSub}>Stock: {formatStockAbreviado(m.stock_actual, m.unidad)}</span>
                       </div>
                       {seleccionados.has(m.id) && (
                         <div className={styles.cantidadWrapper}>
@@ -1167,7 +1168,7 @@ export default function RemitosDetailPage() {
                             )}
                           </td>
                           <td className={styles.itemSub}>{m.cantidad_egreso}</td>
-                          <td className={styles.itemSub}>{m.unidad}</td>
+                          <td className={styles.itemSub}>{pluralizarUnidad(m.unidad, m.cantidad_egreso)}</td>
                           {esRetorno && (
                             <td>
                               {(() => {

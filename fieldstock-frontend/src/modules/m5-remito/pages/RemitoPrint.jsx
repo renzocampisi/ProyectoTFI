@@ -1,5 +1,6 @@
 // src/modules/m5-remito/pages/RemitoPrint.jsx
 import { QRCodeSVG } from 'qrcode.react'
+import { pluralizarUnidad } from '@shared/utils/unidades'
 
 function formatFecha(iso) {
   if (!iso) return '—'
@@ -174,7 +175,7 @@ export default function RemitoPrint({ remito }) {
                     {!m.material_id && <span style={{ fontSize: '9px', color: '#888', marginLeft: '4px' }}>(libre)</span>}
                   </td>
                   <td style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'center' }}>{m.cantidad_egreso}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'center' }}>{m.unidad}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'center' }}>{pluralizarUnidad(m.unidad, m.cantidad_egreso)}</td>
                   {esIngreso && <td style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'center' }}>{m.cantidad_retorno ?? '—'}</td>}
                   <td style={{ border: '1px solid #ccc', padding: '5px 8px' }}></td>
                 </tr>

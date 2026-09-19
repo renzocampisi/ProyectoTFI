@@ -15,6 +15,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useScanMatch } from '../hooks/useScanMatch'
 import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
 import { formatCantidad } from '../constants'
+import { formatStockAbreviado } from '@shared/utils/unidades'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './ScanMatchModal.module.css'
 
 const UNIDADES_BASE = ['unidad', 'kg', 'metro', 'litro', 'caja', 'rollo', 'juego', 'par']
@@ -65,7 +67,7 @@ function BuscadorMaterial({ valorId, onElegir }) {
           {resultados.map(m => (
             <li key={m.id}>
               <button type="button" onClick={() => { setElegido(m); setQuery(''); setResultados([]); onElegir(m.id) }}>
-                {m.nombre}{m.marca ? ` (${m.marca})` : ''} — stock {formatCantidad(m.stock_actual)} {m.unidad}
+                {m.nombre}{m.marca ? ` (${m.marca})` : ''} — stock {formatStockAbreviado(formatCantidad(m.stock_actual), m.unidad)}
               </button>
             </li>
           ))}
@@ -121,7 +123,7 @@ function FilaRevision({ linea, candidatos, onCambiar, onQuitar, onRestaurar }) {
             <option value="">— Elegí un ítem de la orden —</option>
             {candidatos.map(c => (
               <option key={c.itemId} value={c.itemId}>
-                {c.nombre}{c.marca ? ` (${c.marca})` : ''} · pedido {formatCantidad(c.cantidadPedida)} {c.unidad}
+                {c.nombre}{c.marca ? ` (${c.marca})` : ''} · pedido {formatStockAbreviado(formatCantidad(c.cantidadPedida), c.unidad)}
               </option>
             ))}
           </select>
@@ -165,6 +167,7 @@ function FilaRevision({ linea, candidatos, onCambiar, onQuitar, onRestaurar }) {
 }
 
 export default function ScanMatchModal({ compra, onClose, onSuccess }) {
+  useLockBodyScroll()
   const {
     paso, error, candidatos, lineas, puedeConfirmar,
     proponer, actualizarLinea, quitarLinea, restaurarLinea, confirmar,

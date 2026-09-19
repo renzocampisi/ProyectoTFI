@@ -1,9 +1,11 @@
 // src/modules/m3-qr/components/QRModal.jsx
 import { useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './QRModal.module.css'
 
 export default function QRModal({ herramienta, onClose }) {
+  useLockBodyScroll()
   const printRef = useRef()
 
   const handlePrint = () => {

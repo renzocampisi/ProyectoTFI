@@ -15,6 +15,7 @@
  *   passLabel      opcional            — default "Contraseña generada"
  */
 import { useState } from 'react'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './PasswordRevealModal.module.css'
 
 export default function PasswordRevealModal({
@@ -24,6 +25,7 @@ export default function PasswordRevealModal({
   titulo    = 'Usuario creado',
   passLabel = 'Contraseña generada',
 }) {
+  useLockBodyScroll()
   const [copiado, setCopiado] = useState(false)
 
   const copiar = async () => {

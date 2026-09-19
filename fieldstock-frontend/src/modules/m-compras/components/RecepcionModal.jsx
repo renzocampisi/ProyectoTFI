@@ -25,9 +25,12 @@
 import { useState, useMemo } from 'react'
 import { ComprasService } from '../services/compras.service'
 import { formatCantidad } from '../constants'
+import { pluralizarUnidad } from '@shared/utils/unidades'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './RecepcionModal.module.css'
 
 export default function RecepcionModal({ compra, onClose, onSuccess }) {
+  useLockBodyScroll()
   // Items que todavía tienen algo pendiente de recibir. Si ya recibimos
   // todo (RECIBIDA), el botón "Registrar recepción" no debería estar
   // visible — pero por defensiva, si llegamos acá y no hay nada pendiente,
@@ -188,7 +191,7 @@ export default function RecepcionModal({ compra, onClose, onSuccess }) {
                         {it.material_nombre || it.material?.nombre || '—'}
                       </div>
                       {it.material_unidad && (
-                        <div className={styles.materialMeta}>Unidad: {it.material_unidad}</div>
+                        <div className={styles.materialMeta}>Tipo: {pluralizarUnidad(it.material_unidad, it.cantidad)}</div>
                       )}
                     </td>
                     <td className={styles.cellNum}>{formatCantidad(it.cantidad)}</td>

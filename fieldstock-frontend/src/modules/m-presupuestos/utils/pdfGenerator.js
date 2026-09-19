@@ -22,6 +22,7 @@ import autoTable from 'jspdf-autotable'
 // todos sus llamadores. jsPDF además no acepta SVG, por eso el PNG.
 import logoDataUri from '../../../assets/logo.base64.js'
 import { CATEGORIA_INFO, formatMoney, formatCantidad, formatFecha } from '../constants'
+import { pluralizarUnidad } from '@shared/utils/unidades'
 
 // Colores de la paleta del sistema (matchea el theme oscuro de la app
 // pero para PDF usamos versiones que se ven bien en papel blanco)
@@ -96,7 +97,7 @@ function tablaInsumos(doc, insumos, startY) {
   const rows = insumos.map(i => [
     i.material?.nombre || '-',
     formatCantidad(i.cantidad),
-    i.material?.unidad || 'unidad',
+    pluralizarUnidad(i.material?.unidad || 'unidad', i.cantidad),
     formatMoney(i.precio_unitario),
     formatMoney(i.subtotal),
   ])
@@ -137,7 +138,7 @@ function tablaCostosPorCategoria(doc, costos, startY) {
     const rows = items.map(c => [
       c.descripcion,
       formatCantidad(c.cantidad),
-      c.unidad || '-',
+      c.unidad ? pluralizarUnidad(c.unidad, c.cantidad) : '-',
       formatMoney(c.costo_unitario),
       formatMoney(c.subtotal),
     ])

@@ -12,6 +12,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { InventarioService } from '@modules/m2-inventario/services/inventario.service'
 import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
+import { pluralizarUnidad } from '@shared/utils/unidades'
 import styles from './KitComposicionPicker.module.css'
 
 export default function KitComposicionPicker({
@@ -114,7 +115,7 @@ export default function KitComposicionPicker({
                   onChange={() => toggleMat(m.id)} onClick={e => e.stopPropagation()} />
                 <div className={styles.checkInfo}>
                   <span className={styles.checkNombre}>{m.nombre}</span>
-                  <span className={styles.checkSub}>{m.unidad}</span>
+                  <span className={styles.checkSub}>{pluralizarUnidad(m.unidad, 2)}</span>
                 </div>
                 {seleccionado && (
                   <input type="number" min="0.01" step="any"

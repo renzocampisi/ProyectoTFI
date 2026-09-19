@@ -17,6 +17,7 @@ import { useArmado } from '../hooks/useArmado'
 import { ObrasService } from '@modules/m4-obra/services/obras.service'
 import { ClientesService, ProveedoresService } from '@modules/m7-directorio/services/directorio.service'
 import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
+import { formatStockAbreviado, pluralizarUnidad } from '@shared/utils/unidades'
 import styles from './ArmadoPage.module.css'
 
 const EJEMPLO = '3 metros de caño de 2 pulgadas, 2 codos de 90 y una válvula esférica'
@@ -65,7 +66,7 @@ function BuscadorMaterial({ onElegir }) {
           {resultados.map(m => (
             <li key={m.id}>
               <button type="button" onClick={() => { onElegir(m); setQuery(''); setResultados([]) }}>
-                {m.nombre}{m.marca ? ` (${m.marca})` : ''} — stock {m.stock_actual} {m.unidad}
+                {m.nombre}{m.marca ? ` (${m.marca})` : ''} — stock {formatStockAbreviado(m.stock_actual, m.unidad)}
               </button>
             </li>
           ))}
@@ -382,7 +383,7 @@ export default function ArmadoPage() {
                         <>
                           <div className={styles.materialNombre}>{l.materialNombre}</div>
                           <div className={styles.materialMeta}>
-                            stock {l.stockActual} {l.unidad}
+                            stock {formatStockAbreviado(l.stockActual, l.unidad)}
                             {' · '}
                             <button type="button" className={styles.btnLink}
                               onClick={() => a.actualizarLinea(l.id, { modo: 'buscar' })}>
@@ -409,7 +410,7 @@ export default function ArmadoPage() {
                       <input type="number" min="0.01" step="any" className={styles.inputNum}
                         value={l.cantidad}
                         onChange={e => cambiarCantidad(l, e.target.value)} />
-                      <span className={styles.unidad}>{l.unidad}</span>
+                      <span className={styles.unidad}>{pluralizarUnidad(l.unidad, l.cantidad)}</span>
                     </td>
                     {a.destino === 'REMITO' && (
                       <td className={styles.celdaDestino} data-label="Destino">
@@ -483,7 +484,7 @@ export default function ArmadoPage() {
               <strong>Falta comprar (no se creó orden):</strong>
               <ul>
                 {a.resultado.faltantes.map((f, i) => (
-                  <li key={i}>{f.nombre} — {f.cantidad} {f.unidad}</li>
+                  <li key={i}>{f.nombre} — {formatStockAbreviado(f.cantidad, f.unidad)}</li>
                 ))}
               </ul>
             </div>

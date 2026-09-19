@@ -24,6 +24,7 @@ import { useNavigate } from 'react-router-dom'
 import { ComprasService } from '../services/compras.service'
 import { ProveedoresService } from '@modules/m7-directorio/services/directorio.service'
 import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
+import { pluralizarUnidad } from '@shared/utils/unidades'
 import styles from './ComprasNewPage.module.css'
 
 const MEDIOS_PAGO = [
@@ -265,7 +266,7 @@ export default function ComprasNewPage() {
                               </option>
                             ))}
                           </select>
-                          {mat && <div className={styles.materialMeta}>Unidad: {mat.unidad || 'unidad'}</div>}
+                          {mat && <div className={styles.materialMeta}>Tipo: {pluralizarUnidad(mat.unidad || 'unidad', it.cantidad)}</div>}
                         </td>
                         <td className={styles.cellNum} data-label="Cantidad">
                           <input type="number" min="0" step="any"

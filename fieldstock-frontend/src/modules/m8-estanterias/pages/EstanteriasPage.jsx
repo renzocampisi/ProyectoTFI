@@ -4,9 +4,12 @@ import { QRCodeSVG } from 'qrcode.react'
 import { EstanteriasService } from '../services/estanterias.service'
 import { InventarioService } from '@modules/m2-inventario/services/inventario.service'
 import { MaterialesService } from '@modules/m6-materiales/services/materiales.service'
+import { formatStockAbreviado } from '@shared/utils/unidades'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './EstanteriasPage.module.css'
 
 function QREstanteriaModal({ estanteria, onClose }) {
+  useLockBodyScroll()
   const handlePrint = () => {
     const ventana = window.open('', '_blank', 'width=400,height=500')
     ventana.document.write(`
@@ -58,6 +61,7 @@ function QREstanteriaModal({ estanteria, onClose }) {
 }
 
 function AsignarModal({ estanteria, onClose, onSaved }) {
+  useLockBodyScroll()
   const [tab,          setTab]          = useState('herramienta')
   const [herramientas, setHerramientas] = useState([])
   const [materiales,   setMateriales]   = useState([])
@@ -134,7 +138,7 @@ function AsignarModal({ estanteria, onClose, onSaved }) {
                     <li key={m.id} className={styles.listaItem}>
                       <div>
                         <span className={styles.listaNombre}>{m.nombre}</span>
-                        <span className={styles.listaSub}>Stock: {m.stock_actual} {m.unidad}</span>
+                        <span className={styles.listaSub}>Stock: {formatStockAbreviado(m.stock_actual, m.unidad)}</span>
                       </div>
                       <button className={styles.btnAdd} disabled={saving}
                         onClick={() => handleAdd('material', m.id)}>
@@ -151,6 +155,7 @@ function AsignarModal({ estanteria, onClose, onSaved }) {
 }
 
 function ConfirmBorrarModal({ estanteria, onClose, onConfirm, borrando, error }) {
+  useLockBodyScroll()
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
@@ -331,7 +336,7 @@ export default function EstanteriasPage() {
                           <td className={styles.itemSub}>
                             {item.tipo === 'herramienta'
                               ? item.codigo_qr
-                              : `${item.stock_actual} ${item.unidad}`
+                              : formatStockAbreviado(item.stock_actual, item.unidad)
                             }
                           </td>
                           <td>

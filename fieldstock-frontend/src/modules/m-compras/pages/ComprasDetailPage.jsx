@@ -23,6 +23,7 @@ import EstadoBadge from '../components/EstadoBadge'
 import RecepcionModal from '../components/RecepcionModal'
 import ScanMatchModal from '../components/ScanMatchModal'
 import ComprobantePagoCard from '../components/ComprobantePagoCard'
+import { pluralizarUnidad } from '@shared/utils/unidades'
 import {
   MEDIO_PAGO_LABEL, MONEDA_LABEL, formatFecha, formatFechaHora, formatMoney,
   formatCantidad, formatMontoMoneda,
@@ -501,7 +502,7 @@ export default function ComprasDetailPage() {
                       <td className={styles.cellMaterial} data-label="Material">
                         <div className={styles.materialNombre}>{it.material_nombre || it.material?.nombre || '—'}</div>
                         {it.material_unidad && (
-                          <div className={styles.materialMeta}>Unidad: {it.material_unidad}</div>
+                          <div className={styles.materialMeta}>Tipo: {pluralizarUnidad(it.material_unidad, pedido)}</div>
                         )}
                       </td>
                       <td className={styles.cellNum} data-label="Cantidad">

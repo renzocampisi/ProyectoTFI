@@ -78,7 +78,7 @@
   font-size: var(--text-sm);
   font-weight: 400;
   color: var(--text-secondary);
-  margin-left: 4px;
+  margin-left: 1px;
 }
 
 /* ── Estado badge ────────────────────────────────────── */

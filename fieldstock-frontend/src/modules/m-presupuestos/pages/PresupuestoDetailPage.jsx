@@ -31,6 +31,7 @@ import {
 } from '../utils/pdfGenerator'
 import { useAuth } from '@shared/hooks/useAuth'
 import { esDueño } from '@shared/constants/roles'
+import { pluralizarUnidad } from '@shared/utils/unidades'
 import {
   CATEGORIA_INFO, CATEGORIA_MANO_OBRA, CATEGORIAS_EXTRA,
   formatMoney, formatCantidad, formatFechaHora,
@@ -307,7 +308,7 @@ export default function PresupuestoDetailPage() {
                   <tr key={i.id}>
                     <td>{i.material?.nombre || '—'}</td>
                     <td className={styles.tdNum}>{formatCantidad(i.cantidad)}</td>
-                    <td>{i.material?.unidad || 'unidad'}</td>
+                    <td>{pluralizarUnidad(i.material?.unidad || 'unidad', i.cantidad)}</td>
                     <td className={styles.tdNum}>{formatMoney(i.precio_unitario)}</td>
                     <td className={styles.tdNum}>{formatMoney(i.subtotal)}</td>
                   </tr>
@@ -486,7 +487,7 @@ export default function PresupuestoDetailPage() {
                                 <>
                                   <td>{c.descripcion}</td>
                                   <td className={styles.tdNum}>{formatCantidad(c.cantidad)}</td>
-                                  <td>{c.unidad || '—'}</td>
+                                  <td>{c.unidad ? pluralizarUnidad(c.unidad, c.cantidad) : '—'}</td>
                                   <td className={styles.tdNum}>{formatMoney(c.costo_unitario)}</td>
                                   <td className={styles.tdNum}>{formatMoney(c.subtotal)}</td>
                                 </>

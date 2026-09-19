@@ -12,6 +12,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MaterialesService } from '../services/materiales.service'
 import MarcaLogo from '@shared/components/MarcaLogo'
+import { tipoUnidadLabel, formatStockAbreviado } from '@shared/utils/unidades'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './MaterialDetalleModal.module.css'
 
 // Formato dd/mm/yyyy + hh:mm a partir de un ISO timestamp.
@@ -34,6 +36,7 @@ function estadoStockLabel(actual, minimo) {
 }
 
 export default function MaterialDetalleModal({ material, onClose, onDeleted }) {
+  useLockBodyScroll()
   const navigate = useNavigate()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting,      setDeleting]      = useState(false)
@@ -86,21 +89,21 @@ export default function MaterialDetalleModal({ material, onClose, onDeleted }) {
             </div>
 
             <div className={styles.field}>
-              <dt className={styles.label}>Unidad</dt>
-              <dd className={styles.value}>{material.unidad || '—'}</dd>
+              <dt className={styles.label}>Tipo</dt>
+              <dd className={styles.value}>{tipoUnidadLabel(material.unidad)}</dd>
             </div>
 
             <div className={styles.field}>
               <dt className={styles.label}>Stock actual</dt>
               <dd className={styles.value}>
-                <strong>{material.stock_actual}</strong> {material.unidad}
+                <strong>{formatStockAbreviado(material.stock_actual, material.unidad)}</strong>
               </dd>
             </div>
 
             <div className={styles.field}>
               <dt className={styles.label}>Stock mínimo</dt>
               <dd className={styles.value}>
-                {material.stock_minimo} {material.unidad}
+                {formatStockAbreviado(material.stock_minimo, material.unidad)}
               </dd>
             </div>
 
