@@ -44,6 +44,7 @@
   padding: var(--space-4) var(--space-3);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
+  text-decoration: none;
 }
 
 .brandIcon {
@@ -193,6 +194,7 @@
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--text-primary);
+  text-decoration: none;
   display: none;
   align-items: center;
   gap: var(--space-2);
@@ -528,7 +530,20 @@
   transform: scale(0.97);
 }
 
-@media (max-width: 430px) {
+/* El segundo operando cubre "Solicitar sitio de escritorio" (iOS Safari /
+   Android Chrome): ahí el viewport de layout se infla a ~980px y el
+   teléfono cae en el rango tablet (431-1024px, bloque de arriba), mostrando
+   el sidebar como columna vertical en vez de la barra inferior.
+   `max-device-width` lee el ancho FÍSICO de pantalla, no el viewport
+   potencialmente inflado, así que un teléfono real sigue entrando acá
+   aunque esté en modo escritorio. No se puede combinar con `pointer`/`hover`
+   para distinguir tablets: Safari en modo escritorio fuerza esas dos
+   features a fine/hover para simular una compu (WebKit #73183), así que
+   cualquier condición que dependa de ellas queda siempre en falso ahí —
+   pasó exactamente eso con el intento anterior. Como contrapartida, un
+   iPad real (device-width ~744-1024px) no entra por este operando y sigue
+   viendo el layout de tablet, que es lo que se quiere. */
+@media (max-width: 430px), (max-device-width: 430px) {
   .shell {
     grid-template-columns: 1fr;
     grid-template-rows: var(--topbar-height) 1fr 64px;
@@ -548,6 +563,12 @@
     touch-action: pan-x;
     overscroll-behavior: contain;
     position: fixed;
+    /* La regla base (desktop) fija `top: 0` para el sticky y nunca se
+       resetea acá. Con top+height+bottom los tres fijados a la vez,
+       position:fixed queda sobre-restringido y el spec dice que se
+       descarta `bottom` — terminaba pegado arriba sin importar el
+       viewport ni el user agent. Este era el bug real de todo el hilo. */
+    top: auto;
     bottom: 0;
     left: 0;
     right: 0;
