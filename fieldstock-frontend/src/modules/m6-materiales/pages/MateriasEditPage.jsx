@@ -2,10 +2,42 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { MaterialesService } from '../services/materiales.service'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './MateriasNewPage.module.css'
 
 const UNIDADES_BASE = ['unidad','kg','metro','litro','caja','rollo','juego','par']
 const STORAGE_UNIDADES = 'fs-unidades-extra'
+
+// Modal inline "agregar marca nueva" — separado del componente principal
+// para poder llamar useLockBodyScroll() solo mientras está montado, sin
+// violar reglas de hooks (el padre tiene returns condicionales antes de acá).
+function NuevaMarcaModal({ valor, onChange, onEnter, onCancel, onAgregar }) {
+  useLockBodyScroll()
+  return (
+    <div className={styles.modalOverlay} onClick={onCancel}>
+      <div className={styles.modalCard} onClick={e => e.stopPropagation()}>
+        <h3 className={styles.modalTitle}>Nueva marca</h3>
+        <p className={styles.modalHelp}>
+          Si querés que el logo se muestre en el detalle, el nombre tiene que
+          coincidir con el archivo cargado en el catálogo de marcas.
+        </p>
+        <input type="text" className={styles.input} autoFocus
+          placeholder="Ej: Tacsa, Roda, Precincor"
+          value={valor}
+          onChange={onChange}
+          onKeyDown={onEnter} />
+        <div className={styles.modalActions}>
+          <button type="button" className={styles.btnGhost} onClick={onCancel}>
+            Cancelar
+          </button>
+          <button type="button" className={styles.btnPrimary} onClick={onAgregar}>
+            Agregar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // Lee las unidades custom guardadas en localStorage (Word #21).
 // Misma key que MateriasNewPage para compartirlas.
@@ -25,8 +57,11 @@ export default function MateriasEditPage() {
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [guardado,setGuardado]= useState(false)
-  // Marcas existentes para autocomplete (Word #17)
+  // Marcas existentes para el select (Word #17)
   const [marcasExistentes, setMarcasExistentes] = useState([])
+  // Estado del modal "agregar marca nueva" — mismo patrón que MateriasNewPage.
+  const [showNuevaMarca, setShowNuevaMarca] = useState(false)
+  const [nuevaMarcaValor, setNuevaMarcaValor] = useState('')
 
   useEffect(() => {
     // Cargar el material + las marcas existentes en paralelo
@@ -53,6 +88,14 @@ export default function MateriasEditPage() {
   const set = (campo, valor) => {
     setForm(f => ({ ...f, [campo]: valor }))
     setErrores(e => ({ ...e, [campo]: undefined }))
+  }
+
+  const handleAgregarMarca = () => {
+    const nueva = nuevaMarcaValor.trim()
+    if (!nueva) return
+    set('marca', nueva)
+    setNuevaMarcaValor('')
+    setShowNuevaMarca(false)
   }
 
   const validar = () => {
@@ -137,13 +180,20 @@ export default function MateriasEditPage() {
               <label className={styles.label} htmlFor="marca">
                 Marca <span className={styles.optional}>(opcional)</span>
               </label>
-              <input id="marca" type="text" className={styles.input}
-                list="marcas-existentes"
-                placeholder="Ej: Tacsa, Roda, Precincor"
-                value={form.marca} onChange={e => set('marca', e.target.value)} />
-              <datalist id="marcas-existentes">
-                {marcasExistentes.map(m => <option key={m} value={m} />)}
-              </datalist>
+              <div className={styles.unidadRow}>
+                <select id="marca" className={styles.select}
+                  value={form.marca} onChange={e => set('marca', e.target.value)}>
+                  <option value="">Sin marca</option>
+                  {[...new Set([...marcasExistentes, form.marca].filter(Boolean))]
+                    .sort((a, b) => a.localeCompare(b))
+                    .map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <button type="button" className={styles.btnIcon}
+                  onClick={() => setShowNuevaMarca(true)}
+                  title="Agregar marca nueva">
+                  +
+                </button>
+              </div>
             </div>
             <div className={`${styles.field} ${styles.fullWidth}`}>
               <label className={styles.label} htmlFor="descripcion">Descripción <span className={styles.optional}>(opcional)</span></label>
@@ -187,6 +237,17 @@ export default function MateriasEditPage() {
         </div>
 
       </form>
+
+      {/* Modal: agregar marca nueva */}
+      {showNuevaMarca && (
+        <NuevaMarcaModal
+          valor={nuevaMarcaValor}
+          onChange={e => setNuevaMarcaValor(e.target.value)}
+          onEnter={e => { if (e.key === 'Enter') { e.preventDefault(); handleAgregarMarca() } }}
+          onCancel={() => { setShowNuevaMarca(false); setNuevaMarcaValor('') }}
+          onAgregar={handleAgregarMarca}
+        />
+      )}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { useMateriales } from '../hooks/useMateriales'
 import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
 import MaterialDetalleModal from '../components/MaterialDetalleModal'
 import AgregarStockModal from '../components/AgregarStockModal'
+import { tipoUnidadLabel, formatStockAbreviado } from '@shared/utils/unidades'
 import styles from './MateriasListPage.module.css'
 
 // Badge de texto para desktop/tablet
@@ -113,7 +114,7 @@ export default function MateriasListPage() {
               <tr>
                 <th>Nombre</th>
                 <th>Marca</th>
-                <th>Unidad</th>
+                <th>Tipo</th>
                 <th>Stock actual</th>
                 <th>Stock mínimo</th>
                 <th>Estado</th>
@@ -146,9 +147,9 @@ export default function MateriasListPage() {
                     {m.marca || <span className={styles.marcaVacia}>—</span>}
                   </td>
 
-                  <td className={styles.unidad} data-label="Unidad">{m.unidad}</td>
-                  <td className={styles.stock}  data-label="Stock actual">{m.stock_actual}</td>
-                  <td className={styles.stock}  data-label="Stock mínimo">{m.stock_minimo}</td>
+                  <td className={styles.unidad} data-label="Tipo">{tipoUnidadLabel(m.unidad)}</td>
+                  <td className={styles.stock}  data-label="Stock actual">{formatStockAbreviado(m.stock_actual, m.unidad)}</td>
+                  <td className={styles.stock}  data-label="Stock mínimo">{formatStockAbreviado(m.stock_minimo, m.unidad)}</td>
 
                   {/* Badge de texto — se oculta en mobile, reemplazado por el punto */}
                   <td className={styles.badgeCell} data-label="Estado">

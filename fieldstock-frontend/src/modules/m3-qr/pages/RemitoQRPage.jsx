@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '@shared/utils/api'
+import { formatStockAbreviado, pluralizarUnidad } from '@shared/utils/unidades'
 import styles from './RemitoQRPage.module.css'
 
 function formatFecha(iso) {
@@ -416,7 +417,7 @@ export default function RemitoQRPage() {
                       onChange={() => toggleMaterial(m.id)} />
                     <div className={styles.checkInfo}>
                       <span className={styles.checkNombre}>{m.material_nombre || m.descripcion_libre}</span>
-                      <span className={styles.checkSub}>{m.cantidad_egreso} {m.unidad}</span>
+                      <span className={styles.checkSub}>{formatStockAbreviado(m.cantidad_egreso, m.unidad)}</span>
                     </div>
                   </label>
                   {marcado && (
@@ -547,7 +548,7 @@ export default function RemitoQRPage() {
                 <div key={m.id} className={styles.retornoRow}>
                   <div className={styles.retornoInfo}>
                     <span className={styles.retornoNombre}>{m.material_nombre || m.descripcion_libre}</span>
-                    <span className={styles.retornoSub}>Salida: {m.cantidad_egreso} {m.unidad}</span>
+                    <span className={styles.retornoSub}>Salida: {formatStockAbreviado(m.cantidad_egreso, m.unidad)}</span>
                   </div>
                   <div className={styles.retornoCant}>
                     <input type="number" min="0" max={m.cantidad_egreso} step="any"
@@ -557,7 +558,7 @@ export default function RemitoQRPage() {
                         const val = e.target.value === '' ? 0 : Number(e.target.value)
                         setRetornoMateriales(prev => ({ ...prev, [m.id]: val }))
                       }} />
-                    <span className={styles.retornoUnidad}>{m.unidad}</span>
+                    <span className={styles.retornoUnidad}>{pluralizarUnidad(m.unidad, retornoMateriales[m.id] ?? 0)}</span>
                   </div>
                 </div>
               ))}
@@ -710,7 +711,7 @@ export default function RemitoQRPage() {
               <span className={styles.listaIdx}>{idx + 1}</span>
               <div className={styles.listaInfo}>
                 <span className={styles.listaNombre}>{m.material_nombre || m.descripcion_libre}</span>
-                <span className={styles.listaCodigo}>{m.cantidad_egreso} {m.unidad}</span>
+                <span className={styles.listaCodigo}>{formatStockAbreviado(m.cantidad_egreso, m.unidad)}</span>
               </div>
             </div>
           ))}
@@ -726,7 +727,7 @@ export default function RemitoQRPage() {
               <div className={styles.listaInfo}>
                 <span className={styles.listaNombre}>{m.material_nombre || m.descripcion_libre}</span>
                 <span className={styles.listaCodigo}>
-                  Vuelven: {m.cantidad_retorno ?? m.cantidad_egreso} {m.unidad}
+                  Vuelven: {formatStockAbreviado(m.cantidad_retorno ?? m.cantidad_egreso, m.unidad)}
                 </span>
               </div>
             </div>
@@ -800,7 +801,7 @@ export default function RemitoQRPage() {
                 <div key={m.id} className={styles.retornoRow}>
                   <div className={styles.retornoInfo}>
                     <span className={styles.retornoNombre}>{m.material_nombre || m.descripcion_libre}</span>
-                    <span className={styles.retornoSub}>Salida: {m.cantidad_egreso} {m.unidad}</span>
+                    <span className={styles.retornoSub}>Salida: {formatStockAbreviado(m.cantidad_egreso, m.unidad)}</span>
                   </div>
                   <div className={styles.retornoCant}>
                     <input type="number" min="0" max={m.cantidad_egreso} step="any"
@@ -810,7 +811,7 @@ export default function RemitoQRPage() {
                         const val = e.target.value === '' ? 0 : Number(e.target.value)
                         setRetornoMateriales(prev => ({ ...prev, [m.id]: val }))
                       }} />
-                    <span className={styles.retornoUnidad}>{m.unidad}</span>
+                    <span className={styles.retornoUnidad}>{pluralizarUnidad(m.unidad, retornoMateriales[m.id] ?? 0)}</span>
                   </div>
                 </div>
               ))}

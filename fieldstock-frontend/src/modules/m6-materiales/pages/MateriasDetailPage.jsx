@@ -25,6 +25,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { MaterialesService } from '../services/materiales.service'
 import MarcaLogo from '@shared/components/MarcaLogo'
 import AgregarStockModal from '../components/AgregarStockModal'
+import { tipoUnidadLabel, abreviarUnidad, formatStockCompleto } from '@shared/utils/unidades'
 import styles from './MateriasDetailPage.module.css'
 
 // Formato dd/mm/yyyy + hh:mm a partir de un ISO timestamp.
@@ -171,7 +172,7 @@ export default function MateriasDetailPage() {
         <div className={styles.headerRight}>
           <span className={styles.totalLabel}>Stock actual</span>
           <span className={styles.totalValue}>
-            {material.stock_actual} <span className={styles.totalUnidad}>{material.unidad}</span>
+            {material.stock_actual}<span className={styles.totalUnidad}>{abreviarUnidad(material.unidad)}</span>
           </span>
         </div>
       </header>
@@ -181,8 +182,8 @@ export default function MateriasDetailPage() {
         <h2 className={styles.cardTitle}>Datos generales</h2>
         <div className={styles.camposGrid}>
           <Campo label="Marca"          value={material.marca} />
-          <Campo label="Unidad"         value={material.unidad} />
-          <Campo label="Stock mínimo"   value={`${material.stock_minimo} ${material.unidad || ''}`.trim()} />
+          <Campo label="Tipo"           value={tipoUnidadLabel(material.unidad)} />
+          <Campo label="Stock mínimo"   value={`${material.stock_minimo}${abreviarUnidad(material.unidad)}`} />
           <Campo label="ID interno"     value={material.id} mono />
           <Campo label="Creado"         value={formatDateTime(material.created_at)} mono />
           <Campo label="Última actualización" value={formatDateTime(material.updated_at)} mono />
@@ -202,10 +203,10 @@ export default function MateriasDetailPage() {
           <h2 className={styles.cardTitle}>Reposición sugerida</h2>
           <p className={styles.observacionesText}>
             En los últimos {sugerencia.ventanaDias} días se consumieron{' '}
-            <strong>{sugerencia.consumoTotal} {material.unidad}</strong> de este material
+            <strong>{formatStockCompleto(sugerencia.consumoTotal, material.unidad)}</strong> de este material
             (≈{sugerencia.consumoDiario}/día). Para cubrir {sugerencia.coberturaDias} días más
             de ese ritmo, convendría reponer aproximadamente{' '}
-            <strong>{sugerencia.cantidadSugerida} {material.unidad}</strong>.
+            <strong>{formatStockCompleto(sugerencia.cantidadSugerida, material.unidad)}</strong>.
           </p>
         </section>
       )}

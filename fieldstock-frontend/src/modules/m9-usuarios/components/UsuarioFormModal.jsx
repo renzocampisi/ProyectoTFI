@@ -10,6 +10,7 @@
 import { useState, useEffect } from 'react'
 import { ROLES, ROLE_LABELS } from '@shared/constants/roles'
 import { UsuariosService } from '../services/usuarios.service'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './UsuarioFormModal.module.css'
 
 const ROLES_OPTIONS = [
@@ -20,6 +21,7 @@ const ROLES_OPTIONS = [
 ]
 
 export default function UsuarioFormModal({ usuario, onClose, onCreated, onUpdated }) {
+  useLockBodyScroll()
   const esEdicion = Boolean(usuario)
   const [form, setForm] = useState({
     email:     usuario?.email     || '',

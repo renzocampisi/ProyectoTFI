@@ -12,9 +12,12 @@
  */
 import { useState } from 'react'
 import { MaterialesService } from '../services/materiales.service'
+import { formatStockAbreviado, pluralizarUnidad } from '@shared/utils/unidades'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './AgregarStockModal.module.css'
 
 export default function AgregarStockModal({ material, onClose, onSuccess }) {
+  useLockBodyScroll()
   const [cantidad,   setCantidad]   = useState('')
   const [procesando, setProcesando] = useState(false)
   const [error,      setError]      = useState(null)
@@ -49,7 +52,7 @@ export default function AgregarStockModal({ material, onClose, onSuccess }) {
           {material.marca && <div className={styles.matMarca}>{material.marca}</div>}
           <div className={styles.matStats}>
             <span>Stock actual:</span>
-            <strong>{material.stock_actual} {material.unidad}</strong>
+            <strong>{formatStockAbreviado(material.stock_actual, material.unidad)}</strong>
           </div>
         </div>
 
@@ -65,11 +68,11 @@ export default function AgregarStockModal({ material, onClose, onSuccess }) {
               onChange={e => { setCantidad(e.target.value); setError(null) }}
               autoFocus
               disabled={procesando} />
-            <span className={styles.unidadTag}>{material.unidad}</span>
+            <span className={styles.unidadTag}>{pluralizarUnidad(material.unidad, num || 2)}</span>
           </div>
           {valida && (
             <span className={styles.preview}>
-              → Stock final: <strong>{nuevoStock} {material.unidad}</strong>
+              → Stock final: <strong>{formatStockAbreviado(nuevoStock, material.unidad)}</strong>
             </span>
           )}
         </div>

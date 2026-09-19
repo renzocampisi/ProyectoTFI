@@ -3,7 +3,69 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MaterialesService } from '../services/materiales.service'
 import DuplicateMaterialModal from '../components/DuplicateMaterialModal'
+import { formatStockAbreviado } from '@shared/utils/unidades'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './MateriasNewPage.module.css'
+
+// Modales inline "agregar unidad/marca nueva" — separados del componente
+// principal para poder llamar useLockBodyScroll() solo mientras están
+// montados, sin violar reglas de hooks (el padre tiene returns condicionales).
+function NuevaUnidadModal({ valor, onChange, onEnter, error, onCancel, onAgregar }) {
+  useLockBodyScroll()
+  return (
+    <div className={styles.modalOverlay} onClick={onCancel}>
+      <div className={styles.modalCard} onClick={e => e.stopPropagation()}>
+        <h3 className={styles.modalTitle}>Nueva unidad de medida</h3>
+        <p className={styles.modalHelp}>
+          Se guarda en este navegador y queda disponible para los próximos
+          materiales que crees acá.
+        </p>
+        <input type="text" className={styles.input} autoFocus
+          placeholder="Ej: bolsa, m², pieza..."
+          value={valor}
+          onChange={onChange}
+          onKeyDown={onEnter} />
+        {error && <span className={styles.error}>{error}</span>}
+        <div className={styles.modalActions}>
+          <button type="button" className={styles.btnGhost} onClick={onCancel}>
+            Cancelar
+          </button>
+          <button type="button" className={styles.btnPrimary} onClick={onAgregar}>
+            Agregar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function NuevaMarcaModal({ valor, onChange, onEnter, onCancel, onAgregar }) {
+  useLockBodyScroll()
+  return (
+    <div className={styles.modalOverlay} onClick={onCancel}>
+      <div className={styles.modalCard} onClick={e => e.stopPropagation()}>
+        <h3 className={styles.modalTitle}>Nueva marca</h3>
+        <p className={styles.modalHelp}>
+          Si querés que el logo se muestre en el detalle, el nombre tiene que
+          coincidir con el archivo cargado en el catálogo de marcas.
+        </p>
+        <input type="text" className={styles.input} autoFocus
+          placeholder="Ej: Tacsa, Roda, Precincor"
+          value={valor}
+          onChange={onChange}
+          onKeyDown={onEnter} />
+        <div className={styles.modalActions}>
+          <button type="button" className={styles.btnGhost} onClick={onCancel}>
+            Cancelar
+          </button>
+          <button type="button" className={styles.btnPrimary} onClick={onAgregar}>
+            Agregar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // Unidades base que vienen con el sistema. Si el usuario crea unidades
 // propias via el botón "+", se persisten en localStorage para tenerlas
@@ -46,12 +108,32 @@ export default function MateriasNewPage() {
   // Estado del modal "agregar unidad nueva"
   const [showNuevaUnidad, setShowNuevaUnidad] = useState(false)
   const [nuevaUnidadValor, setNuevaUnidadValor] = useState('')
+  // Estado del modal "agregar marca nueva" — mismo patrón que unidad nueva.
+  // Antes la marca era texto libre con autocomplete (datalist), lo que
+  // permitía tipeos distintos para la misma marca (mayúsculas, espacios) y
+  // rompía el matching de MarcaLogo contra /marcas/<slug>.png (issue mobile
+  // testing: logo no aparecía por mismatch de texto).
+  const [showNuevaMarca, setShowNuevaMarca] = useState(false)
+  const [nuevaMarcaValor, setNuevaMarcaValor] = useState('')
   // Word #B: si al intentar crear detectamos un duplicado, guardamos el
   // material existente acá y mostramos el modal preguntando si sumar stock.
   const [duplicado, setDuplicado] = useState(null)
 
   // Lista combinada (base + custom) para el select
   const todasLasUnidades = [...UNIDADES_BASE, ...unidadesExtra]
+
+  // Marcas para el select: las ya usadas en el catálogo + la que esté
+  // seleccionada en el form (por si viene de agregar una nueva recién).
+  const todasLasMarcas = [...new Set([...marcasExistentes, form.marca].filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b))
+
+  const handleAgregarMarca = () => {
+    const nueva = nuevaMarcaValor.trim()
+    if (!nueva) return
+    set('marca', nueva)
+    setNuevaMarcaValor('')
+    setShowNuevaMarca(false)
+  }
 
   const handleAgregarUnidad = () => {
     const nueva = nuevaUnidadValor.trim().toLowerCase()
@@ -156,7 +238,7 @@ export default function MateriasNewPage() {
         <span className={styles.exitoIcon}>✓</span>
         <h2 className={styles.exitoTitle}>Material registrado</h2>
         <p className={styles.exitoNombre}>{guardado.nombre}</p>
-        <p className={styles.exitoStock}>Stock inicial: {guardado.stock_actual} {guardado.unidad}</p>
+        <p className={styles.exitoStock}>Stock inicial: {formatStockAbreviado(guardado.stock_actual, guardado.unidad)}</p>
         <div className={styles.exitoActions}>
           <button className={styles.btnPrimary} onClick={() => navigate('/materiales')}>Ver catálogo</button>
           <button className={styles.btnGhost}   onClick={() => { setForm(INICIAL); setGuardado(null) }}>Registrar otro</button>
@@ -207,14 +289,18 @@ export default function MateriasNewPage() {
               <label className={styles.label} htmlFor="marca">
                 Marca <span className={styles.optional}>(opcional)</span>
               </label>
-              <input id="marca" type="text" className={styles.input}
-                list="marcas-existentes"
-                placeholder="Ej: Tacsa, Roda, Precincor"
-                value={form.marca} onChange={e => set('marca', e.target.value)} />
-              {/* datalist habilita autocomplete con marcas ya usadas (Word #17 + #20) */}
-              <datalist id="marcas-existentes">
-                {marcasExistentes.map(m => <option key={m} value={m} />)}
-              </datalist>
+              <div className={styles.unidadRow}>
+                <select id="marca" className={styles.select}
+                  value={form.marca} onChange={e => set('marca', e.target.value)}>
+                  <option value="">Sin marca</option>
+                  {todasLasMarcas.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <button type="button" className={styles.btnIcon}
+                  onClick={() => setShowNuevaMarca(true)}
+                  title="Agregar marca nueva">
+                  +
+                </button>
+              </div>
             </div>
             <div className={`${styles.field} ${styles.fullWidth}`}>
               <label className={styles.label} htmlFor="descripcion">Descripción <span className={styles.optional}>(opcional)</span></label>
@@ -264,30 +350,25 @@ export default function MateriasNewPage() {
 
       {/* Modal: agregar nueva unidad de medida (Word #21) */}
       {showNuevaUnidad && (
-        <div className={styles.modalOverlay} onClick={() => setShowNuevaUnidad(false)}>
-          <div className={styles.modalCard} onClick={e => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>Nueva unidad de medida</h3>
-            <p className={styles.modalHelp}>
-              Se guarda en este navegador y queda disponible para los próximos
-              materiales que crees acá.
-            </p>
-            <input type="text" className={styles.input} autoFocus
-              placeholder="Ej: bolsa, m², pieza..."
-              value={nuevaUnidadValor}
-              onChange={e => setNuevaUnidadValor(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAgregarUnidad() } }} />
-            {errores.nuevaUnidad && <span className={styles.error}>{errores.nuevaUnidad}</span>}
-            <div className={styles.modalActions}>
-              <button type="button" className={styles.btnGhost}
-                onClick={() => { setShowNuevaUnidad(false); setNuevaUnidadValor(''); setErrores(e => ({ ...e, nuevaUnidad: undefined })) }}>
-                Cancelar
-              </button>
-              <button type="button" className={styles.btnPrimary} onClick={handleAgregarUnidad}>
-                Agregar
-              </button>
-            </div>
-          </div>
-        </div>
+        <NuevaUnidadModal
+          valor={nuevaUnidadValor}
+          onChange={e => setNuevaUnidadValor(e.target.value)}
+          onEnter={e => { if (e.key === 'Enter') { e.preventDefault(); handleAgregarUnidad() } }}
+          error={errores.nuevaUnidad}
+          onCancel={() => { setShowNuevaUnidad(false); setNuevaUnidadValor(''); setErrores(e => ({ ...e, nuevaUnidad: undefined })) }}
+          onAgregar={handleAgregarUnidad}
+        />
+      )}
+
+      {/* Modal: agregar marca nueva */}
+      {showNuevaMarca && (
+        <NuevaMarcaModal
+          valor={nuevaMarcaValor}
+          onChange={e => setNuevaMarcaValor(e.target.value)}
+          onEnter={e => { if (e.key === 'Enter') { e.preventDefault(); handleAgregarMarca() } }}
+          onCancel={() => { setShowNuevaMarca(false); setNuevaMarcaValor('') }}
+          onAgregar={handleAgregarMarca}
+        />
       )}
 
       {/* Modal de duplicado (Word #B) — aparece si checkDuplicate encontró

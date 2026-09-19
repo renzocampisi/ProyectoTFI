@@ -12,6 +12,7 @@
 import { useState } from 'react'
 import { ROLES, ROLE_LABELS } from '@shared/constants/roles'
 import { InvitacionesService } from '../services/invitaciones.service'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import stylesForm   from './UsuarioFormModal.module.css'
 import stylesReveal from './PasswordRevealModal.module.css'
 
@@ -22,6 +23,7 @@ const ROLES_INVITABLES = [
 ]
 
 export default function InvitarModal({ onClose }) {
+  useLockBodyScroll()
   const [role, setRole] = useState(ROLES.OPERARIO)
   const [generando, setGenerando] = useState(false)
   const [error, setError] = useState(null)

@@ -17,6 +17,7 @@ import {
 } from 'react-icons/lu'
 import { useDashboard } from '../hooks/useDashboard'
 import EstadoRemitoBadge from '@modules/m5-remito/components/EstadoRemitoBadge'
+import { formatStockAbreviado, pluralizarUnidad } from '@shared/utils/unidades'
 import styles from './DashboardPage.module.css'
 
 // Formateo de fecha corto — solo día/mes (la home es de un vistazo rápido)
@@ -186,11 +187,11 @@ export default function DashboardPage() {
                       <div className={styles.listMain}>
                         <span className={styles.listTitle}>{m.nombre}</span>
                         <span className={styles.listSub}>
-                          {m.marca ? `${m.marca} · ` : ''}mínimo: {min} {m.unidad}
+                          {m.marca ? `${m.marca} · ` : ''}mínimo: {formatStockAbreviado(min, m.unidad)}
                         </span>
                       </div>
                       <span className={`${styles.listMeta} ${severidad}`}>
-                        {stock} {m.unidad}
+                        {formatStockAbreviado(stock, m.unidad)}
                       </span>
                     </Link>
                   )
@@ -222,7 +223,7 @@ export default function DashboardPage() {
           {topMateriales.length === 0
             ? <div className={styles.empty}>Todavía no hay consumo de materiales registrado.</div>
             : <BarList items={topMateriales.map(m => ({ id: m.id, nombre: m.nombre, valor: m.consumo, unidad: m.unidad }))}
-                unidadSufijo={item => item.unidad} />
+                unidadSufijo={item => pluralizarUnidad(item.unidad, item.valor)} />
           }
         </div>
       </div>

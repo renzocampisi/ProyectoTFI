@@ -2,9 +2,11 @@
 import { useState, useEffect } from 'react'
 import { RemitosService } from '../services/remitos.service'
 import { ObrasService } from '@modules/m4-obra/services/obras.service'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './RemitoEditModal.module.css'
 
 export default function RemitoEditModal({ remito, onClose, onSaved }) {
+  useLockBodyScroll()
   const [form, setForm] = useState({
     obraId:            remito.obra_id            || '',
     responsable:       remito.responsable       || '',

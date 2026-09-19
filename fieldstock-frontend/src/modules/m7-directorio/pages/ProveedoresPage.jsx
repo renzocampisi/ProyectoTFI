@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ProveedoresService } from '../services/directorio.service'
 import { useOrdenAlfabetico } from '@shared/hooks/useOrdenAlfabetico'
+import useLockBodyScroll from '@shared/hooks/useLockBodyScroll'
 import styles from './DirectorioPage.module.css'
 
 const PROVINCIAS = [
@@ -101,7 +102,25 @@ const CAMPOS = [
   { key: 'notas',     label: 'Notas',                 placeholder: 'Condiciones de pago, descuentos…', req: false, tipo: 'textarea' },
 ]
 
+// Extraído para poder llamar useLockBodyScroll() solo mientras está montado.
+function ConfirmDeleteModal({ item, onClose, onConfirm }) {
+  useLockBodyScroll()
+  return (
+    <div className={styles.overlay}>
+      <div className={styles.modal}>
+        <h3 className={styles.modalTitle}>¿Eliminar proveedor?</h3>
+        <p className={styles.confirmText}>Vas a eliminar <strong>{item.nombre}</strong>. Esta acción no se puede deshacer.</p>
+        <div className={styles.modalActions}>
+          <button className={styles.btnGhost} onClick={onClose}>Cancelar</button>
+          <button className={styles.btnDanger} onClick={onConfirm}>Sí, eliminar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function FormModal({ titulo, inicial, onSave, onClose, saving, error }) {
+  useLockBodyScroll()
   const [form, setForm] = useState(inicial)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const validar = () => CAMPOS.filter(c => c.req).every(c => form[c.key]?.trim())
@@ -234,16 +253,7 @@ export default function ProveedoresPage() {
       )}
 
       {confirmDel && (
-        <div className={styles.overlay}>
-          <div className={styles.modal}>
-            <h3 className={styles.modalTitle}>¿Eliminar proveedor?</h3>
-            <p className={styles.confirmText}>Vas a eliminar <strong>{confirmDel.nombre}</strong>. Esta acción no se puede deshacer.</p>
-            <div className={styles.modalActions}>
-              <button className={styles.btnGhost} onClick={() => setConfirmDel(null)}>Cancelar</button>
-              <button className={styles.btnDanger} onClick={handleDelete}>Sí, eliminar</button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal item={confirmDel} onClose={() => setConfirmDel(null)} onConfirm={handleDelete} />
       )}
 
       <div className={styles.header}>

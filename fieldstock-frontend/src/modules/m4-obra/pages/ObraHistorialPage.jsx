@@ -10,6 +10,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ObrasService } from '../services/obras.service'
+import { formatStockAbreviado } from '@shared/utils/unidades'
 import styles from './ObraHistorialPage.module.css'
 
 function formatFecha(iso) {
@@ -74,7 +75,7 @@ export default function ObraHistorialPage() {
         ) : (
           <ul className={styles.lista}>
             {insumosUtilizados.map((i, idx) => (
-              <li key={idx}>{i.nombre} — {i.cantidad} {i.unidad}</li>
+              <li key={idx}>{i.nombre} — {formatStockAbreviado(i.cantidad, i.unidad)}</li>
             ))}
           </ul>
         )}
@@ -89,7 +90,7 @@ export default function ObraHistorialPage() {
           <p className={styles.hint}>Lo cotizado en los presupuestos de la obra — puede diferir de lo que finalmente salió por remito.</p>
           <ul className={styles.lista}>
             {insumosPresupuestados.map((i, idx) => (
-              <li key={idx}>{i.nombre} — {i.cantidad} {i.unidad}</li>
+              <li key={idx}>{i.nombre} — {formatStockAbreviado(i.cantidad, i.unidad)}</li>
             ))}
           </ul>
         </section>
