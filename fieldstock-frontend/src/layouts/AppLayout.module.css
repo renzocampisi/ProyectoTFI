@@ -569,7 +569,10 @@
        descarta `bottom` — terminaba pegado arriba sin importar el
        viewport ni el user agent. Este era el bug real de todo el hilo. */
     top: auto;
-    bottom: 0;
+    /* +2.5mm respecto al borde inferior real: en mobile la barra de
+       acciones del navegador/sistema queda pegada justo debajo y se
+       solapaba con el sidebar. */
+    bottom: 2.5mm;
     left: 0;
     right: 0;
     z-index: 100;
